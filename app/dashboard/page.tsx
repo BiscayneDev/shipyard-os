@@ -17,7 +17,11 @@ interface Session {
 
 interface Task {
   id: string
+  title: string
   column: string
+  assignee: string
+  priority: string
+  description?: string
 }
 
 interface Repo {
@@ -428,6 +432,90 @@ export default function DashboardPage() {
           </div>
         </section>
       </div>
+
+      {/* ── What the Team is Working On ──────────────────────────── */}
+      <section className="space-y-3">
+        <p className="text-xs font-mono uppercase tracking-widest text-zinc-600">What the Team is Working On</p>
+        <div
+          className="rounded-xl p-5"
+          style={{ backgroundColor: "#111118", border: "1px solid #1a1a2e" }}
+        >
+          {loading ? (
+            <p className="text-xs text-zinc-600 text-center py-4">Loading...</p>
+          ) : (() => {
+            const active = tasks.filter((t) => t.column === "in-progress" || t.column === "in-review")
+            if (active.length === 0) {
+              return (
+                <p className="text-xs text-zinc-600 text-center py-4">
+                  All quiet — no active tasks right now.
+                </p>
+              )
+            }
+            const byAgent = AGENT_DEFS.map((agent) => ({
+              agent,
+              tasks: active.filter((t) => t.assignee === agent.name.toLowerCase().replace(" ", "-") || t.assignee === agent.keys[0]),
+            })).filter((g) => g.tasks.length > 0)
+            const unassigned = active.filter((t) => !AGENT_DEFS.some((a) => a.keys.includes(t.assignee as never) || a.name.toLowerCase().replace(" ", "-") === t.assignee))
+            return (
+              <div className="space-y-4">
+                {byAgent.map(({ agent, tasks: agentTasks }) => (
+                  <div key={agent.name} className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-base">{agent.emoji}</span>
+                      <span className="text-xs font-semibold" style={{ color: agent.accent }}>{agent.name}</span>
+                      <span className="text-[10px] text-zinc-700">—</span>
+                    </div>
+                    <div className="space-y-1.5 pl-6">
+                      {agentTasks.map((task) => (
+                        <div key={task.id} className="flex items-start gap-2">
+                          <span
+                            className="mt-1 shrink-0 text-[10px] px-1.5 py-0.5 rounded-full font-medium"
+                            style={{
+                              backgroundColor: task.column === "in-review" ? "rgba(245,158,11,0.15)" : "rgba(49,120,198,0.15)",
+                              color: task.column === "in-review" ? "#f59e0b" : "#3178c6",
+                            }}
+                          >
+                            {task.column === "in-review" ? "Review" : "WIP"}
+                          </span>
+                          <div>
+                            <p className="text-xs text-zinc-300 font-medium leading-snug">{task.title}</p>
+                            {task.description && (
+                              <p className="text-[10px] text-zinc-600 mt-0.5 line-clamp-1">{task.description.replace("---", "").trim()}</p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+                {unassigned.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-base">⚪</span>
+                      <span className="text-xs font-semibold text-zinc-500">Unassigned</span>
+                    </div>
+                    <div className="space-y-1.5 pl-6">
+                      {unassigned.map((task) => (
+                        <div key={task.id} className="flex items-start gap-2">
+                          <span className="mt-1 shrink-0 text-[10px] px-1.5 py-0.5 rounded-full font-medium" style={{ backgroundColor: "rgba(113,113,122,0.15)", color: "#71717a" }}>
+                            {task.column === "in-review" ? "Review" : "WIP"}
+                          </span>
+                          <p className="text-xs text-zinc-400 leading-snug">{task.title}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <div className="pt-2 border-t border-zinc-800/40">
+                  <a href="/tasks" className="text-xs font-medium transition-colors hover:text-white" style={{ color: "#7c3aed" }}>
+                    View full board →
+                  </a>
+                </div>
+              </div>
+            )
+          })()}
+        </div>
+      </section>
     </div>
   )
 }
