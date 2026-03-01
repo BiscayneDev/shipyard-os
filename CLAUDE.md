@@ -135,3 +135,28 @@ These always appear at the top of `/projects`, in this order:
 - Use `any` in TypeScript
 - Push without running `npm run build` first
 - Work in ~/clawd — that's Vic's workspace
+
+## Task Storage (Updated)
+
+Tasks are now persisted in **Vercel KV** in production, with local JSON fallback for dev.
+
+- **KV key:** `"tasks"` (JSON array of Task[])
+- **Detection:** `process.env.KV_REST_API_URL` → KV; otherwise → `data/tasks.json`
+- **Fallback:** if KV throws, silently falls back to local file
+- **Env var needed on Vercel:** `KV_REST_API_URL` + `KV_REST_API_TOKEN` (set in Vercel dashboard under Storage → KV)
+
+### Agent Task Lifecycle API
+
+Vic calls these to auto-update the Kanban when spawning/completing agents:
+
+| Route | Method | Body | Returns |
+|-------|--------|------|---------|
+| `/api/tasks/agent-spawn` | POST | `{ agent, title, description?, priority?, tags? }` | `{ id, title, column }` |
+| `/api/tasks/agent-done` | POST | `{ id, summary? }` | `{ id, column }` |
+
+- `agent-spawn` creates task in `"in-progress"` immediately
+- `agent-done` moves task to `"in-review"` + appends summary to description
+- `PATCH /api/tasks/[id]` supports `{ column }` to move to any column
+
+### Agent Type
+- `wallet` renamed → **`baron`** everywhere (type, emoji, label maps, data/tasks.json)
