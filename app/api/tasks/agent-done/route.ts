@@ -46,35 +46,42 @@ async function writeTasks(tasks: Task[]): Promise<void> {
   await writeTasksToFile(tasks)
 }
 
-// ── Route handlers ───────────────────────────────────────────────────────────
-
-export async function GET() {
-  const tasks = await readTasks()
-  return NextResponse.json(tasks)
-}
+// ── POST /api/tasks/agent-done ───────────────────────────────────────────────
+// Body: { id, summary? }
+// Moves task to "in-review", optionally appends summary to description.
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json()
-    const tasks = await readTasks()
+    const body = await request.json() as { id: string; summary?: string }
 
-    const newTask: Task = {
-      id: `task-${Date.now()}`,
-      title: body.title,
-      description: body.description || "",
-      column: body.column || "backlog",
-      priority: body.priority || "medium",
-      assignee: body.assignee || "unassigned",
-      tags: body.tags || [],
-      createdAt: new Date().toISOString(),
+    if (!body.id || typeof body.id !== "string") {
+      return NextResponse.json({ error: "id is required" }, { status: 400 })
+    }
+
+    const tasks = await readTasks()
+    const index = tasks.findIndex((t) => t.id === body.id)
+
+    if (index === -1) {
+      return NextResponse.json({ error: "Task not found" }, { status: 404 })
+    }
+
+    const existing = tasks[index]
+    const updatedDescription = body.summary
+      ? [existing.description, body.summary].filter(Boolean).join("\n\n---\n\n")
+      : existing.description
+
+    const updatedTask: Task = {
+      ...existing,
+      column: "in-review",
+      description: updatedDescription,
       updatedAt: new Date().toISOString(),
     }
 
-    const updated = [...tasks, newTask]
+    const updated = tasks.map((t, i) => (i === index ? updatedTask : t))
     await writeTasks(updated)
 
-    return NextResponse.json(newTask, { status: 201 })
+    return NextResponse.json({ id: updatedTask.id, column: updatedTask.column })
   } catch {
-    return NextResponse.json({ error: "Failed to create task" }, { status: 400 })
+    return NextResponse.json({ error: "Failed to mark task done" }, { status: 400 })
   }
 }

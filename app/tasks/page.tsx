@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useRef } from "react"
 import {
   DragDropContext,
   Droppable,
@@ -22,6 +22,8 @@ const COLUMN_COLORS: Record<Column, string> = {
   done: "#22c55e",
 }
 
+const AUTO_REFRESH_INTERVAL = 30_000 // 30 seconds
+
 interface AddTaskFormState {
   title: string
   assignee: Agent
@@ -34,27 +36,167 @@ const INITIAL_FORM: AddTaskFormState = {
   priority: "medium",
 }
 
+function timeAgo(date: Date): string {
+  const seconds = Math.floor((Date.now() - date.getTime()) / 1000)
+  if (seconds < 10) return "just now"
+  if (seconds < 60) return `${seconds}s ago`
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) return `${minutes}m ago`
+  const hours = Math.floor(minutes / 60)
+  return `${hours}h ago`
+}
+
+// ── Task Card ────────────────────────────────────────────────────────────────
+
+interface TaskCardProps {
+  task: Task
+  accent: string
+  isDragging: boolean
+  draggableProps: React.HTMLAttributes<HTMLDivElement>
+  dragHandleProps: React.HTMLAttributes<HTMLDivElement> | null | undefined
+  innerRef: (element: HTMLElement | null) => void
+}
+
+function TaskCard({ task, accent, isDragging, draggableProps, dragHandleProps, innerRef }: TaskCardProps) {
+  const [expanded, setExpanded] = useState(false)
+  const hasDescription = Boolean(task.description && task.description.trim().length > 0)
+
+  return (
+    <div
+      ref={innerRef}
+      {...draggableProps}
+      {...dragHandleProps}
+      className="rounded-lg p-4 space-y-3 transition-shadow"
+      style={{
+        backgroundColor: "#111118",
+        border: `1px solid ${isDragging ? `${accent}60` : "#1a1a2e"}`,
+        borderLeft: `3px solid ${PRIORITY_CONFIG[task.priority].border}`,
+        boxShadow: isDragging ? `0 0 20px ${accent}20` : "none",
+        ...(draggableProps as { style?: React.CSSProperties }).style,
+      }}
+    >
+      {/* Title — click to expand if description exists */}
+      <p
+        className={[
+          "text-sm font-semibold text-white leading-tight",
+          hasDescription ? "cursor-pointer hover:text-zinc-300 transition-colors" : "",
+        ].join(" ")}
+        onClick={hasDescription ? () => setExpanded((v) => !v) : undefined}
+        title={hasDescription ? (expanded ? "Click to collapse" : "Click to expand") : undefined}
+      >
+        {task.title}
+        {hasDescription && (
+          <span className="ml-1.5 text-zinc-600 text-xs font-normal">
+            {expanded ? "▲" : "▼"}
+          </span>
+        )}
+      </p>
+
+      {/* Expandable description */}
+      {hasDescription && (
+        <div
+          className={[
+            "text-xs text-zinc-400 leading-relaxed transition-all overflow-hidden",
+            expanded ? "max-h-[500px]" : "max-h-[3.6em]",
+          ].join(" ")}
+          style={{
+            display: "-webkit-box",
+            WebkitBoxOrient: expanded ? undefined : "vertical",
+            WebkitLineClamp: expanded ? undefined : 3,
+            overflow: "hidden",
+          } as React.CSSProperties}
+        >
+          {task.description}
+        </div>
+      )}
+
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span
+            className="flex items-center justify-center w-6 h-6 rounded-full text-xs"
+            style={{ backgroundColor: "#1a1a2e" }}
+            title={AGENT_LABELS[task.assignee]}
+          >
+            {AGENT_EMOJI[task.assignee]}
+          </span>
+          <span className="text-xs text-zinc-500">
+            {AGENT_LABELS[task.assignee]}
+          </span>
+        </div>
+
+        <span
+          className="text-xs px-2 py-0.5 rounded-full font-medium"
+          style={{
+            backgroundColor: `${PRIORITY_CONFIG[task.priority].color}20`,
+            color: PRIORITY_CONFIG[task.priority].color,
+          }}
+        >
+          {PRIORITY_CONFIG[task.priority].label}
+        </span>
+      </div>
+
+      {task.tags.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {task.tags.map((tag) => (
+            <span
+              key={tag}
+              className="text-xs px-2 py-0.5 rounded-full"
+              style={{ backgroundColor: "#1a1a2e", color: "#71717a" }}
+            >
+              {tag}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Page ─────────────────────────────────────────────────────────────────────
+
 export default function TasksPage() {
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
   const [addingTo, setAddingTo] = useState<Column | null>(null)
   const [form, setForm] = useState<AddTaskFormState>(INITIAL_FORM)
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+  const [, setTick] = useState(0) // force re-render for timeAgo
+  const tasksSnapshotRef = useRef<string>("")
 
-  const fetchTasks = useCallback(async () => {
+  const fetchTasks = useCallback(async (silent = false) => {
     try {
       const res = await fetch("/api/tasks")
-      const data = await res.json()
-      setTasks(data)
+      const data: Task[] = await res.json()
+      const snapshot = JSON.stringify(data)
+
+      if (snapshot !== tasksSnapshotRef.current) {
+        tasksSnapshotRef.current = snapshot
+        setTasks(data)
+        setLastUpdated(new Date())
+      }
     } catch {
-      setTasks([])
+      if (!silent) setTasks([])
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }, [])
 
+  // Initial load
   useEffect(() => {
-    fetchTasks()
+    fetchTasks(false)
   }, [fetchTasks])
+
+  // Auto-refresh every 30s (silent)
+  useEffect(() => {
+    const interval = setInterval(() => fetchTasks(true), AUTO_REFRESH_INTERVAL)
+    return () => clearInterval(interval)
+  }, [fetchTasks])
+
+  // Tick every 15s to update "X ago" display
+  useEffect(() => {
+    const interval = setInterval(() => setTick((n) => n + 1), 15_000)
+    return () => clearInterval(interval)
+  }, [])
 
   const onDragEnd = async (result: DropResult) => {
     const { draggableId, destination } = result
@@ -67,6 +209,7 @@ export default function TasksPage() {
     setTasks((prev) =>
       prev.map((t) => (t.id === draggableId ? { ...t, column: newColumn } : t))
     )
+    setLastUpdated(new Date())
 
     try {
       await fetch(`/api/tasks/${draggableId}`, {
@@ -75,7 +218,7 @@ export default function TasksPage() {
         body: JSON.stringify({ column: newColumn }),
       })
     } catch {
-      fetchTasks()
+      fetchTasks(false)
     }
   }
 
@@ -94,8 +237,9 @@ export default function TasksPage() {
           tags: [],
         }),
       })
-      const newTask = await res.json()
+      const newTask: Task = await res.json()
       setTasks((prev) => [...prev, newTask])
+      setLastUpdated(new Date())
       setForm(INITIAL_FORM)
       setAddingTo(null)
     } catch {
@@ -116,21 +260,36 @@ export default function TasksPage() {
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
-      <div className="space-y-1">
-        <h1 className="text-3xl font-bold text-white">Tasks</h1>
-        <p className="text-sm text-zinc-600">
-          Vic delegates. Agents execute.
-        </p>
+      {/* Header */}
+      <div className="flex items-end justify-between">
+        <div className="space-y-1">
+          <h1 className="text-3xl font-bold text-white">Tasks</h1>
+          <p className="text-sm text-zinc-600">
+            Vic delegates. Agents execute.
+          </p>
+        </div>
+        {lastUpdated && (
+          <p className="text-xs text-zinc-600 pb-1">
+            Updated {timeAgo(lastUpdated)}
+          </p>
+        )}
       </div>
 
       <DragDropContext onDragEnd={onDragEnd}>
-        <div className="flex gap-4 overflow-x-auto pb-4 -mx-1 px-1" style={{ scrollSnapType: "x mandatory" }}>
+        <div
+          className="flex gap-4 overflow-x-auto pb-4 -mx-1 px-1"
+          style={{ scrollSnapType: "x mandatory" }}
+        >
           {COLUMNS.map(({ id: colId, label }) => {
             const colTasks = tasksByColumn(colId)
             const accent = COLUMN_COLORS[colId]
 
             return (
-              <div key={colId} className="space-y-3 shrink-0" style={{ width: "280px", scrollSnapAlign: "start" }}>
+              <div
+                key={colId}
+                className="space-y-3 shrink-0"
+                style={{ width: "280px", scrollSnapAlign: "start" }}
+              >
                 {/* Column Header */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -172,73 +331,14 @@ export default function TasksPage() {
                           index={index}
                         >
                           {(provided, snapshot) => (
-                            <div
-                              ref={provided.innerRef}
-                              {...provided.draggableProps}
-                              {...provided.dragHandleProps}
-                              className="rounded-lg p-4 space-y-3 transition-shadow"
-                              style={{
-                                backgroundColor: "#111118",
-                                borderLeft: `3px solid ${PRIORITY_CONFIG[task.priority].border}`,
-                                border: `1px solid ${snapshot.isDragging ? `${accent}60` : "#1a1a2e"}`,
-                                borderLeftWidth: "3px",
-                                borderLeftColor:
-                                  PRIORITY_CONFIG[task.priority].border,
-                                boxShadow: snapshot.isDragging
-                                  ? `0 0 20px ${accent}20`
-                                  : "none",
-                                ...provided.draggableProps.style,
-                              }}
-                            >
-                              <p className="text-sm font-semibold text-white leading-tight">
-                                {task.title}
-                              </p>
-
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <span
-                                    className="flex items-center justify-center w-6 h-6 rounded-full text-xs"
-                                    style={{
-                                      backgroundColor: "#1a1a2e",
-                                    }}
-                                    title={AGENT_LABELS[task.assignee]}
-                                  >
-                                    {AGENT_EMOJI[task.assignee]}
-                                  </span>
-                                  <span className="text-xs text-zinc-500">
-                                    {AGENT_LABELS[task.assignee]}
-                                  </span>
-                                </div>
-
-                                <span
-                                  className="text-xs px-2 py-0.5 rounded-full font-medium"
-                                  style={{
-                                    backgroundColor: `${PRIORITY_CONFIG[task.priority].color}20`,
-                                    color:
-                                      PRIORITY_CONFIG[task.priority].color,
-                                  }}
-                                >
-                                  {PRIORITY_CONFIG[task.priority].label}
-                                </span>
-                              </div>
-
-                              {task.tags.length > 0 && (
-                                <div className="flex flex-wrap gap-1.5">
-                                  {task.tags.map((tag) => (
-                                    <span
-                                      key={tag}
-                                      className="text-xs px-2 py-0.5 rounded-full"
-                                      style={{
-                                        backgroundColor: "#1a1a2e",
-                                        color: "#71717a",
-                                      }}
-                                    >
-                                      {tag}
-                                    </span>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
+                            <TaskCard
+                              task={task}
+                              accent={accent}
+                              isDragging={snapshot.isDragging}
+                              draggableProps={provided.draggableProps}
+                              dragHandleProps={provided.dragHandleProps}
+                              innerRef={provided.innerRef}
+                            />
                           )}
                         </Draggable>
                       ))}
@@ -284,9 +384,7 @@ export default function TasksPage() {
                         }
                         className="flex-1 text-xs bg-[#0a0a0f] text-zinc-400 border border-zinc-800 rounded px-2 py-1 outline-none"
                       >
-                        {(
-                          Object.keys(AGENT_LABELS) as Agent[]
-                        ).map((a) => (
+                        {(Object.keys(AGENT_LABELS) as Agent[]).map((a) => (
                           <option key={a} value={a}>
                             {AGENT_EMOJI[a]} {AGENT_LABELS[a]}
                           </option>
@@ -337,9 +435,7 @@ export default function TasksPage() {
                       setForm(INITIAL_FORM)
                     }}
                     className="w-full text-xs text-zinc-600 hover:text-zinc-400 py-2 rounded-lg transition-colors"
-                    style={{
-                      border: "1px dashed #1a1a2e",
-                    }}
+                    style={{ border: "1px dashed #1a1a2e" }}
                   >
                     + Add Task
                   </button>

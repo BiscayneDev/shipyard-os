@@ -27,7 +27,7 @@
     "description": "Set up alerts for wallet balance thresholds across monitored addresses.",
     "column": "done",
     "priority": "high",
-    "assignee": "wallet",
+    "assignee": "baron",
     "tags": ["DeFi", "Monitoring"],
     "createdAt": "2026-02-20T08:00:00Z",
     "updatedAt": "2026-02-24T12:00:00Z"

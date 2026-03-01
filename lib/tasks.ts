@@ -1,6 +1,6 @@
 export type Priority = "high" | "medium" | "low"
 export type Column = "backlog" | "in-progress" | "in-review" | "done"
-export type Agent = "vic" | "scout" | "deal-flow" | "builder" | "wallet" | "unassigned"
+export type Agent = "vic" | "scout" | "deal-flow" | "builder" | "baron" | "unassigned"
 
 export interface Task {
   id: string
@@ -26,7 +26,7 @@ export const AGENT_EMOJI: Record<Agent, string> = {
   scout: "🔭",
   "deal-flow": "🤝",
   builder: "⚡",
-  wallet: "🏦",
+  baron: "🏦",
   unassigned: "⚪",
 }
 
@@ -35,7 +35,7 @@ export const AGENT_LABELS: Record<Agent, string> = {
   scout: "Scout",
   "deal-flow": "Deal Flow",
   builder: "Builder",
-  wallet: "Baron",
+  baron: "Baron",
   unassigned: "Unassigned",
 }
 
