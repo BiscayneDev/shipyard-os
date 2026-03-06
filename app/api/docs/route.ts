@@ -1,3 +1,4 @@
+import { WORKSPACE } from "@/lib/config"
 import { NextResponse } from "next/server"
 import { readFile, readdir, stat } from "fs/promises"
 import { join } from "path"
@@ -43,7 +44,7 @@ function titleFromFilename(filename: string): string {
 }
 
 async function loadScoutReports(): Promise<DocEntry[]> {
-  const dir = join(HOME, "clawd", "agents", "scout", "reports")
+  const dir = WORKSPACE.scout.reports
   const docs: DocEntry[] = []
   try {
     const files = await readdir(dir)
@@ -95,28 +96,28 @@ async function loadAllDocs(): Promise<DocEntry[]> {
   const [scoutReports, baron, builder, dealFlow, memory] = await Promise.all([
     loadScoutReports(),
     loadSingleDoc(
-      join(HOME, "clawd", "agents", "baron", "research.md"),
+      WORKSPACE.baron.research,
       "baron-research",
       "Baron's Research",
       "research",
       "Research"
     ),
     loadSingleDoc(
-      join(HOME, "clawd", "agents", "builder", "BUILDER.md"),
+      WORKSPACE.builder.doc,
       "builder-reference",
       "Builder Reference",
       "agent-docs",
       "Agent Docs"
     ),
     loadSingleDoc(
-      join(HOME, "clawd", "agents", "deal-flow", "DEAL_FLOW.md"),
+      WORKSPACE.dealFlow.doc,
       "deal-flow-reference",
       "Deal Flow Reference",
       "agent-docs",
       "Agent Docs"
     ),
     loadSingleDoc(
-      join(HOME, "clawd", "MEMORY.md"),
+      WORKSPACE.memoryFile,
       "memory",
       "Long-Term Memory",
       "memory",

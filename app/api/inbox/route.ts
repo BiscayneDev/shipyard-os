@@ -1,3 +1,4 @@
+import { BIN, GOG_ACCOUNT } from "@/lib/config"
 import { NextResponse } from "next/server"
 import { execFile } from "child_process"
 import { promisify } from "util"
@@ -59,7 +60,7 @@ export async function GET() {
 
   try {
     const { stdout } = await execFileAsync(
-      "/opt/homebrew/bin/gog",
+      BIN.gog,
       [
         "gmail",
         "messages",
@@ -69,7 +70,7 @@ export async function GET() {
         "8",
         "--json",
         "--account",
-        "halsey@biscayneventures.xyz",
+        GOG_ACCOUNT,
       ],
       { timeout: 10000 }
     )

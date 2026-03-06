@@ -1,52 +1,22 @@
 import { NextResponse } from "next/server"
+import { GATEWAY_URL, GATEWAY_TOKEN } from "@/lib/config"
 
-interface Session {
-  key: string
-  model?: string
-  status?: string
-  startedAt?: string
-  [key: string]: unknown
-}
-
-interface SessionsResponse {
-  sessions: Session[]
-}
+interface Session { key: string; model?: string; [key: string]: unknown }
 
 export async function GET() {
-  if (process.env.VERCEL || process.env.VERCEL_ENV) {
-    return NextResponse.json({ sessions: [] } satisfies SessionsResponse)
-  }
-
+  if (process.env.VERCEL || process.env.VERCEL_ENV) return NextResponse.json({ sessions: [] })
+  if (!GATEWAY_TOKEN) return NextResponse.json({ sessions: [] })
   try {
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 5000)
-
-    const res = await fetch("http://127.0.0.1:18789/api/sessions", {
-      headers: {
-        Authorization: "Bearer f062a35b477a3c87a59b897728cd96afb84a970b3faa6093",
-      },
-      signal: controller.signal,
+    const res = await fetch(`${GATEWAY_URL}/api/sessions`, {
+      headers: { Authorization: `Bearer ${GATEWAY_TOKEN}` },
+      signal: AbortSignal.timeout(5000),
     })
-
-    clearTimeout(timeoutId)
-
-    if (!res.ok) {
-      return NextResponse.json({ sessions: [] } satisfies SessionsResponse)
-    }
-
+    if (!res.ok) return NextResponse.json({ sessions: [] })
     const data: unknown = await res.json()
-
-    // Gateway may return array or { sessions: [...] }
-    if (Array.isArray(data)) {
-      return NextResponse.json({ sessions: data as Session[] } satisfies SessionsResponse)
-    }
-
-    if (data && typeof data === "object" && "sessions" in data) {
-      return NextResponse.json(data as SessionsResponse)
-    }
-
-    return NextResponse.json({ sessions: [] } satisfies SessionsResponse)
+    if (Array.isArray(data)) return NextResponse.json({ sessions: data as Session[] })
+    if (data && typeof data === "object" && "sessions" in data) return NextResponse.json(data)
+    return NextResponse.json({ sessions: [] })
   } catch {
-    return NextResponse.json({ sessions: [] } satisfies SessionsResponse)
+    return NextResponse.json({ sessions: [] })
   }
 }

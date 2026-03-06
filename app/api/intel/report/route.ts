@@ -1,9 +1,10 @@
+import { WORKSPACE } from "@/lib/config"
 import { NextResponse } from "next/server"
 import { readFile } from "fs/promises"
 import { homedir } from "os"
 import path from "path"
 
-const REPORT_PATH = path.join(homedir(), "clawd/agents/scout/reports/latest.json")
+const REPORT_PATH = WORKSPACE.scout.latest
 
 export async function GET() {
   try {

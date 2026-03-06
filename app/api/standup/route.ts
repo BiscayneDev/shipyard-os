@@ -1,3 +1,4 @@
+import { WORKSPACE } from "@/lib/config"
 import { NextResponse } from "next/server"
 import { readFile } from "fs/promises"
 import { homedir } from "os"
@@ -36,7 +37,7 @@ function parseMarkdownBullets(content: string): string[] {
 }
 
 export async function GET() {
-  const memoryDir = path.join(homedir(), "clawd", "memory")
+  const memoryDir = WORKSPACE.memory
 
   const today = getDateStr(0)
   const yesterday = getDateStr(1)

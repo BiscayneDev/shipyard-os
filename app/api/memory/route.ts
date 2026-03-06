@@ -1,3 +1,4 @@
+import { WORKSPACE } from "@/lib/config"
 import { NextRequest, NextResponse } from "next/server"
 import { readdir, readFile, stat } from "fs/promises"
 import { homedir } from "os"
@@ -37,8 +38,8 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const fileParam = searchParams.get("file")
 
-  const memoryDir = path.join(homedir(), "clawd", "memory")
-  const longTermPath = path.join(homedir(), "clawd", "MEMORY.md")
+  const memoryDir = WORKSPACE.memory
+  const longTermPath = WORKSPACE.memoryFile
 
   // Return file content
   if (fileParam) {

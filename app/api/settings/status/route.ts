@@ -1,3 +1,4 @@
+import { BIN, GATEWAY_URL } from "@/lib/config"
 import { NextResponse } from "next/server"
 import { execFile } from "child_process"
 import { promisify } from "util"
@@ -17,7 +18,7 @@ async function checkOpenClaw(): Promise<ServiceStatus> {
     return { id: "openclaw", name: "OpenClaw Gateway", description: "Local AI agent runtime", connected: false, error: "Not available on Vercel" }
   }
   try {
-    const res = await fetch("http://127.0.0.1:18789/api/health", { signal: AbortSignal.timeout(3000) })
+    const res = await fetch(`${GATEWAY_URL}/api/health`, { signal: AbortSignal.timeout(3000) })
     return { id: "openclaw", name: "OpenClaw Gateway", description: "Local AI agent runtime", connected: res.ok }
   } catch (err) {
     return { id: "openclaw", name: "OpenClaw Gateway", description: "Local AI agent runtime", connected: false, error: err instanceof Error ? err.message : "Unreachable" }
@@ -29,7 +30,7 @@ async function checkGoogleCalendar(): Promise<ServiceStatus> {
     return { id: "google", name: "Google Calendar", description: "via gog CLI", connected: false, error: "Not available on Vercel" }
   }
   try {
-    await execFileAsync("/opt/homebrew/bin/gog", ["auth", "list"], { timeout: 5000 })
+    await execFileAsync(BIN.gog, ["auth", "list"], { timeout: 5000 })
     return { id: "google", name: "Google Calendar", description: "via gog CLI", connected: true }
   } catch (err) {
     return { id: "google", name: "Google Calendar", description: "via gog CLI", connected: false, error: err instanceof Error ? err.message : "Auth failed" }

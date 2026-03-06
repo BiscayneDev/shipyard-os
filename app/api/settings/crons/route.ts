@@ -1,3 +1,4 @@
+import { BIN } from "@/lib/config"
 import { NextResponse } from "next/server"
 import { execFile } from "child_process"
 import { promisify } from "util"
@@ -37,7 +38,7 @@ export async function GET() {
   }
 
   try {
-    const { stdout } = await execFileAsync("/opt/homebrew/bin/openclaw", ["cron", "list", "--json"], {
+    const { stdout } = await execFileAsync(BIN.openclaw, ["cron", "list", "--json"], {
       timeout: 8000,
     })
 

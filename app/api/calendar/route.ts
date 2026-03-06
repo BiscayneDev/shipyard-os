@@ -3,7 +3,8 @@ import { execFile } from "child_process"
 import { promisify } from "util"
 
 const execFileAsync = promisify(execFile)
-const GOG = "/opt/homebrew/bin/gog"
+import { BIN, GOG_ACCOUNT } from "@/lib/config"
+const GOG = BIN.gog
 
 export interface CalendarEvent {
   id: string
@@ -75,7 +76,7 @@ export async function GET() {
 
   const attempts = [
     [GOG, ["calendar", "events", "primary", "--from", now, "--to", in30days, "--json"]],
-    [GOG, ["calendar", "events", "halsey@biscayneventures.xyz", "--from", now, "--to", in30days, "--json"]],
+    [GOG, ["calendar", "events", GOG_ACCOUNT, "--from", now, "--to", in30days, "--json"]],
   ] as const
 
   for (const [cmd, args] of attempts) {

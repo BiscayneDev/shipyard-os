@@ -4,8 +4,8 @@ import { promisify } from "util"
 
 const execFileAsync = promisify(execFile)
 
-const GATEWAY_URL = "http://127.0.0.1:18789/api/agent/turn"
-const GATEWAY_TOKEN = "f062a35b477a3c87a59b897728cd96afb84a970b3faa6093"
+import { GATEWAY_URL, GATEWAY_TOKEN, BIN } from "@/lib/config"
+const GATEWAY_TURN_URL = `${GATEWAY_URL}/api/agent/turn`
 
 interface GatewayResponse {
   reply?: string
@@ -17,7 +17,7 @@ interface GatewayResponse {
 
 async function callGateway(message: string): Promise<string | null> {
   try {
-    const res = await fetch(GATEWAY_URL, {
+    const res = await fetch(GATEWAY_TURN_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

@@ -1,3 +1,4 @@
+import { WORKSPACE } from "@/lib/config"
 import { NextResponse } from "next/server"
 import { spawn } from "child_process"
 import { homedir } from "os"
@@ -5,7 +6,7 @@ import path from "path"
 
 export async function POST() {
   const home = homedir()
-  const reportPath = path.join(home, "clawd/agents/scout/reports/latest.json")
+  const reportPath = WORKSPACE.scout.latest
   const scriptPath = path.join(home, ".claude/skills/last30days/scripts/last30days.py")
 
   // Write a runner script to a temp file to avoid template literal conflicts
