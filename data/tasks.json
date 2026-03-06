@@ -133,8 +133,8 @@
   {
     "id": "task-1772776754363",
     "title": "Set up Deal Flow agent — identity + partnership monitoring cron",
-    "description": "Create DEAL_FLOW.md identity file, set up cron to monitor funding rounds, partnerships, and strategic moves relevant to MoonPay. Daily briefing.",
-    "column": "in-progress",
+    "description": "✅ DEAL_FLOW.md created, daily 8am weekday cron live — first digest ran this morning with 3 solid signals",
+    "column": "done",
     "priority": "high",
     "assignee": "deal-flow",
     "tags": [
@@ -142,7 +142,7 @@
       "cron"
     ],
     "createdAt": "2026-03-06T05:59:14.363Z",
-    "updatedAt": "2026-03-06T05:59:14.363Z"
+    "updatedAt": "2026-03-06T15:14:46.627Z"
   },
   {
     "id": "task-1772776754394",

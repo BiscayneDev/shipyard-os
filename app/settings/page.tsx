@@ -26,9 +26,13 @@ interface CronJob {
   id: string
   name: string
   schedule: string
-  lastRun: string | null
-  status: string
+  tz: string
+  lastRunAt: string | null
+  nextRunAt: string | null
+  lastStatus: string | null
+  lastError: string | null
   enabled: boolean
+  consecutiveErrors: number
 }
 
 interface ServiceStatus {
@@ -243,11 +247,28 @@ function CronsSection() {
               <div key={cron.id} className="flex items-center gap-4 px-5 py-4">
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-white truncate">{cron.name}</p>
-                  <div className="flex items-center gap-3 mt-0.5">
+                  <div className="flex items-center gap-3 mt-0.5 flex-wrap">
                     <span className="text-[11px] font-mono text-zinc-500">{cron.schedule}</span>
                     <span className="text-[11px] text-zinc-600">
-                      Last run: {relativeTime(cron.lastRun)}
+                      {cron.lastRunAt ? `Last: ${relativeTime(cron.lastRunAt)}` : "Never run"}
                     </span>
+                    {cron.nextRunAt && (
+                      <span className="text-[11px] text-zinc-700">
+                        Next: {relativeTime(cron.nextRunAt)}
+                      </span>
+                    )}
+                    {cron.lastStatus === "error" && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium"
+                        style={{ backgroundColor: "rgba(239,68,68,0.15)", color: "#ef4444" }}>
+                        {cron.consecutiveErrors}x error
+                      </span>
+                    )}
+                    {cron.lastStatus === "ok" && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium"
+                        style={{ backgroundColor: "rgba(34,197,94,0.15)", color: "#22c55e" }}>
+                        ✓ ok
+                      </span>
+                    )}
                   </div>
                 </div>
                 <button
