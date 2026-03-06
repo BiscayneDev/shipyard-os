@@ -14,10 +14,12 @@ import {
   Sparkles,
   Settings,
   TrendingUp,
+  MessageSquare,
 } from "lucide-react";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/chat", label: "CEO Chat", icon: MessageSquare },
   { href: "/agents", label: "Agents", icon: Users },
   { href: "/tasks", label: "Tasks", icon: CheckSquare },
   { href: "/projects", label: "Projects", icon: Folder },

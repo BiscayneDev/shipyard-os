@@ -9,8 +9,11 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^3.0.58",
+    "@ai-sdk/react": "^3.0.118",
     "@hello-pangea/dnd": "^18.0.1",
     "@vercel/kv": "^3.0.0",
+    "ai": "^6.0.116",
     "lucide-react": "^0.575.0",
     "next": "16.1.6",
     "react": "19.2.3",
