@@ -48,6 +48,16 @@ interface Goal {
   assignedTo?: string
 }
 
+interface ActivityEntry {
+  id: string
+  taskId: string
+  taskTitle: string
+  agent: string
+  action: "started" | "completed" | "reviewed"
+  summary?: string
+  timestamp: string
+}
+
 // ── Constants ──────────────────────────────────────────────────────────────────
 
 const PINNED = ["shipyard", "mission-control", "superteam-miami", "arken"]
@@ -111,14 +121,16 @@ export default function DashboardPage() {
   const [intel, setIntel] = useState<IntelReport | null>(null)
   const [loading, setLoading] = useState(true)
   const [goals, setGoals] = useState<Goal[]>([])
+  const [recentActivity, setRecentActivity] = useState<ActivityEntry[]>([])
 
   const fetchAll = useCallback(async () => {
-    const [sessRes, taskRes, projRes, intelRes, goalsRes] = await Promise.allSettled([
+    const [sessRes, taskRes, projRes, intelRes, goalsRes, activityRes] = await Promise.allSettled([
       fetch("/api/sessions", { cache: "no-store" }).then((r) => r.json()),
       fetch("/api/tasks", { cache: "no-store" }).then((r) => r.json()),
       fetch("/api/projects", { cache: "no-store" }).then((r) => r.json()),
       fetch("/api/intel/report", { cache: "no-store" }).then((r) => r.json()),
       fetch("/api/company/goals", { cache: "no-store" }).then((r) => r.json()),
+      fetch("/api/activity", { cache: "no-store" }).then((r) => r.json()),
     ])
 
     if (sessRes.status === "fulfilled") {
@@ -139,6 +151,10 @@ export default function DashboardPage() {
     if (goalsRes.status === "fulfilled") {
       const g = goalsRes.value as Goal[]
       setGoals(Array.isArray(g) ? g : [])
+    }
+    if (activityRes.status === "fulfilled") {
+      const a = activityRes.value as ActivityEntry[]
+      setRecentActivity(Array.isArray(a) ? a.slice(0, 3) : [])
     }
     setLoading(false)
   }, [])
@@ -489,6 +505,56 @@ export default function DashboardPage() {
               </div>
             )
           })()}
+        </div>
+      </section>
+
+      {/* ── Recent Activity Widget ──────────────────────────────── */}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-mono uppercase tracking-widest text-zinc-600">Recent Activity</p>
+          <a href="/activity" className="text-[10px] font-medium transition-colors hover:text-white" style={{ color: "#22c55e" }}>View all →</a>
+        </div>
+        <div
+          className="rounded-xl px-5 py-4 space-y-3"
+          style={{ backgroundColor: "#111118", border: "1px solid rgba(34,197,94,0.15)" }}
+        >
+          {loading ? (
+            <p className="text-xs text-zinc-600 text-center py-2">Loading...</p>
+          ) : recentActivity.length === 0 ? (
+            <p className="text-xs text-zinc-600 text-center py-2">No activity yet — start shipping!</p>
+          ) : (
+            <div className="space-y-3">
+              {recentActivity.map((entry) => {
+                const AGENT_EMOJI_MAP: Record<string, string> = { vic: "🦞", scout: "🔭", "deal-flow": "🤝", builder: "⚡", baron: "🏦", unassigned: "⚪" }
+                const ACTION_COLOR_MAP: Record<string, string> = { started: "#3178c6", reviewed: "#f59e0b", completed: "#22c55e" }
+                const ACTION_LABEL_MAP: Record<string, string> = { started: "started", reviewed: "reviewed", completed: "completed" }
+                const emoji = AGENT_EMOJI_MAP[entry.agent] ?? "🤖"
+                const color = ACTION_COLOR_MAP[entry.action] ?? "#22c55e"
+                const label = ACTION_LABEL_MAP[entry.action] ?? entry.action
+                const diff = Date.now() - new Date(entry.timestamp).getTime()
+                const mins = Math.floor(diff / 60000)
+                const hrs = Math.floor(diff / 3600000)
+                const days = Math.floor(diff / 86400000)
+                const rel = mins < 1 ? "just now" : mins < 60 ? `${mins}m ago` : hrs < 24 ? `${hrs}h ago` : `${days}d ago`
+                return (
+                  <div key={entry.id} className="flex items-start gap-3">
+                    <div
+                      className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0"
+                      style={{ backgroundColor: color }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-zinc-400 leading-snug">
+                        <span>{emoji}</span>{" "}
+                        <span className="font-medium" style={{ color }}>{label}</span>{" "}
+                        <a href="/tasks" className="text-zinc-300 hover:text-white font-medium truncate">{entry.taskTitle}</a>
+                      </p>
+                    </div>
+                    <span className="text-[10px] text-zinc-700 shrink-0">{rel}</span>
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </div>
       </section>
 

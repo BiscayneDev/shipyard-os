@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { readFile, writeFile } from "fs/promises"
 import { join } from "path"
+import { randomUUID } from "crypto"
 import type { Task, Column } from "@/lib/tasks"
 
 const DATA_PATH = join(process.cwd(), "data", "tasks.json")
@@ -46,6 +47,56 @@ async function writeTasks(tasks: Task[]): Promise<void> {
   await writeTasksToFile(tasks)
 }
 
+// ── Activity logging ─────────────────────────────────────────────────────────
+
+type ActivityAction = "started" | "completed" | "reviewed"
+
+const COLUMN_TO_ACTION: Partial<Record<Column, ActivityAction>> = {
+  "in-progress": "started",
+  "in-review": "reviewed",
+  "done": "completed",
+}
+
+async function appendActivity(task: Task, action: ActivityAction): Promise<void> {
+  try {
+    const activityPath = join(process.cwd(), "data", "activity.json")
+    let existing: Array<{
+      id: string
+      taskId: string
+      taskTitle: string
+      agent: string
+      action: string
+      summary?: string
+      timestamp: string
+    }> = []
+    try {
+      const raw = await readFile(activityPath, "utf-8")
+      existing = JSON.parse(raw)
+    } catch {
+      // start fresh
+    }
+
+    existing.push({
+      id: randomUUID(),
+      taskId: task.id,
+      taskTitle: task.title,
+      agent: task.assignee ?? "unassigned",
+      action,
+      timestamp: new Date().toISOString(),
+    })
+
+    // Keep max 200
+    const trimmed = existing
+      .slice()
+      .sort((a, b) => (b.timestamp > a.timestamp ? 1 : -1))
+      .slice(0, 200)
+
+    await writeFile(activityPath, JSON.stringify(trimmed, null, 2), "utf-8")
+  } catch {
+    // Non-fatal — don't fail the task update
+  }
+}
+
 // ── Route handlers ───────────────────────────────────────────────────────────
 
 export async function PATCH(
@@ -79,6 +130,14 @@ export async function PATCH(
 
     const updated = tasks.map((t, i) => (i === index ? updatedTask : t))
     await writeTasks(updated)
+
+    // Log to activity feed when column changes to a tracked state
+    if (body.column && body.column !== tasks[index].column) {
+      const action = COLUMN_TO_ACTION[body.column as Column]
+      if (action) {
+        await appendActivity(updatedTask, action)
+      }
+    }
 
     return NextResponse.json(updatedTask)
   } catch {

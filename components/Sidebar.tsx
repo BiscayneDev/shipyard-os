@@ -16,6 +16,7 @@ import {
   TrendingUp,
   MessageSquare,
   Building2,
+  Activity,
 } from "lucide-react";
 
 const navItems = [
@@ -23,6 +24,7 @@ const navItems = [
   { href: "/chat", label: "CEO Chat", icon: MessageSquare },
   { href: "/agents", label: "Agents", icon: Users },
   { href: "/company", label: "Company", icon: Building2 },
+  { href: "/activity", label: "Activity", icon: Activity },
   { href: "/tasks", label: "Tasks", icon: CheckSquare },
   { href: "/projects", label: "Projects", icon: Folder },
   { href: "/intel", label: "Intel", icon: Zap },
@@ -34,11 +36,11 @@ const navItems = [
   { href: "/settings", label: "Settings", icon: Settings },
 ] as const;
 
-// Bottom nav: Dashboard, Tasks, Company, Intel, Costs
+// Mobile bottom nav: Dashboard, Tasks, Activity, Intel, Costs
 const mobileNavItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/tasks", label: "Tasks", icon: CheckSquare },
-  { href: "/company", label: "Company", icon: Building2 },
+  { href: "/activity", label: "Activity", icon: Activity },
   { href: "/intel", label: "Intel", icon: Zap },
   { href: "/costs", label: "Costs", icon: TrendingUp },
 ];

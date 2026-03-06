@@ -52,12 +52,12 @@
   {
     "id": "task-1772774246157",
     "title": "Add activity feed so we can see all that gets shipped /done and by what agent. ",
-    "description": "",
+    "description": "Add an activity feed so we can see a streaming list of what has been done and by what agent. Can link to the kanbans",
     "column": "in-progress",
     "priority": "medium",
-    "assignee": "unassigned",
+    "assignee": "vic",
     "tags": [],
     "createdAt": "2026-03-06T05:17:26.157Z",
-    "updatedAt": "2026-03-06T05:19:37.609Z"
+    "updatedAt": "2026-03-06T05:27:08.134Z"
   }
 ]
