@@ -1,5 +1,22 @@
 [
   {
+    "id": "9db25cd6-9f05-4b05-9af9-dcfbc3088b98",
+    "taskId": "task-1772776754422",
+    "taskTitle": "Chat wired to OpenClaw",
+    "agent": "builder",
+    "action": "completed",
+    "summary": "Live chat with agents via OpenClaw gateway from Mission Control UI",
+    "timestamp": "2026-03-06T06:06:13.700Z"
+  },
+  {
+    "id": "f48d3f8d-c7f5-4009-b5fa-214055a7732f",
+    "taskId": "task-1772776754422",
+    "taskTitle": "Wire /chat page to OpenClaw — talk to agents from Mission Control",
+    "agent": "builder",
+    "action": "completed",
+    "timestamp": "2026-03-06T06:06:13.666Z"
+  },
+  {
     "id": "cb52d1a8-42cc-444c-b9cf-bd520e717e5f",
     "taskId": "task-1772776754394",
     "taskTitle": "Inbox widget",
