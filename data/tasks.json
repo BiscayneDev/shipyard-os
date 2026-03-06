@@ -42,12 +42,12 @@
     "id": "task-1772773567056",
     "title": "Set up the MoonPay CLI and wallet for Baron",
     "description": "✅ Done:\n- BARON.md identity file created at ~/clawd/agents/baron/BARON.md\n- MoonPay CLI wallet created: Solana 4nEcdo9BPGrKK59AqEGdBff3SDjfTAcSNkcvBkBpn6WU, EVM 0x6715d4DA636b50E579f69fa92D620955Bd1A2e07\n- Scout deployed to research best Solana DeFi + crypto agent tooling (results incoming)\n- MEMORY.md updated with Baron wallet addresses",
-    "column": "in-review",
+    "column": "done",
     "priority": "medium",
     "assignee": "baron",
     "tags": [],
     "createdAt": "2026-03-06T05:06:07.056Z",
-    "updatedAt": "2026-03-06T05:14:09.282Z"
+    "updatedAt": "2026-03-06T06:01:35.909Z"
   },
   {
     "id": "task-1772774246157",
@@ -115,5 +115,100 @@
     ],
     "createdAt": "2026-03-06T05:43:24.559Z",
     "updatedAt": "2026-03-06T05:49:11.576Z"
+  },
+  {
+    "id": "task-1772776754342",
+    "title": "Build Settings page — configure Agent OS",
+    "description": "Full settings page: agent budgets, cron schedule management, notification preferences, API key status, connected channels. The control panel for the whole system.",
+    "column": "in-progress",
+    "priority": "high",
+    "assignee": "builder",
+    "tags": [
+      "mission-control",
+      "settings"
+    ],
+    "createdAt": "2026-03-06T05:59:14.342Z",
+    "updatedAt": "2026-03-06T05:59:14.342Z"
+  },
+  {
+    "id": "task-1772776754363",
+    "title": "Set up Deal Flow agent — identity + partnership monitoring cron",
+    "description": "Create DEAL_FLOW.md identity file, set up cron to monitor funding rounds, partnerships, and strategic moves relevant to MoonPay. Daily briefing.",
+    "column": "in-progress",
+    "priority": "high",
+    "assignee": "deal-flow",
+    "tags": [
+      "deal-flow",
+      "cron"
+    ],
+    "createdAt": "2026-03-06T05:59:14.363Z",
+    "updatedAt": "2026-03-06T05:59:14.363Z"
+  },
+  {
+    "id": "task-1772776754394",
+    "title": "Build Inbox widget — surface Gmail on dashboard",
+    "description": "Wire gog Gmail to Mission Control dashboard. Show important unread emails: deals, intros, time-sensitive items. API route + dashboard widget.",
+    "column": "in-progress",
+    "priority": "high",
+    "assignee": "builder",
+    "tags": [
+      "mission-control",
+      "gmail"
+    ],
+    "createdAt": "2026-03-06T05:59:14.394Z",
+    "updatedAt": "2026-03-06T05:59:14.394Z"
+  },
+  {
+    "id": "task-1772776754422",
+    "title": "Wire /chat page to OpenClaw — talk to agents from Mission Control",
+    "description": "The /chat page should send messages to Vic via OpenClaw gateway and stream responses back. Full two-way chat with agents without needing Telegram.",
+    "column": "in-progress",
+    "priority": "high",
+    "assignee": "builder",
+    "tags": [
+      "mission-control",
+      "chat"
+    ],
+    "createdAt": "2026-03-06T05:59:14.422Z",
+    "updatedAt": "2026-03-06T05:59:14.422Z"
+  },
+  {
+    "id": "task-1772776754451",
+    "title": "Build Docs page — living knowledge base",
+    "description": "Searchable docs page surfacing Baron research, Scout reports, Builder architecture decisions, agent memory. Replace the stub with real content.",
+    "column": "in-progress",
+    "priority": "medium",
+    "assignee": "builder",
+    "tags": [
+      "mission-control",
+      "docs"
+    ],
+    "createdAt": "2026-03-06T05:59:14.451Z",
+    "updatedAt": "2026-03-06T05:59:14.451Z"
+  },
+  {
+    "id": "task-1772776754478",
+    "title": "Goal → Task linking — connect goals to tasks",
+    "description": "Add goal selector when creating/editing tasks. Dashboard shows goal progress based on task completion. Goals page shows linked tasks.",
+    "column": "backlog",
+    "priority": "medium",
+    "assignee": "builder",
+    "tags": [
+      "mission-control",
+      "goals"
+    ],
+    "createdAt": "2026-03-06T05:59:14.478Z",
+    "updatedAt": "2026-03-06T05:59:14.478Z"
+  },
+  {
+    "id": "task-1772776985364",
+    "title": "Main Dashboard needs a facelift/revamp. Some of the stuff isnt dynamic and some of it is redundant. ",
+    "description": "",
+    "column": "backlog",
+    "priority": "medium",
+    "assignee": "vic",
+    "tags": [],
+    "createdAt": "2026-03-06T06:03:05.364Z",
+    "updatedAt": "2026-03-06T06:03:05.364Z"
   }
 ]

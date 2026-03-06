@@ -13,6 +13,7 @@ export interface AgentData {
   description: string
   tags: string[]
   isVic?: boolean
+  budget?: number
 }
 
 // ── Storage helpers ──────────────────────────────────────────────────────────

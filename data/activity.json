@@ -1,5 +1,13 @@
 [
   {
+    "id": "bd6916e5-7a05-443b-8a3c-b01de5aafbf5",
+    "taskId": "task-1772773567056",
+    "taskTitle": "Set up the MoonPay CLI and wallet for Baron",
+    "agent": "baron",
+    "action": "completed",
+    "timestamp": "2026-03-06T06:01:35.912Z"
+  },
+  {
     "id": "cf368702-2d00-43ae-a6b8-4d1a1f9d9140",
     "taskId": "task-1772775804559",
     "taskTitle": "Add agent CRUD",
