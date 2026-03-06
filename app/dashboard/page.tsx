@@ -58,6 +58,15 @@ interface ActivityEntry {
   timestamp: string
 }
 
+interface EmailEntry {
+  id: string
+  from: string
+  fromName: string
+  subject: string
+  snippet: string
+  date: string
+}
+
 // ── Constants ──────────────────────────────────────────────────────────────────
 
 const PINNED = ["shipyard", "mission-control", "superteam-miami", "arken"]
@@ -122,6 +131,19 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [goals, setGoals] = useState<Goal[]>([])
   const [recentActivity, setRecentActivity] = useState<ActivityEntry[]>([])
+  const [emails, setEmails] = useState<EmailEntry[]>([])
+  const [inboxLoading, setInboxLoading] = useState(true)
+
+  const fetchInbox = useCallback(async () => {
+    try {
+      const res = await fetch("/api/inbox", { cache: "no-store" })
+      const d = await res.json() as { emails?: EmailEntry[] }
+      setEmails(Array.isArray(d.emails) ? d.emails : [])
+    } catch {
+      setEmails([])
+    }
+    setInboxLoading(false)
+  }, [])
 
   const fetchAll = useCallback(async () => {
     const [sessRes, taskRes, projRes, intelRes, goalsRes, activityRes] = await Promise.allSettled([
@@ -161,9 +183,11 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchAll()
+    fetchInbox()
     const interval = setInterval(fetchAll, 30_000)
-    return () => clearInterval(interval)
-  }, [fetchAll])
+    const inboxInterval = setInterval(fetchInbox, 60_000)
+    return () => { clearInterval(interval); clearInterval(inboxInterval) }
+  }, [fetchAll, fetchInbox])
 
   const pinnedRepos = PINNED.map((name) => repos.find((r) => r.name === name)).filter(
     (r): r is Repo => r !== undefined
@@ -505,6 +529,53 @@ export default function DashboardPage() {
               </div>
             )
           })()}
+        </div>
+      </section>
+
+      {/* ── Inbox Widget ──────────────────────────────────────── */}
+      <section className="space-y-3">
+        <p className="text-xs font-mono uppercase tracking-widest text-zinc-600">Inbox</p>
+        <div
+          className="rounded-xl p-5 space-y-3"
+          style={{ backgroundColor: "#111118", border: "1px solid rgba(245,158,11,0.2)", boxShadow: "0 0 24px rgba(245,158,11,0.04)" }}
+        >
+          {inboxLoading ? (
+            <p className="text-xs text-zinc-600 text-center py-2">Loading inbox...</p>
+          ) : emails.length === 0 ? (
+            <div className="text-center py-2">
+              <p className="text-sm" style={{ color: "#f59e0b" }}>Inbox clear ✓</p>
+              <p className="text-xs text-zinc-600 mt-0.5">No unread messages in the last 2 days</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {emails.map((email) => (
+                <div key={email.id} className="flex items-start gap-3 py-1">
+                  <div
+                    className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0"
+                    style={{ backgroundColor: "#f59e0b" }}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-xs font-semibold text-white truncate">{email.fromName}</p>
+                      <span className="text-[10px] text-zinc-600 shrink-0">{relativeTime(email.date)}</span>
+                    </div>
+                    <p className="text-[11px] text-zinc-400 truncate mt-0.5">{email.subject}</p>
+                  </div>
+                </div>
+              ))}
+              <div className="pt-1 border-t border-zinc-800/40">
+                <a
+                  href="https://mail.google.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs font-medium transition-colors hover:text-white"
+                  style={{ color: "#f59e0b" }}
+                >
+                  Open Gmail →
+                </a>
+              </div>
+            </div>
+          )}
         </div>
       </section>
 

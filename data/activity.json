@@ -1,5 +1,22 @@
 [
   {
+    "id": "301abc95-bc62-4a7a-a4ad-70cf9a041aac",
+    "taskId": "task-1772776754342",
+    "taskTitle": "Settings page",
+    "agent": "builder",
+    "action": "completed",
+    "summary": "Agent budgets, cron management, service status, notification toggles",
+    "timestamp": "2026-03-06T06:03:51.135Z"
+  },
+  {
+    "id": "b078e051-7d0e-42cb-8973-8a9efd2451c2",
+    "taskId": "task-1772776754342",
+    "taskTitle": "Build Settings page — configure Agent OS",
+    "agent": "builder",
+    "action": "completed",
+    "timestamp": "2026-03-06T06:03:51.013Z"
+  },
+  {
     "id": "bd6916e5-7a05-443b-8a3c-b01de5aafbf5",
     "taskId": "task-1772773567056",
     "taskTitle": "Set up the MoonPay CLI and wallet for Baron",

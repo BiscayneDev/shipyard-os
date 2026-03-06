@@ -119,8 +119,8 @@
   {
     "id": "task-1772776754342",
     "title": "Build Settings page — configure Agent OS",
-    "description": "Full settings page: agent budgets, cron schedule management, notification preferences, API key status, connected channels. The control panel for the whole system.",
-    "column": "in-progress",
+    "description": "✅ Settings page built — agent budgets, cron management, service status, notification toggles",
+    "column": "done",
     "priority": "high",
     "assignee": "builder",
     "tags": [
@@ -128,7 +128,7 @@
       "settings"
     ],
     "createdAt": "2026-03-06T05:59:14.342Z",
-    "updatedAt": "2026-03-06T05:59:14.342Z"
+    "updatedAt": "2026-03-06T06:03:51.010Z"
   },
   {
     "id": "task-1772776754363",
