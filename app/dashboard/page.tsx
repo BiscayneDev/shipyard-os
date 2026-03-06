@@ -46,6 +46,12 @@ interface Goal {
   status: "active" | "completed" | "paused"
   priority: "high" | "medium" | "low"
   assignedTo?: string
+  taskIds?: string[]
+  progress?: {
+    total: number
+    done: number
+    percent: number
+  }
 }
 
 interface ActivityEntry {
@@ -581,19 +587,43 @@ export default function DashboardPage() {
                   </Link>
                 </p>
               ) : (
-                <div className="space-y-2">
-                  {activeGoals.map((goal) => (
-                    <div key={goal.id} className="flex items-center gap-2.5">
-                      <div
-                        className="w-1.5 h-1.5 rounded-full shrink-0"
-                        style={{ backgroundColor: PRIORITY_COLOR[goal.priority] ?? "#71717a" }}
-                      />
-                      <p className="text-xs text-zinc-300 flex-1 leading-snug truncate">{goal.title}</p>
-                      {goal.assignedTo && (
-                        <span className="text-sm shrink-0">{AGENT_EMOJI_MAP[goal.assignedTo] ?? ""}</span>
-                      )}
-                    </div>
-                  ))}
+                <div className="space-y-3">
+                  {activeGoals.map((goal) => {
+                    const prog = goal.progress
+                    return (
+                      <div key={goal.id} className="space-y-1.5">
+                        <div className="flex items-center gap-2.5">
+                          <div
+                            className="w-1.5 h-1.5 rounded-full shrink-0"
+                            style={{ backgroundColor: PRIORITY_COLOR[goal.priority] ?? "#71717a" }}
+                          />
+                          <p className="text-xs text-zinc-300 flex-1 leading-snug truncate">{goal.title}</p>
+                          {prog && prog.total > 0 && (
+                            <span className="text-[10px] font-medium text-zinc-500 shrink-0">
+                              {prog.done}/{prog.total}
+                            </span>
+                          )}
+                          {goal.assignedTo && (
+                            <span className="text-sm shrink-0">{AGENT_EMOJI_MAP[goal.assignedTo] ?? ""}</span>
+                          )}
+                        </div>
+                        {prog && prog.total > 0 && (
+                          <div
+                            className="w-full h-1 rounded-full overflow-hidden ml-4"
+                            style={{ backgroundColor: "#1a1a2e" }}
+                          >
+                            <div
+                              className="h-full rounded-full transition-all duration-500"
+                              style={{
+                                width: `${prog.percent}%`,
+                                backgroundColor: prog.percent === 100 ? "#22c55e" : "#7c3aed",
+                              }}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
               )}
             </div>

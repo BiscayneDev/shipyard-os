@@ -36,6 +36,18 @@ const INITIAL_FORM: AddTaskFormState = {
   priority: "medium",
 }
 
+interface GoalOption {
+  id: string
+  title: string
+  priority: "high" | "medium" | "low"
+}
+
+const PRIORITY_DOT: Record<string, string> = {
+  high: "#ef4444",
+  medium: "#f59e0b",
+  low: "#22c55e",
+}
+
 function timeAgo(date: Date): string {
   const seconds = Math.floor((Date.now() - date.getTime()) / 1000)
   if (seconds < 10) return "just now"
@@ -55,9 +67,22 @@ interface TaskCardProps {
   draggableProps: React.HTMLAttributes<HTMLDivElement>
   dragHandleProps: React.HTMLAttributes<HTMLDivElement> | null | undefined
   innerRef: (element: HTMLElement | null) => void
+  onDelete: (id: string) => void
+  onUpdate: (id: string, updates: Partial<Task>) => void
+  goals: GoalOption[]
 }
 
-function TaskCard({ task, accent, isDragging, draggableProps, dragHandleProps, innerRef, onDelete, onUpdate }: TaskCardProps & { onDelete: (id: string) => void; onUpdate: (id: string, updates: Partial<Task>) => void }) {
+function TaskCard({
+  task,
+  accent,
+  isDragging,
+  draggableProps,
+  dragHandleProps,
+  innerRef,
+  onDelete,
+  onUpdate,
+  goals,
+}: TaskCardProps) {
   const [expanded, setExpanded] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [editing, setEditing] = useState(false)
@@ -65,24 +90,40 @@ function TaskCard({ task, accent, isDragging, draggableProps, dragHandleProps, i
   const [editDesc, setEditDesc] = useState(task.description ?? "")
   const [editPriority, setEditPriority] = useState<Priority>(task.priority)
   const [editAssignee, setEditAssignee] = useState<Agent>(task.assignee)
+  const [editGoalId, setEditGoalId] = useState<string>(task.goalId ?? "")
   const [saving, setSaving] = useState(false)
 
   const saveEdit = async () => {
     setSaving(true)
-    const updates = { title: editTitle, description: editDesc, priority: editPriority, assignee: editAssignee }
+    const patchBody: Record<string, unknown> = {
+      title: editTitle,
+      description: editDesc,
+      priority: editPriority,
+      assignee: editAssignee,
+      goalId: editGoalId || null,
+    }
+    const localUpdates: Partial<Task> = {
+      title: editTitle,
+      description: editDesc,
+      priority: editPriority,
+      assignee: editAssignee,
+      goalId: editGoalId || undefined,
+    }
     try {
       await fetch(`/api/tasks/${task.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updates),
+        body: JSON.stringify(patchBody),
       })
-      onUpdate(task.id, updates)
+      onUpdate(task.id, localUpdates)
       setEditing(false)
     } finally {
       setSaving(false)
     }
   }
+
   const hasDescription = Boolean(task.description && task.description.trim().length > 0)
+  const linkedGoal = task.goalId ? goals.find((g) => g.id === task.goalId) : null
 
   return (
     <div
@@ -100,7 +141,7 @@ function TaskCard({ task, accent, isDragging, draggableProps, dragHandleProps, i
         ...(draggableProps as { style?: React.CSSProperties }).style,
       }}
     >
-      {/* Title — click to expand if description exists */}
+      {/* Title */}
       <p
         className={[
           "text-sm font-semibold text-white leading-tight",
@@ -116,6 +157,25 @@ function TaskCard({ task, accent, isDragging, draggableProps, dragHandleProps, i
           </span>
         )}
       </p>
+
+      {/* Goal pill */}
+      {linkedGoal && (
+        <div className="flex items-center gap-1.5">
+          <span
+            className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full max-w-[180px] truncate"
+            style={{ backgroundColor: "rgba(124,58,237,0.18)", color: "#a78bfa", border: "1px solid rgba(124,58,237,0.25)" }}
+            title={linkedGoal.title}
+          >
+            <span
+              className="w-1.5 h-1.5 rounded-full shrink-0"
+              style={{ backgroundColor: PRIORITY_DOT[linkedGoal.priority] ?? "#a78bfa" }}
+            />
+            {linkedGoal.title.length > 22
+              ? linkedGoal.title.slice(0, 22) + "…"
+              : linkedGoal.title}
+          </span>
+        </div>
+      )}
 
       {/* Expandable description */}
       {hasDescription && (
@@ -160,7 +220,15 @@ function TaskCard({ task, accent, isDragging, draggableProps, dragHandleProps, i
             {PRIORITY_CONFIG[task.priority].label}
           </span>
           <button
-            onClick={(e) => { e.stopPropagation(); setEditing(true); setEditTitle(task.title); setEditDesc(task.description ?? ""); setEditPriority(task.priority); setEditAssignee(task.assignee) }}
+            onClick={(e) => {
+              e.stopPropagation()
+              setEditing(true)
+              setEditTitle(task.title)
+              setEditDesc(task.description ?? "")
+              setEditPriority(task.priority)
+              setEditAssignee(task.assignee)
+              setEditGoalId(task.goalId ?? "")
+            }}
             className="opacity-0 group-hover:opacity-100 text-zinc-600 hover:text-zinc-300 transition-all text-xs leading-none px-1"
             title="Edit task"
           >
@@ -255,6 +323,24 @@ function TaskCard({ task, accent, isDragging, draggableProps, dragHandleProps, i
               </div>
             </div>
 
+            {/* Goal dropdown */}
+            <div className="space-y-1">
+              <label className="text-xs text-zinc-500">Goal</label>
+              <select
+                className="w-full rounded-lg px-3 py-2 text-sm text-white outline-none"
+                style={{ backgroundColor: "#0a0a0f", border: "1px solid #1a1a2e" }}
+                value={editGoalId}
+                onChange={(e) => setEditGoalId(e.target.value)}
+              >
+                <option value="">— No goal —</option>
+                {goals.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.priority === "high" ? "🔴" : g.priority === "medium" ? "🟡" : "🟢"} {g.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             <div className="flex gap-2 pt-1">
               <button
                 onClick={saveEdit}
@@ -297,11 +383,12 @@ function TaskCard({ task, accent, isDragging, draggableProps, dragHandleProps, i
 
 export default function TasksPage() {
   const [tasks, setTasks] = useState<Task[]>([])
+  const [goals, setGoals] = useState<GoalOption[]>([])
   const [loading, setLoading] = useState(true)
   const [addingTo, setAddingTo] = useState<Column | null>(null)
   const [form, setForm] = useState<AddTaskFormState>(INITIAL_FORM)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
-  const [, setTick] = useState(0) // force re-render for timeAgo
+  const [, setTick] = useState(0)
   const tasksSnapshotRef = useRef<string>("")
 
   const fetchTasks = useCallback(async (silent = false) => {
@@ -322,18 +409,28 @@ export default function TasksPage() {
     }
   }, [])
 
-  // Initial load
+  const fetchGoals = useCallback(async () => {
+    try {
+      const res = await fetch("/api/company/goals")
+      const data = await res.json() as Array<{ id: string; title: string; priority: "high" | "medium" | "low" }>
+      if (Array.isArray(data)) {
+        setGoals(data.map((g) => ({ id: g.id, title: g.title, priority: g.priority })))
+      }
+    } catch {
+      // non-fatal
+    }
+  }, [])
+
   useEffect(() => {
     fetchTasks(false)
-  }, [fetchTasks])
+    fetchGoals()
+  }, [fetchTasks, fetchGoals])
 
-  // Auto-refresh every 30s (silent)
   useEffect(() => {
     const interval = setInterval(() => fetchTasks(true), AUTO_REFRESH_INTERVAL)
     return () => clearInterval(interval)
   }, [fetchTasks])
 
-  // Tick every 15s to update "X ago" display
   useEffect(() => {
     const interval = setInterval(() => setTick((n) => n + 1), 15_000)
     return () => clearInterval(interval)
@@ -359,7 +456,6 @@ export default function TasksPage() {
         body: JSON.stringify({ column: newColumn }),
       })
 
-      // When dragged to in-progress, ping Vic to action it
       if (newColumn === "in-progress" && task.column !== "in-progress") {
         fetch("/api/tasks/activate", {
           method: "POST",
@@ -371,7 +467,7 @@ export default function TasksPage() {
             assignee: task.assignee,
             priority: task.priority,
           }),
-        }).catch(() => null) // fire-and-forget
+        }).catch(() => null)
       }
     } catch {
       fetchTasks(false)
@@ -496,6 +592,7 @@ export default function TasksPage() {
                               innerRef={provided.innerRef}
                               onDelete={(id) => setTasks((prev) => prev.filter((t) => t.id !== id))}
                               onUpdate={(id, updates) => setTasks((prev) => prev.map((t) => t.id === id ? { ...t, ...updates } : t))}
+                              goals={goals}
                             />
                           )}
                         </Draggable>

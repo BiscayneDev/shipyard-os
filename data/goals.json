@@ -5,7 +5,8 @@
     "status": "active",
     "priority": "high",
     "assignedTo": "builder",
-    "description": "Grow the marketplace to critical mass"
+    "description": "Grow the marketplace to critical mass",
+    "taskIds": []
   },
   {
     "id": "goal-2",
@@ -13,7 +14,8 @@
     "status": "active",
     "priority": "high",
     "assignedTo": "deal-flow",
-    "description": "Win the agent payment infrastructure race"
+    "description": "Win the agent payment infrastructure race",
+    "taskIds": []
   },
   {
     "id": "goal-3",
@@ -21,6 +23,7 @@
     "status": "active",
     "priority": "medium",
     "assignedTo": "scout",
-    "description": "Stay ahead of the frontier"
+    "description": "Stay ahead of the frontier",
+    "taskIds": []
   }
 ]

@@ -10,8 +10,19 @@ export interface Task {
   priority: Priority
   assignee: Agent
   tags: string[]
+  goalId?: string
   createdAt: string
   updatedAt: string
+}
+
+export interface UpdateTaskInput {
+  title?: string
+  description?: string
+  column?: Column
+  priority?: Priority
+  assignee?: Agent
+  tags?: string[]
+  goalId?: string | null
 }
 
 export const COLUMNS: { id: Column; label: string }[] = [

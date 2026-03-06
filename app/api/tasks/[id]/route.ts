@@ -5,6 +5,20 @@ import { randomUUID } from "crypto"
 import type { Task, Column } from "@/lib/tasks"
 
 const DATA_PATH = join(process.cwd(), "data", "tasks.json")
+const GOALS_PATH = join(process.cwd(), "data", "goals.json")
+
+// ── Goal type (local) ────────────────────────────────────────────────────────
+
+interface GoalData {
+  id: string
+  title: string
+  description?: string
+  status: "active" | "completed" | "paused"
+  priority: "high" | "medium" | "low"
+  assignedTo?: string
+  createdAt?: string
+  taskIds: string[]
+}
 
 // ── Storage helpers ──────────────────────────────────────────────────────────
 
@@ -45,6 +59,60 @@ async function writeTasks(tasks: Task[]): Promise<void> {
     }
   }
   await writeTasksToFile(tasks)
+}
+
+async function readGoals(): Promise<GoalData[]> {
+  try {
+    const raw = await readFile(GOALS_PATH, "utf-8")
+    const goals = JSON.parse(raw) as GoalData[]
+    // Ensure taskIds exists on all goals
+    return goals.map((g) => ({ ...g, taskIds: g.taskIds ?? [] }))
+  } catch {
+    return []
+  }
+}
+
+async function writeGoals(goals: GoalData[]): Promise<void> {
+  await writeFile(GOALS_PATH, JSON.stringify(goals, null, 2), "utf-8")
+}
+
+// ── Goal linking helper ──────────────────────────────────────────────────────
+
+async function updateGoalLinks(
+  taskId: string,
+  newGoalId: string | null | undefined,
+  oldGoalId: string | null | undefined
+): Promise<void> {
+  // Only act if goalId actually changed
+  if (newGoalId === oldGoalId) return
+  if (newGoalId === undefined) return // not passed in request
+
+  try {
+    const goals = await readGoals()
+    let changed = false
+
+    for (const goal of goals) {
+      // Remove from old goal
+      if (oldGoalId && goal.id === oldGoalId) {
+        const before = goal.taskIds.length
+        goal.taskIds = goal.taskIds.filter((id) => id !== taskId)
+        if (goal.taskIds.length !== before) changed = true
+      }
+      // Add to new goal
+      if (newGoalId && goal.id === newGoalId) {
+        if (!goal.taskIds.includes(taskId)) {
+          goal.taskIds.push(taskId)
+          changed = true
+        }
+      }
+    }
+
+    if (changed) {
+      await writeGoals(goals)
+    }
+  } catch {
+    // Non-fatal — don't fail the task update
+  }
 }
 
 // ── Activity logging ─────────────────────────────────────────────────────────
@@ -105,7 +173,7 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params
-    const body = await request.json()
+    const body = await request.json() as Record<string, unknown>
     const tasks = await readTasks()
 
     const index = tasks.findIndex((t) => t.id === id)
@@ -113,13 +181,30 @@ export async function PATCH(
       return NextResponse.json({ error: "Task not found" }, { status: 404 })
     }
 
-    // Support moving to any column via body.column
+    const oldTask = tasks[index]
+
+    // Handle goalId: null means "clear", string means "set", undefined means "not passed"
+    const hasGoalId = "goalId" in body
+    const newGoalId = hasGoalId
+      ? (body.goalId as string | null)
+      : undefined
+
+    // Build updated task — strip null goalId (remove field) or set it
     const updatedTask: Task = {
-      ...tasks[index],
+      ...oldTask,
       ...body,
-      id: tasks[index].id,
-      createdAt: tasks[index].createdAt,
+      id: oldTask.id,
+      createdAt: oldTask.createdAt,
       updatedAt: new Date().toISOString(),
+    }
+
+    // Normalize goalId
+    if (hasGoalId) {
+      if (newGoalId === null || newGoalId === "") {
+        delete updatedTask.goalId
+      } else {
+        updatedTask.goalId = newGoalId ?? undefined
+      }
     }
 
     // Type-guard column
@@ -131,8 +216,13 @@ export async function PATCH(
     const updated = tasks.map((t, i) => (i === index ? updatedTask : t))
     await writeTasks(updated)
 
+    // Update goal links if goalId was passed
+    if (hasGoalId) {
+      await updateGoalLinks(id, newGoalId, oldTask.goalId ?? null)
+    }
+
     // Log to activity feed when column changes to a tracked state
-    if (body.column && body.column !== tasks[index].column) {
+    if (body.column && body.column !== oldTask.column) {
       const action = COLUMN_TO_ACTION[body.column as Column]
       if (action) {
         await appendActivity(updatedTask, action)
@@ -156,6 +246,12 @@ export async function DELETE(
     const index = tasks.findIndex((t) => t.id === id)
     if (index === -1) {
       return NextResponse.json({ error: "Task not found" }, { status: 404 })
+    }
+
+    // Remove task from any goal's taskIds
+    const taskToDelete = tasks[index]
+    if (taskToDelete.goalId) {
+      await updateGoalLinks(id, null, taskToDelete.goalId)
     }
 
     const updated = tasks.filter((t) => t.id !== id)

@@ -1,5 +1,22 @@
 [
   {
+    "id": "aa13d59d-6d73-410d-9b23-5b34e153158c",
+    "taskId": "task-1772776754478",
+    "taskTitle": "Goal → Task linking",
+    "agent": "vic",
+    "action": "started",
+    "summary": "Enriched brief, delegating to Builder",
+    "timestamp": "2026-03-06T17:12:09.967Z"
+  },
+  {
+    "id": "6b9297e2-4b9b-4cea-a2cb-1debfd99334d",
+    "taskId": "task-1772776754478",
+    "taskTitle": "Goal → Task linking — connect goals to tasks",
+    "agent": "builder",
+    "action": "started",
+    "timestamp": "2026-03-06T17:12:01.622Z"
+  },
+  {
     "id": "ed52e9c3-f8ba-4c29-8a0e-9dd64aebb63d",
     "taskId": "task-1772776754478",
     "taskTitle": "Goal → Task linking — connect goals to tasks",

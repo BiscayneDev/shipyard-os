@@ -14,6 +14,12 @@ interface AgentBudget {
   tokens: number
 }
 
+interface GoalProgress {
+  total: number
+  done: number
+  percent: number
+}
+
 interface Goal {
   id: string
   title: string
@@ -22,6 +28,14 @@ interface Goal {
   priority: "high" | "medium" | "low"
   assignedTo?: string
   createdAt?: string
+  taskIds: string[]
+  progress: GoalProgress
+}
+
+interface TaskSummary {
+  id: string
+  title: string
+  column: string
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -50,6 +64,13 @@ const STATUS_STYLE: Record<Goal["status"], { bg: string; color: string; label: s
   active: { bg: "rgba(16,185,129,0.15)", color: "#10b981", label: "Active" },
   completed: { bg: "rgba(34,197,94,0.12)", color: "#22c55e", label: "Done" },
   paused: { bg: "rgba(113,113,122,0.15)", color: "#71717a", label: "Paused" },
+}
+
+const COLUMN_DOT: Record<string, string> = {
+  backlog: "#71717a",
+  "in-progress": "#3b82f6",
+  "in-review": "#f59e0b",
+  done: "#22c55e",
 }
 
 // ── Budget progress bar color ──────────────────────────────────────────────────
@@ -82,7 +103,6 @@ function OrgChart() {
         <p className="text-[11px] text-zinc-400">Board</p>
       </div>
 
-      {/* Connector line down to Vic */}
       <div className="w-px h-6" style={{ backgroundColor: "#2a2a4e" }} />
 
       {/* Vic */}
@@ -99,22 +119,18 @@ function OrgChart() {
         <p className="text-[11px] text-zinc-400">Chief of Staff · Orchestrator</p>
       </div>
 
-      {/* Connector line down to agents row */}
       <div className="w-px h-6" style={{ backgroundColor: "#2a2a4e" }} />
 
       {/* Horizontal connector spanning agent row */}
       <div className="relative flex items-start justify-center w-full max-w-2xl">
-        {/* Top horizontal bar */}
         <div
           className="absolute top-0 left-[12.5%] right-[12.5%] h-px"
           style={{ backgroundColor: "#2a2a4e" }}
         />
 
-        {/* Agent cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 w-full pt-6">
           {agents.map((agent) => (
             <div key={agent.name} className="flex flex-col items-center gap-0">
-              {/* Vertical line down from horizontal bar */}
               <div className="w-px h-6" style={{ backgroundColor: "#2a2a4e" }} />
               <div
                 className="rounded-xl px-3 py-4 flex flex-col items-center gap-1 w-full"
@@ -238,11 +254,123 @@ function AddGoalForm({ onAdd, onCancel }: AddGoalFormProps) {
   )
 }
 
+// ── Goal Card ─────────────────────────────────────────────────────────────────
+
+interface GoalCardProps {
+  goal: Goal
+  tasks: TaskSummary[]
+  onCycleStatus: (goal: Goal) => void
+}
+
+function GoalCard({ goal, tasks, onCycleStatus }: GoalCardProps) {
+  const statusStyle = STATUS_STYLE[goal.status]
+  const priorityColor = PRIORITY_COLOR[goal.priority]
+  const agentEmoji = goal.assignedTo ? (AGENT_EMOJI[goal.assignedTo] ?? "") : ""
+  const linkedTasks = tasks.filter((t) => goal.taskIds.includes(t.id))
+  const { total, done, percent } = goal.progress
+
+  return (
+    <div
+      className="rounded-xl p-4 space-y-3 transition-all hover:bg-white/[0.02]"
+      style={{ backgroundColor: "#111118", border: "1px solid #1a1a2e" }}
+    >
+      {/* Header row */}
+      <div className="flex items-start gap-3">
+        {/* Priority dot */}
+        <div
+          className="w-2 h-2 rounded-full shrink-0 mt-1.5"
+          style={{ backgroundColor: priorityColor }}
+          title={`${goal.priority} priority`}
+        />
+
+        <div className="flex-1 min-w-0 space-y-1">
+          <div className="flex items-start justify-between gap-2">
+            <p className="text-sm font-semibold text-white leading-snug">{goal.title}</p>
+            <div className="flex items-center gap-2 shrink-0">
+              {agentEmoji && (
+                <span className="text-base" title={goal.assignedTo}>{agentEmoji}</span>
+              )}
+              <button
+                onClick={() => onCycleStatus(goal)}
+                className="text-[10px] font-semibold px-2 py-0.5 rounded-full cursor-pointer transition-opacity hover:opacity-70"
+                style={{ backgroundColor: statusStyle.bg, color: statusStyle.color }}
+                title="Click to cycle status"
+              >
+                {statusStyle.label}
+              </button>
+            </div>
+          </div>
+          {goal.description && (
+            <p className="text-[11px] text-zinc-500 leading-snug">{goal.description}</p>
+          )}
+          <div className="flex items-center gap-3 pt-0.5">
+            <span className="text-[10px] font-medium" style={{ color: priorityColor }}>
+              {goal.priority}
+            </span>
+            {goal.assignedTo && (
+              <span className="text-[10px] text-zinc-600">{goal.assignedTo}</span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Progress bar */}
+      {total > 0 && (
+        <div className="space-y-1.5 pl-5">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] text-zinc-600">Progress</span>
+            <span className="text-[10px] font-medium text-zinc-400">{done}/{total} tasks done</span>
+          </div>
+          <div
+            className="w-full h-1.5 rounded-full overflow-hidden"
+            style={{ backgroundColor: "#1a1a2e" }}
+          >
+            <div
+              className="h-full rounded-full transition-all duration-500"
+              style={{
+                width: `${percent}%`,
+                backgroundColor: percent === 100 ? "#22c55e" : "#7c3aed",
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Linked tasks */}
+      <div className="pl-5 space-y-1">
+        {linkedTasks.length === 0 ? (
+          <p className="text-[11px] text-zinc-700 italic">No tasks linked yet</p>
+        ) : (
+          linkedTasks.slice(0, 5).map((task) => (
+            <div key={task.id} className="flex items-center gap-2">
+              <div
+                className="w-1.5 h-1.5 rounded-full shrink-0"
+                style={{ backgroundColor: COLUMN_DOT[task.column] ?? "#71717a" }}
+                title={task.column}
+              />
+              <Link
+                href="/tasks"
+                className="text-[11px] text-zinc-400 hover:text-zinc-200 transition-colors truncate max-w-[280px]"
+              >
+                {task.title}
+              </Link>
+            </div>
+          ))
+        )}
+        {linkedTasks.length > 5 && (
+          <p className="text-[10px] text-zinc-600">+{linkedTasks.length - 5} more</p>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function CompanyPage() {
   const [budgets, setBudgets] = useState<AgentBudget[]>([])
   const [goals, setGoals] = useState<Goal[]>([])
+  const [allTasks, setAllTasks] = useState<TaskSummary[]>([])
   const [loadingBudgets, setLoadingBudgets] = useState(true)
   const [loadingGoals, setLoadingGoals] = useState(true)
   const [showAddGoal, setShowAddGoal] = useState(false)
@@ -271,10 +399,21 @@ export default function CompanyPage() {
     }
   }, [])
 
+  const fetchTasks = useCallback(async () => {
+    try {
+      const res = await fetch("/api/tasks", { cache: "no-store" })
+      const data = await res.json() as TaskSummary[]
+      setAllTasks(Array.isArray(data) ? data : [])
+    } catch {
+      // leave empty
+    }
+  }, [])
+
   useEffect(() => {
     fetchBudgets()
     fetchGoals()
-  }, [fetchBudgets, fetchGoals])
+    fetchTasks()
+  }, [fetchBudgets, fetchGoals, fetchTasks])
 
   async function cycleGoalStatus(goal: Goal) {
     const nextStatus = STATUS_CYCLE[goal.status]
@@ -286,7 +425,6 @@ export default function CompanyPage() {
         body: JSON.stringify({ status: nextStatus }),
       })
     } catch {
-      // revert on error
       setGoals((prev) => prev.map((g) => g.id === goal.id ? goal : g))
     }
   }
@@ -379,7 +517,6 @@ export default function CompanyPage() {
                         </span>
                       </div>
                     </div>
-                    {/* Progress bar */}
                     <div
                       className="w-full h-1.5 rounded-full overflow-hidden"
                       style={{ backgroundColor: "#1a1a2e" }}
@@ -443,62 +580,14 @@ export default function CompanyPage() {
           </div>
         ) : (
           <div className="space-y-2">
-            {goals.map((goal) => {
-              const statusStyle = STATUS_STYLE[goal.status]
-              const priorityColor = PRIORITY_COLOR[goal.priority]
-              const agentEmoji = goal.assignedTo ? (AGENT_EMOJI[goal.assignedTo] ?? "") : ""
-
-              return (
-                <div
-                  key={goal.id}
-                  className="rounded-xl p-4 flex items-start gap-4 transition-all hover:bg-white/[0.02]"
-                  style={{ backgroundColor: "#111118", border: "1px solid #1a1a2e" }}
-                >
-                  {/* Priority dot */}
-                  <div className="flex flex-col items-center gap-1 pt-0.5">
-                    <div
-                      className="w-2 h-2 rounded-full shrink-0"
-                      style={{ backgroundColor: priorityColor }}
-                      title={`${goal.priority} priority`}
-                    />
-                  </div>
-
-                  {/* Content */}
-                  <div className="flex-1 min-w-0 space-y-1">
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="text-sm font-semibold text-white leading-snug">{goal.title}</p>
-                      <div className="flex items-center gap-2 shrink-0">
-                        {agentEmoji && (
-                          <span className="text-base" title={goal.assignedTo}>{agentEmoji}</span>
-                        )}
-                        <button
-                          onClick={() => cycleGoalStatus(goal)}
-                          className="text-[10px] font-semibold px-2 py-0.5 rounded-full cursor-pointer transition-opacity hover:opacity-70"
-                          style={{ backgroundColor: statusStyle.bg, color: statusStyle.color }}
-                          title="Click to cycle status"
-                        >
-                          {statusStyle.label}
-                        </button>
-                      </div>
-                    </div>
-                    {goal.description && (
-                      <p className="text-[11px] text-zinc-500 leading-snug">{goal.description}</p>
-                    )}
-                    <div className="flex items-center gap-3 pt-0.5">
-                      <span
-                        className="text-[10px] font-medium"
-                        style={{ color: priorityColor }}
-                      >
-                        {goal.priority}
-                      </span>
-                      {goal.assignedTo && (
-                        <span className="text-[10px] text-zinc-600">{goal.assignedTo}</span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
+            {goals.map((goal) => (
+              <GoalCard
+                key={goal.id}
+                goal={goal}
+                tasks={allTasks}
+                onCycleStatus={cycleGoalStatus}
+              />
+            ))}
           </div>
         )}
       </section>
