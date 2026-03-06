@@ -237,6 +237,21 @@ export default function TasksPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ column: newColumn }),
       })
+
+      // When dragged to in-progress, ping Vic to action it
+      if (newColumn === "in-progress" && task.column !== "in-progress") {
+        fetch("/api/tasks/activate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            taskId: task.id,
+            title: task.title,
+            description: task.description,
+            assignee: task.assignee,
+            priority: task.priority,
+          }),
+        }).catch(() => null) // fire-and-forget
+      }
     } catch {
       fetchTasks(false)
     }
