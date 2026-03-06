@@ -293,33 +293,51 @@ function SailboatScene() {
       position: "absolute", inset: 0, display: "flex", flexDirection: "column",
       alignItems: "center", justifyContent: "center", userSelect: "none", pointerEvents: "none",
     }}>
-      {/* Ambient glow */}
+      {/* Deep background gradient */}
       <div style={{
-        position: "absolute", width: 400, height: 400, borderRadius: "50%",
-        background: "radial-gradient(circle, rgba(34,211,238,0.08) 0%, transparent 70%)",
-        animation: "pulse-glow 4s ease-in-out infinite",
+        position: "absolute", inset: 0,
+        background: "radial-gradient(ellipse 80% 60% at 50% 60%, rgba(8,30,40,0.8) 0%, transparent 100%)",
       }} />
 
-      {/* Grid lines */}
+      {/* Grid lines — subtle */}
       <div style={{
-        position: "absolute", inset: 0, opacity: 0.04,
+        position: "absolute", inset: 0, opacity: 0.035,
         backgroundImage: "linear-gradient(rgba(34,211,238,1) 1px, transparent 1px), linear-gradient(90deg, rgba(34,211,238,1) 1px, transparent 1px)",
-        backgroundSize: "40px 40px",
+        backgroundSize: "48px 48px",
       }} />
 
-      {/* Tagline */}
+      {/* Large ambient glow behind boat */}
       <div style={{
-        position: "absolute", top: "12%", textAlign: "center",
+        position: "absolute", width: 500, height: 500, borderRadius: "50%",
+        background: "radial-gradient(circle, rgba(34,211,238,0.07) 0%, rgba(13,148,136,0.04) 40%, transparent 70%)",
+        animation: "pulse-glow 5s ease-in-out infinite",
+        top: "50%", left: "50%", transform: "translate(-50%, -52%)",
+      }} />
+
+      {/* Horizon glow line */}
+      <div style={{
+        position: "absolute", top: "58%", left: "10%", right: "10%", height: 1,
+        background: "linear-gradient(90deg, transparent, rgba(34,211,238,0.15), rgba(45,212,191,0.25), rgba(34,211,238,0.15), transparent)",
+      }} />
+
+      {/* Top tagline */}
+      <div style={{
+        position: "absolute", top: "14%", textAlign: "center",
         fontFamily: "var(--font-geist-mono), monospace",
       }}>
-        <p style={{ color: "rgba(34,211,238,0.3)", fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase" }}>
+        <p style={{ color: "rgba(34,211,238,0.25)", fontSize: 10, letterSpacing: "0.25em", textTransform: "uppercase", margin: 0 }}>
           // launch your api into the agent economy
         </p>
       </div>
 
-      {/* Sailboat */}
-      <div style={{ animation: "boat-rock 4s ease-in-out infinite", transformOrigin: "bottom center", marginBottom: 8 }}>
-        <pre style={{ fontFamily: "var(--font-geist-mono), monospace", fontSize: 18, lineHeight: 1.15, margin: 0 }}>
+      {/* Sailboat — larger */}
+      <div style={{
+        animation: "boat-rock 5s ease-in-out infinite",
+        transformOrigin: "bottom center",
+        marginBottom: 4,
+        filter: "drop-shadow(0 0 24px rgba(34,211,238,0.18))",
+      }}>
+        <pre style={{ fontFamily: "var(--font-geist-mono), monospace", fontSize: 26, lineHeight: 1.2, margin: 0 }}>
           {SAIL_LINES.map((line, i) => (
             <span key={i} style={{ color: line.color, display: "block" }}>{line.text}</span>
           ))}
@@ -327,25 +345,42 @@ function SailboatScene() {
       </div>
 
       {/* Waves */}
-      <div style={{ position: "relative", height: 32, width: 280, overflow: "hidden" }}>
+      <div style={{ position: "relative", height: 36, width: 340, overflow: "hidden" }}>
         {WAVE_LAYERS.map((layer, i) => (
           <div key={i} style={{
             position: "absolute", left: "50%", transform: "translateX(-50%)",
             whiteSpace: "nowrap", fontFamily: "var(--font-geist-mono), monospace",
-            fontSize: 14, top: i * 10, opacity: layer.opacity, color: layer.color,
+            fontSize: 15, top: i * 11, opacity: layer.opacity, color: layer.color,
             animation: `wave-drift ${layer.speed}s ease-in-out infinite`,
             animationDelay: `${layer.delay}s`,
           }}>{WAVE}</div>
         ))}
       </div>
 
+      {/* Stats / flavor text */}
+      <div style={{
+        position: "absolute", bottom: "18%", textAlign: "center",
+        fontFamily: "var(--font-geist-mono), monospace", display: "flex", flexDirection: "column", gap: 6,
+      }}>
+        {[
+          { label: "agents online", value: "5" },
+          { label: "tasks activated", value: "∞" },
+          { label: "balls dropped", value: "0" },
+        ].map(({ label, value }) => (
+          <div key={label} style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ color: "rgba(34,211,238,0.2)", fontSize: 10, letterSpacing: "0.15em", textTransform: "uppercase" }}>{label}</span>
+            <span style={{ color: "rgba(34,211,238,0.45)", fontSize: 11, fontWeight: 600 }}>{value}</span>
+          </div>
+        ))}
+      </div>
+
       {/* Bottom label */}
       <div style={{
-        position: "absolute", bottom: "10%", textAlign: "center",
+        position: "absolute", bottom: "8%", textAlign: "center",
         fontFamily: "var(--font-geist-mono), monospace",
       }}>
-        <p style={{ color: "rgba(34,211,238,0.2)", fontSize: 10, letterSpacing: "0.15em", textTransform: "uppercase" }}>
-          shipyard os · agent runtime
+        <p style={{ color: "rgba(34,211,238,0.15)", fontSize: 9, letterSpacing: "0.2em", textTransform: "uppercase", margin: 0 }}>
+          shipyard os · powered by openclaw
         </p>
       </div>
     </div>
@@ -359,21 +394,23 @@ function SailboatScene() {
       minHeight: "100vh", backgroundColor: "#0a0a0f", display: "flex",
       fontFamily: "var(--font-geist-sans), system-ui, sans-serif", color: "#e4e4e7",
     }}>
-      {/* ── Right panel: sailboat scene (hidden on mobile) ──────────── */}
-      <div className="hidden lg:block" style={{
-        flex: 1, position: "relative", overflow: "hidden",
-        borderRight: "1px solid rgba(34,211,238,0.08)",
-      }}>
-        <SailboatScene />
-      </div>
-
       {/* ── Left panel: wizard ─────────────────────────────────────── */}
       <div style={{
-        width: "100%", maxWidth: 520, display: "flex", flexDirection: "column",
-        alignItems: "center", justifyContent: "center", padding: "2rem 1rem",
-        flexShrink: 0,
+        width: "100%", maxWidth: 580, display: "flex", flexDirection: "column",
+        alignItems: "center", justifyContent: "center",
+        padding: "3rem 3.5rem 3rem 4rem",
+        flexShrink: 0, zIndex: 1,
       }}>
-      <div style={{ width: "100%", maxWidth: 520 }}>
+      <div style={{
+        width: "100%", maxWidth: 460,
+        background: "rgba(17,17,24,0.7)",
+        backdropFilter: "blur(12px)",
+        WebkitBackdropFilter: "blur(12px)",
+        border: "1px solid rgba(255,255,255,0.06)",
+        borderRadius: 20,
+        padding: "2.5rem",
+        boxShadow: "0 32px 64px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.03) inset",
+      }}>
         {/* Progress dots — hidden on welcome and done */}
         {step > 0 && step < 5 && <ProgressDots step={step} total={6} />}
 
@@ -911,6 +948,14 @@ function SailboatScene() {
           )}
         </StepWrapper>
       </div>
+      </div>
+
+      {/* ── Right panel: sailboat scene (hidden on mobile) ──────────── */}
+      <div className="hidden lg:flex" style={{
+        flex: 1, position: "relative", overflow: "hidden",
+        borderLeft: "1px solid rgba(34,211,238,0.07)",
+      }}>
+        <SailboatScene />
       </div>
     </div>
   )
