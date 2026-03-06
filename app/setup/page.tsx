@@ -6,11 +6,11 @@ import { useRouter } from "next/navigation"
 // ── Agent definitions ──────────────────────────────────────────────────────
 
 const AGENTS = [
-  { emoji: "🦞", name: "Vic", role: "Chief of Staff", color: "#7c3aed" },
-  { emoji: "🔭", name: "Scout", role: "Market Intelligence", color: "#06b6d4" },
-  { emoji: "⚡", name: "Builder", role: "Engineering", color: "#10b981" },
-  { emoji: "🤝", name: "Deal Flow", role: "Partnerships", color: "#f59e0b" },
-  { emoji: "🏦", name: "Baron", role: "Treasury", color: "#ec4899" },
+  { emoji: "🤖", name: "Chief of Staff", role: "Orchestrates your agent team", color: "#7c3aed" },
+  { emoji: "🔭", name: "Researcher", role: "Market intelligence & signals", color: "#06b6d4" },
+  { emoji: "⚡", name: "Engineer", role: "Builds and ships code", color: "#10b981" },
+  { emoji: "🤝", name: "Deal Flow", role: "Partnerships & opportunities", color: "#f59e0b" },
+  { emoji: "🏦", name: "Treasurer", role: "Wallet & financial ops", color: "#ec4899" },
 ]
 
 // ── Types ─────────────────────────────────────────────────────────────────
@@ -24,6 +24,7 @@ interface SetupState {
   workspace: string
   userName: string
   assistantName: string
+  anthropicAdminKey: string
 }
 
 interface ScanResult {
@@ -87,6 +88,7 @@ export default function SetupPage() {
     workspace: "~/clawd",
     userName: "",
     assistantName: "Vic",
+    anthropicAdminKey: "",
   })
 
   // Gateway test state
@@ -104,6 +106,7 @@ export default function SetupPage() {
 
   // Token visibility
   const [showToken, setShowToken] = useState(false)
+  const [showAdminKey, setShowAdminKey] = useState(false)
   const [showEnvToken, setShowEnvToken] = useState(false)
 
   // Saving state
@@ -222,38 +225,51 @@ export default function SetupPage() {
           deliveryTarget: state.deliveryTarget,
           deliveryChannel: state.deliveryChannel,
           workspace: state.workspace,
+          anthropicAdminKey: state.anthropicAdminKey,
         }),
       })
-      goTo(5)
+      goTo(6)
     } catch {
       // Still proceed
-      goTo(5)
+      goTo(6)
     } finally {
       setSaving(false)
     }
   }
 
-  const envConfig = [
+  const envLines = [
     `OPENCLAW_GATEWAY_URL=${state.gatewayUrl}`,
     `OPENCLAW_GATEWAY_TOKEN=${state.gatewayToken}`,
     `AGENT_DELIVERY_TARGET=${state.deliveryTarget}`,
     `AGENT_DELIVERY_CHANNEL=${state.deliveryChannel}`,
     `AGENT_WORKSPACE=${state.workspace}`,
     `NEXT_PUBLIC_MC_URL=http://localhost:3000`,
-  ].join("\n")
+  ]
+  if (state.anthropicAdminKey) {
+    envLines.push(`ANTHROPIC_ADMIN_KEY=${state.anthropicAdminKey}`)
+  }
+  const envConfig = envLines.join("\n")
 
   const maskedToken = state.gatewayToken
     ? state.gatewayToken.slice(0, 4) + "•".repeat(Math.max(0, state.gatewayToken.length - 4))
     : "••••••••••••••••••••"
 
-  const envConfigMasked = [
+  const maskedAdminKey = state.anthropicAdminKey
+    ? state.anthropicAdminKey.slice(0, 12) + "•".repeat(Math.max(0, state.anthropicAdminKey.length - 12))
+    : ""
+
+  const envMaskedLines = [
     `OPENCLAW_GATEWAY_URL=${state.gatewayUrl}`,
     `OPENCLAW_GATEWAY_TOKEN=${showEnvToken ? state.gatewayToken : maskedToken}`,
     `AGENT_DELIVERY_TARGET=${state.deliveryTarget}`,
     `AGENT_DELIVERY_CHANNEL=${state.deliveryChannel}`,
     `AGENT_WORKSPACE=${state.workspace}`,
     `NEXT_PUBLIC_MC_URL=http://localhost:3000`,
-  ].join("\n")
+  ]
+  if (state.anthropicAdminKey) {
+    envMaskedLines.push(`ANTHROPIC_ADMIN_KEY=${showEnvToken ? state.anthropicAdminKey : maskedAdminKey}`)
+  }
+  const envConfigMasked = envMaskedLines.join("\n")
 
   async function copyEnv() {
     try {
@@ -268,25 +284,151 @@ export default function SetupPage() {
   const canGoNextWorkspace = scanResult !== null || workspaceSkipped
   const canGoNextIdentity = state.userName.trim().length > 0
 
-  // ── Render ────────────────────────────────────────────────────────────────
+  // ── Sailboat ─────────────────────────────────────────────────────────────
+
+const SAIL_LINES = [
+  { text: "       │╲", color: "#71717a" },
+  { text: "      ╱│ ╲", color: "#a1a1aa" },
+  { text: "     ╱ │  ╲", color: "rgba(103,232,249,0.6)" },
+  { text: "    ╱  │   ╲", color: "rgba(34,211,238,0.7)" },
+  { text: "   ╱   │    ╲", color: "rgba(34,211,238,0.9)" },
+  { text: "  ▁▁▁▁▁▁▁▁▁▁▁▁", color: "#2dd4bf" },
+  { text: "   ╲▁▁▁▁▁▁▁▁╱", color: "#14b8a6" },
+]
+
+const WAVE = "~≈∿~≈∿~≈∿~≈∿~≈∿~≈∿~≈∿~≈∿~≈∿~≈∿~≈∿~"
+const WAVE_LAYERS = [
+  { speed: 3, opacity: 0.5, color: "rgb(34 211 238)", delay: 0 },
+  { speed: 4, opacity: 0.35, color: "rgb(45 212 191)", delay: 0.4 },
+  { speed: 5, opacity: 0.2, color: "rgb(20 184 166)", delay: 0.8 },
+]
+
+function SailboatScene() {
+  return (
+    <div style={{
+      position: "absolute", inset: 0, display: "flex", flexDirection: "column",
+      alignItems: "center", justifyContent: "center", userSelect: "none", pointerEvents: "none",
+    }}>
+      {/* Deep background gradient */}
+      <div style={{
+        position: "absolute", inset: 0,
+        background: "radial-gradient(ellipse 80% 60% at 50% 60%, rgba(8,30,40,0.8) 0%, transparent 100%)",
+      }} />
+
+      {/* Grid lines — subtle */}
+      <div style={{
+        position: "absolute", inset: 0, opacity: 0.035,
+        backgroundImage: "linear-gradient(rgba(34,211,238,1) 1px, transparent 1px), linear-gradient(90deg, rgba(34,211,238,1) 1px, transparent 1px)",
+        backgroundSize: "48px 48px",
+      }} />
+
+      {/* Large ambient glow behind boat */}
+      <div style={{
+        position: "absolute", width: 500, height: 500, borderRadius: "50%",
+        background: "radial-gradient(circle, rgba(34,211,238,0.07) 0%, rgba(13,148,136,0.04) 40%, transparent 70%)",
+        animation: "pulse-glow 5s ease-in-out infinite",
+        top: "50%", left: "50%", transform: "translate(-50%, -52%)",
+      }} />
+
+      {/* Horizon glow line */}
+      <div style={{
+        position: "absolute", top: "58%", left: "10%", right: "10%", height: 1,
+        background: "linear-gradient(90deg, transparent, rgba(34,211,238,0.15), rgba(45,212,191,0.25), rgba(34,211,238,0.15), transparent)",
+      }} />
+
+      {/* Top tagline */}
+      <div style={{
+        position: "absolute", top: "14%", textAlign: "center",
+        fontFamily: "var(--font-geist-mono), monospace",
+      }}>
+        <p style={{ color: "rgba(34,211,238,0.25)", fontSize: 10, letterSpacing: "0.25em", textTransform: "uppercase", margin: 0 }}>
+          // launch your api into the agent economy
+        </p>
+      </div>
+
+      {/* Sailboat — larger */}
+      <div style={{
+        animation: "boat-rock 5s ease-in-out infinite",
+        transformOrigin: "bottom center",
+        marginBottom: 4,
+        filter: "drop-shadow(0 0 24px rgba(34,211,238,0.18))",
+      }}>
+        <pre style={{ fontFamily: "var(--font-geist-mono), monospace", fontSize: 26, lineHeight: 1.2, margin: 0 }}>
+          {SAIL_LINES.map((line, i) => (
+            <span key={i} style={{ color: line.color, display: "block" }}>{line.text}</span>
+          ))}
+        </pre>
+      </div>
+
+      {/* Waves */}
+      <div style={{ position: "relative", height: 36, width: 340, overflow: "hidden" }}>
+        {WAVE_LAYERS.map((layer, i) => (
+          <div key={i} style={{
+            position: "absolute", left: "50%", transform: "translateX(-50%)",
+            whiteSpace: "nowrap", fontFamily: "var(--font-geist-mono), monospace",
+            fontSize: 15, top: i * 11, opacity: layer.opacity, color: layer.color,
+            animation: `wave-drift ${layer.speed}s ease-in-out infinite`,
+            animationDelay: `${layer.delay}s`,
+          }}>{WAVE}</div>
+        ))}
+      </div>
+
+      {/* Stats / flavor text */}
+      <div style={{
+        position: "absolute", bottom: "18%", textAlign: "center",
+        fontFamily: "var(--font-geist-mono), monospace", display: "flex", flexDirection: "column", gap: 6,
+      }}>
+        {[
+          { label: "agents online", value: "∞" },
+          { label: "tasks automated", value: "∞" },
+          { label: "balls dropped", value: "0" },
+        ].map(({ label, value }) => (
+          <div key={label} style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ color: "rgba(34,211,238,0.2)", fontSize: 10, letterSpacing: "0.15em", textTransform: "uppercase" }}>{label}</span>
+            <span style={{ color: "rgba(34,211,238,0.45)", fontSize: 11, fontWeight: 600 }}>{value}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Bottom label */}
+      <div style={{
+        position: "absolute", bottom: "8%", textAlign: "center",
+        fontFamily: "var(--font-geist-mono), monospace",
+      }}>
+        <p style={{ color: "rgba(34,211,238,0.15)", fontSize: 9, letterSpacing: "0.2em", textTransform: "uppercase", margin: 0 }}>
+          shipyard os · powered by openclaw
+        </p>
+      </div>
+    </div>
+  )
+}
+
+// ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        backgroundColor: "#0a0a0f",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "2rem 1rem",
-        fontFamily: "var(--font-geist-sans), system-ui, sans-serif",
-        color: "#e4e4e7",
-      }}
-    >
-      <div style={{ width: "100%", maxWidth: 520 }}>
+    <div style={{
+      minHeight: "100vh", backgroundColor: "#0a0a0f", display: "flex",
+      fontFamily: "var(--font-geist-sans), system-ui, sans-serif", color: "#e4e4e7",
+    }}>
+      {/* ── Left panel: wizard ─────────────────────────────────────── */}
+      <div style={{
+        width: "100%", maxWidth: 580, display: "flex", flexDirection: "column",
+        alignItems: "center", justifyContent: "center",
+        padding: "3rem 3.5rem 3rem 4rem",
+        flexShrink: 0, zIndex: 1,
+      }}>
+      <div style={{
+        width: "100%", maxWidth: 460,
+        background: "rgba(17,17,24,0.7)",
+        backdropFilter: "blur(12px)",
+        WebkitBackdropFilter: "blur(12px)",
+        border: "1px solid rgba(255,255,255,0.06)",
+        borderRadius: 20,
+        padding: "2.5rem",
+        boxShadow: "0 32px 64px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.03) inset",
+      }}>
         {/* Progress dots — hidden on welcome and done */}
-        {step > 0 && step < 5 && <ProgressDots step={step} total={6} />}
+        {step > 0 && step < 6 && <ProgressDots step={step} total={7} />}
 
         <StepWrapper visible={visible}>
           {/* ── Step 0: Welcome ──────────────────────────────────────────── */}
@@ -313,9 +455,9 @@ export default function SetupPage() {
                   margin: "0 auto 40px",
                 }}
               >
-                Your AI-powered command center.
+                Your AI command center.
                 <br />
-                One dashboard. Five agents. Zero dropped balls.
+                Bring your own agents. Run your company on autopilot.
               </p>
               <button
                 onClick={next}
@@ -334,11 +476,14 @@ export default function SetupPage() {
                 onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#6d28d9")}
                 onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#7c3aed")}
               >
-                Meet your team →
+                Set Sail →
               </button>
 
-              {/* Agent cards */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {/* Role cards — generic, not my specific agents */}
+              <p style={{ fontSize: 12, color: "#52525b", marginBottom: 12, letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                Common agent roles
+              </p>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {AGENTS.map((agent, i) => (
                   <div
                     key={agent.name}
@@ -349,23 +494,27 @@ export default function SetupPage() {
                       display: "flex",
                       alignItems: "center",
                       gap: 12,
-                      backgroundColor: "#111118",
-                      border: `1px solid ${agent.color}44`,
+                      backgroundColor: "rgba(255,255,255,0.03)",
+                      border: `1px solid rgba(255,255,255,0.06)`,
+                      borderLeft: `2px solid ${agent.color}66`,
                       borderRadius: 10,
                       padding: "10px 16px",
                       textAlign: "left",
                     }}
                   >
-                    <span style={{ fontSize: 22 }}>{agent.emoji}</span>
+                    <span style={{ fontSize: 20 }}>{agent.emoji}</span>
                     <div>
-                      <span style={{ fontWeight: 600, color: agent.color }}>{agent.name}</span>
-                      <span style={{ color: "#71717a", marginLeft: 8, fontSize: 14 }}>
-                        — {agent.role}
+                      <span style={{ fontWeight: 600, color: "#e4e4e7", fontSize: 14 }}>{agent.name}</span>
+                      <span style={{ color: "#52525b", marginLeft: 8, fontSize: 13 }}>
+                        {agent.role}
                       </span>
                     </div>
                   </div>
                 ))}
               </div>
+              <p style={{ fontSize: 12, color: "#3f3f46", marginTop: 12, textAlign: "center" }}>
+                You define the agents — Shipyard OS runs them.
+              </p>
             </div>
           )}
 
@@ -717,9 +866,85 @@ export default function SetupPage() {
                   ← Back
                 </button>
                 <button
+                  onClick={next}
+                  disabled={!canGoNextIdentity}
+                  style={primaryBtnStyle(!canGoNextIdentity)}
+                >
+                  Next →
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ── Step 5: API Keys ──────────────────────────────────────────── */}
+          {step === 5 && (
+            <div>
+              <h2 style={{ fontSize: 28, fontWeight: 700, marginBottom: 8 }}>API Keys</h2>
+              <p style={{ color: "#a1a1aa", marginBottom: 32, lineHeight: 1.6 }}>
+                Connect your AI provider for accurate cost tracking.
+              </p>
+
+              <label style={labelStyle}>Anthropic Admin Key</label>
+              <div style={{ position: "relative" }}>
+                <input
+                  style={{ ...inputStyle, paddingRight: 80 }}
+                  type={showAdminKey ? "text" : "password"}
+                  value={state.anthropicAdminKey}
+                  onChange={(e) => setState((s) => ({ ...s, anthropicAdminKey: e.target.value }))}
+                  placeholder="sk-ant-admin..."
+                />
+                <button
+                  onClick={() => setShowAdminKey((v) => !v)}
+                  style={{
+                    position: "absolute",
+                    right: 12,
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    background: "none",
+                    border: "none",
+                    color: "#71717a",
+                    cursor: "pointer",
+                    fontSize: 13,
+                    padding: "4px 8px",
+                  }}
+                >
+                  {showAdminKey ? "Hide" : "Show"}
+                </button>
+              </div>
+
+              <p style={helpTextStyle}>
+                Optional. Get yours at{" "}
+                <a
+                  href="https://console.anthropic.com/settings/admin-keys"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: "#a78bfa", textDecoration: "underline" }}
+                >
+                  console.anthropic.com/settings/admin-keys
+                </a>
+              </p>
+
+              <div style={navRowStyle}>
+                <button onClick={back} style={backBtnStyle}>
+                  ← Back
+                </button>
+                <button
+                  onClick={next}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "#71717a",
+                    cursor: "pointer",
+                    fontSize: 14,
+                    padding: "8px 12px",
+                  }}
+                >
+                  Skip
+                </button>
+                <button
                   onClick={saveAndFinish}
-                  disabled={!canGoNextIdentity || saving}
-                  style={primaryBtnStyle(!canGoNextIdentity || saving)}
+                  disabled={saving}
+                  style={primaryBtnStyle(saving)}
                 >
                   {saving ? (
                     <>
@@ -733,8 +958,8 @@ export default function SetupPage() {
             </div>
           )}
 
-          {/* ── Step 5: Done ─────────────────────────────────────────────── */}
-          {step === 5 && (
+          {/* ── Step 6: Done ─────────────────────────────────────────────── */}
+          {step === 6 && (
             <div style={{ textAlign: "center" }}>
               <div style={{ fontSize: 48, marginBottom: 16 }}>⚓</div>
               <h2 style={{ fontSize: 32, fontWeight: 700, marginBottom: 8 }}>You&apos;re all set.</h2>
@@ -821,6 +1046,15 @@ export default function SetupPage() {
             </div>
           )}
         </StepWrapper>
+      </div>
+      </div>
+
+      {/* ── Right panel: sailboat scene (hidden on mobile) ──────────── */}
+      <div className="hidden lg:flex" style={{
+        flex: 1, position: "relative", overflow: "hidden",
+        borderLeft: "1px solid rgba(34,211,238,0.07)",
+      }}>
+        <SailboatScene />
       </div>
     </div>
   )

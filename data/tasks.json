@@ -224,5 +224,20 @@
     ],
     "createdAt": "2026-03-06T17:40:59.240Z",
     "updatedAt": "2026-03-06T17:40:59.240Z"
+  },
+  {
+    "id": "task-1772822844312",
+    "title": "Add /os landing page to Shipyard — Shipyard OS product page",
+    "description": "",
+    "column": "in-progress",
+    "priority": "high",
+    "assignee": "builder",
+    "tags": [
+      "shipyard",
+      "shipyard-os",
+      "landing"
+    ],
+    "createdAt": "2026-03-06T18:47:24.312Z",
+    "updatedAt": "2026-03-06T18:47:24.312Z"
   }
 ]

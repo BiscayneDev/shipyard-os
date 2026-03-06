@@ -6,19 +6,28 @@ interface ModelStats {
   model: string
   inputTokens: number
   outputTokens: number
+  cacheCreationTokens: number
+  cacheReadTokens: number
   totalTokens: number
-  estimatedCostUSD: number
-  sessions: number
+}
+
+interface DailyCost {
+  date: string
+  costUSD: number
 }
 
 interface CostsData {
   totalInputTokens: number
   totalOutputTokens: number
+  totalCacheCreationTokens: number
+  totalCacheReadTokens: number
   totalTokens: number
-  totalEstimatedCostUSD: number
+  totalCostUSD: number
   byModel: ModelStats[]
+  dailyCosts: DailyCost[]
   dataSource: string
   lastUpdated: string | null
+  error?: string
 }
 
 function fmtTokens(n: number): string {
@@ -41,11 +50,17 @@ function timeAgo(iso: string): string {
   return `${Math.floor(hrs / 24)}d ago`
 }
 
+function fmtDate(iso: string): string {
+  const d = new Date(iso)
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+}
+
 const AMBER = "#f59e0b"
 
 export default function CostsPage() {
   const [data, setData] = useState<CostsData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [hoveredBar, setHoveredBar] = useState<number | null>(null)
 
   useEffect(() => {
     fetch("/api/costs")
@@ -55,9 +70,10 @@ export default function CostsPage() {
       .finally(() => setLoading(false))
   }, [])
 
+  const noAdminKey = data?.error === "no_admin_key"
   const isEmpty =
     !data ||
-    (data.totalTokens === 0 && data.byModel.length === 0)
+    (!noAdminKey && data.totalTokens === 0 && data.byModel.length === 0)
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -69,7 +85,7 @@ export default function CostsPage() {
             <h1 className="text-3xl font-bold text-white">Costs</h1>
           </div>
           <p className="text-sm text-zinc-500 mt-0.5">
-            Token usage &amp; estimated spend across all models
+            Token usage &amp; spend across all models
             {data?.lastUpdated && (
               <span className="ml-2 text-zinc-600">· {timeAgo(data.lastUpdated)}</span>
             )}
@@ -81,6 +97,46 @@ export default function CostsPage() {
         <div className="flex items-center justify-center min-h-[40vh]">
           <p className="text-zinc-600">Loading usage data...</p>
         </div>
+      ) : noAdminKey ? (
+        /* ── No Admin Key empty state ──────────────────────────────────── */
+        <div
+          className="rounded-xl p-10 text-center space-y-4"
+          style={{ backgroundColor: "#111118", border: `1px solid ${AMBER}30` }}
+        >
+          <p className="text-3xl">🔑</p>
+          <p className="text-xl font-semibold text-white">Connect Anthropic</p>
+          <p className="text-sm text-zinc-400 max-w-md mx-auto leading-relaxed">
+            Add your Anthropic Admin API key to see real cost and usage data.
+          </p>
+          <div
+            className="rounded-lg p-4 text-left mx-auto max-w-sm"
+            style={{
+              backgroundColor: "#0d0d17",
+              border: "1px solid #2a2a3a",
+              fontFamily: "var(--font-geist-mono), monospace",
+              fontSize: 13,
+              lineHeight: 1.8,
+            }}
+          >
+            <div>
+              <span style={{ color: AMBER }}>ANTHROPIC_ADMIN_KEY</span>
+              <span style={{ color: "#71717a" }}>=</span>
+              <span style={{ color: "#a1a1aa" }}>sk-ant-admin...</span>
+            </div>
+          </div>
+          <p className="text-xs text-zinc-600">
+            Add to <code className="text-zinc-500" style={{ backgroundColor: "#1a1a2a", padding: "2px 6px", borderRadius: 4, fontSize: 12 }}>.env.local</code>
+          </p>
+          <a
+            href="https://console.anthropic.com/settings/admin-keys"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-block text-sm font-medium"
+            style={{ color: AMBER }}
+          >
+            Get your admin key →
+          </a>
+        </div>
       ) : isEmpty ? (
         <div
           className="rounded-xl p-10 text-center space-y-3"
@@ -89,8 +145,7 @@ export default function CostsPage() {
           <p className="text-3xl">📊</p>
           <p className="text-zinc-400 font-medium">No data yet</p>
           <p className="text-xs text-zinc-600">
-            Token usage data will appear here once OpenClaw logs usage events in{" "}
-            <code className="text-zinc-500">~/.openclaw/logs/</code>
+            Usage data will appear here once API calls are made.
           </p>
         </div>
       ) : (
@@ -101,7 +156,7 @@ export default function CostsPage() {
               {
                 label: "Total Tokens",
                 value: fmtTokens(data!.totalTokens),
-                sub: "all time",
+                sub: "last 30 days",
               },
               {
                 label: "Input Tokens",
@@ -114,8 +169,8 @@ export default function CostsPage() {
                 sub: "completion",
               },
               {
-                label: "Est. Cost",
-                value: fmtCost(data!.totalEstimatedCostUSD),
+                label: "Actual Cost",
+                value: fmtCost(data!.totalCostUSD),
                 sub: "USD",
                 highlight: true,
               },
@@ -145,6 +200,81 @@ export default function CostsPage() {
             ))}
           </div>
 
+          {/* Daily cost bar chart */}
+          {data!.dailyCosts.length > 0 && (
+            <div
+              className="rounded-xl overflow-hidden"
+              style={{ backgroundColor: "#111118", border: "1px solid #1a1a2e" }}
+            >
+              <div className="px-5 py-3 border-b border-zinc-800/50">
+                <p className="text-xs font-mono uppercase tracking-wider text-zinc-500">
+                  Last 30 days
+                </p>
+              </div>
+              <div className="px-5 py-4">
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "flex-end",
+                    gap: 2,
+                    height: 120,
+                    position: "relative",
+                  }}
+                >
+                  {(() => {
+                    const maxCost = Math.max(...data!.dailyCosts.map((d) => d.costUSD), 0.01)
+                    return data!.dailyCosts.map((day, i) => {
+                      const heightPct = Math.max((day.costUSD / maxCost) * 100, 2)
+                      const isHovered = hoveredBar === i
+                      return (
+                        <div
+                          key={day.date}
+                          style={{
+                            flex: 1,
+                            height: `${heightPct}%`,
+                            backgroundColor: isHovered ? AMBER : `${AMBER}88`,
+                            borderRadius: "2px 2px 0 0",
+                            cursor: "pointer",
+                            transition: "background-color 0.15s, height 0.15s",
+                            position: "relative",
+                          }}
+                          onMouseEnter={() => setHoveredBar(i)}
+                          onMouseLeave={() => setHoveredBar(null)}
+                        >
+                          {isHovered && (
+                            <div
+                              style={{
+                                position: "absolute",
+                                bottom: "calc(100% + 8px)",
+                                left: "50%",
+                                transform: "translateX(-50%)",
+                                backgroundColor: "#1a1a2e",
+                                border: "1px solid #2a2a3a",
+                                borderRadius: 6,
+                                padding: "6px 10px",
+                                whiteSpace: "nowrap",
+                                zIndex: 10,
+                                fontSize: 12,
+                                pointerEvents: "none",
+                              }}
+                            >
+                              <div style={{ color: "#e4e4e7", fontWeight: 600 }}>
+                                {fmtCost(day.costUSD)}
+                              </div>
+                              <div style={{ color: "#71717a", fontSize: 11 }}>
+                                {fmtDate(day.date)}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })
+                  })()}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Per-model breakdown */}
           {data!.byModel.length > 0 && (
             <div
@@ -170,10 +300,13 @@ export default function CostsPage() {
                         Output
                       </th>
                       <th className="text-right px-4 py-2.5 text-xs text-zinc-600 font-medium uppercase tracking-wider">
-                        Sessions
+                        Cache Created
+                      </th>
+                      <th className="text-right px-4 py-2.5 text-xs text-zinc-600 font-medium uppercase tracking-wider">
+                        Cache Read
                       </th>
                       <th className="text-right px-5 py-2.5 text-xs text-zinc-600 font-medium uppercase tracking-wider">
-                        Est. Cost
+                        Total
                       </th>
                     </tr>
                   </thead>
@@ -192,14 +325,14 @@ export default function CostsPage() {
                         <td className="px-4 py-3 text-right text-xs text-zinc-400">
                           {fmtTokens(m.outputTokens)}
                         </td>
-                        <td className="px-4 py-3 text-right text-xs text-zinc-500">
-                          {m.sessions}
+                        <td className="px-4 py-3 text-right text-xs text-zinc-400">
+                          {fmtTokens(m.cacheCreationTokens)}
                         </td>
-                        <td
-                          className="px-5 py-3 text-right text-xs font-semibold"
-                          style={{ color: AMBER }}
-                        >
-                          {fmtCost(m.estimatedCostUSD)}
+                        <td className="px-4 py-3 text-right text-xs text-zinc-400">
+                          {fmtTokens(m.cacheReadTokens)}
+                        </td>
+                        <td className="px-5 py-3 text-right text-xs text-zinc-400">
+                          {fmtTokens(m.totalTokens)}
                         </td>
                       </tr>
                     ))}
@@ -215,14 +348,17 @@ export default function CostsPage() {
                       <td className="px-4 py-3 text-right text-xs font-semibold text-zinc-300">
                         {fmtTokens(data!.totalOutputTokens)}
                       </td>
-                      <td className="px-4 py-3 text-right text-xs text-zinc-500">
-                        —
+                      <td className="px-4 py-3 text-right text-xs font-semibold text-zinc-300">
+                        {fmtTokens(data!.totalCacheCreationTokens)}
+                      </td>
+                      <td className="px-4 py-3 text-right text-xs font-semibold text-zinc-300">
+                        {fmtTokens(data!.totalCacheReadTokens)}
                       </td>
                       <td
                         className="px-5 py-3 text-right text-sm font-bold"
                         style={{ color: AMBER }}
                       >
-                        {fmtCost(data!.totalEstimatedCostUSD)}
+                        {fmtTokens(data!.totalTokens)}
                       </td>
                     </tr>
                   </tfoot>
@@ -230,7 +366,7 @@ export default function CostsPage() {
               </div>
               <div className="px-5 py-2 border-t border-zinc-800/50">
                 <p className="text-xs text-zinc-700">
-                  Costs are estimates based on public pricing. Actual charges may differ.
+                  Actual costs from Anthropic Admin API · refreshes every 5 min
                 </p>
               </div>
             </div>

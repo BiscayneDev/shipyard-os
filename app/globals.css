@@ -23,3 +23,19 @@ body {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
+
+/* ── Sailboat animation ────────────────────────── */
+@keyframes boat-rock {
+  0%, 100% { transform: rotate(-2deg) translateY(0px); }
+  50% { transform: rotate(2deg) translateY(-4px); }
+}
+
+@keyframes wave-drift {
+  0%, 100% { transform: translateX(-50%) translateX(0px); }
+  50% { transform: translateX(-50%) translateX(-20px); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.15; }
+  50% { opacity: 0.35; }
+}
