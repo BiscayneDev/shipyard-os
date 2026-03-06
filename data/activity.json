@@ -1,5 +1,22 @@
 [
   {
+    "id": "cb52d1a8-42cc-444c-b9cf-bd520e717e5f",
+    "taskId": "task-1772776754394",
+    "taskTitle": "Inbox widget",
+    "agent": "builder",
+    "action": "completed",
+    "summary": "Gmail inbox widget on dashboard with noise filtering",
+    "timestamp": "2026-03-06T06:04:52.737Z"
+  },
+  {
+    "id": "64345d72-8fd1-4ddc-b7a9-8f428b907c1d",
+    "taskId": "task-1772776754394",
+    "taskTitle": "Build Inbox widget — surface Gmail on dashboard",
+    "agent": "builder",
+    "action": "completed",
+    "timestamp": "2026-03-06T06:04:52.656Z"
+  },
+  {
     "id": "301abc95-bc62-4a7a-a4ad-70cf9a041aac",
     "taskId": "task-1772776754342",
     "taskTitle": "Settings page",

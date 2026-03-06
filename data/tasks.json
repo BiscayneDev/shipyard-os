@@ -147,8 +147,8 @@
   {
     "id": "task-1772776754394",
     "title": "Build Inbox widget — surface Gmail on dashboard",
-    "description": "Wire gog Gmail to Mission Control dashboard. Show important unread emails: deals, intros, time-sensitive items. API route + dashboard widget.",
-    "column": "in-progress",
+    "description": "✅ Inbox widget on dashboard — surfaces unread Gmail, filters noise, auto-refreshes",
+    "column": "done",
     "priority": "high",
     "assignee": "builder",
     "tags": [
@@ -156,7 +156,7 @@
       "gmail"
     ],
     "createdAt": "2026-03-06T05:59:14.394Z",
-    "updatedAt": "2026-03-06T05:59:14.394Z"
+    "updatedAt": "2026-03-06T06:04:52.655Z"
   },
   {
     "id": "task-1772776754422",

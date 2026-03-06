@@ -1,26 +1,76 @@
-import { streamText, UIMessage, convertToModelMessages } from "ai"
-import { anthropic } from "@ai-sdk/anthropic"
+import { NextResponse } from "next/server"
+import { execFile } from "child_process"
+import { promisify } from "util"
 
-const SYSTEM_PROMPT = `You are the CEO of Biscayne Dev, a technology company building AI-powered products. You are speaking with the founder (Halsey) through the Mission Control dashboard.
+const execFileAsync = promisify(execFile)
 
-Your team consists of:
-- Founding Engineer: Full-stack engineering, owns the entire technical stack
-- Hermes: Research agent
+const GATEWAY_URL = "http://127.0.0.1:18789/api/agent/turn"
+const GATEWAY_TOKEN = "f062a35b477a3c87a59b897728cd96afb84a970b3faa6093"
 
-You are strategic, decisive, and focused on shipping. You give concise, actionable responses. You think about product-market fit, team leverage, and prioritization. You are direct — no fluff.
+interface GatewayResponse {
+  reply?: string
+  response?: string
+  text?: string
+  content?: string
+  message?: string
+}
 
-When discussing technical decisions, defer to the Founding Engineer's expertise but provide product and business context. When discussing priorities, think about what moves the needle most.
+async function callGateway(message: string): Promise<string | null> {
+  try {
+    const res = await fetch(GATEWAY_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${GATEWAY_TOKEN}`,
+      },
+      body: JSON.stringify({ message, sessionKey: "agent:main:main" }),
+      signal: AbortSignal.timeout(30000),
+    })
 
-Keep responses concise and conversational. You're chatting in a dashboard, not writing essays.`
+    if (!res.ok) return null
 
-export async function POST(req: Request) {
-  const { messages }: { messages: UIMessage[] } = await req.json()
+    const data = await res.json() as GatewayResponse
+    return data.reply ?? data.response ?? data.text ?? data.content ?? data.message ?? null
+  } catch {
+    return null
+  }
+}
 
-  const result = streamText({
-    model: anthropic("claude-haiku-4-5-20251001"),
-    system: SYSTEM_PROMPT,
-    messages: await convertToModelMessages(messages),
-  })
+async function callCLI(message: string): Promise<string> {
+  try {
+    const { stdout } = await execFileAsync(
+      "/opt/homebrew/bin/openclaw",
+      ["agent", "--message", message, "--session-id", "agent:main:main", "--json"],
+      { timeout: 30000 }
+    )
 
-  return result.toUIMessageStreamResponse()
+    interface CLIResponse { reply?: string; response?: string; text?: string; content?: string; output?: string }
+    const parsed = JSON.parse(stdout) as CLIResponse
+    return parsed.reply ?? parsed.response ?? parsed.text ?? parsed.content ?? parsed.output ?? stdout.trim()
+  } catch {
+    return "Unable to reach OpenClaw. Make sure the gateway is running locally."
+  }
+}
+
+export async function POST(request: Request) {
+  if (process.env.VERCEL || process.env.VERCEL_ENV) {
+    return NextResponse.json({ reply: "Chat requires a local OpenClaw instance." })
+  }
+
+  try {
+    const body = await request.json() as { message: string; sessionId?: string }
+    const { message } = body
+
+    if (!message?.trim()) {
+      return NextResponse.json({ error: "Message is required" }, { status: 400 })
+    }
+
+    // Try gateway first, fall back to CLI
+    const gatewayReply = await callGateway(message)
+    const reply = gatewayReply ?? (await callCLI(message))
+
+    return NextResponse.json({ reply })
+  } catch {
+    return NextResponse.json({ error: "Failed to process message" }, { status: 500 })
+  }
 }
