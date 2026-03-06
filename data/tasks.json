@@ -175,8 +175,8 @@
   {
     "id": "task-1772776754451",
     "title": "Build Docs page — living knowledge base",
-    "description": "Searchable docs page surfacing Baron research, Scout reports, Builder architecture decisions, agent memory. Replace the stub with real content.",
-    "column": "in-progress",
+    "description": "✅ Docs page — living knowledge base with Scout reports, agent docs, memory",
+    "column": "done",
     "priority": "medium",
     "assignee": "builder",
     "tags": [
@@ -184,7 +184,7 @@
       "docs"
     ],
     "createdAt": "2026-03-06T05:59:14.451Z",
-    "updatedAt": "2026-03-06T05:59:14.451Z"
+    "updatedAt": "2026-03-06T06:07:33.562Z"
   },
   {
     "id": "task-1772776754478",

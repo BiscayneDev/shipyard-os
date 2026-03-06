@@ -1,5 +1,22 @@
 [
   {
+    "id": "e6108c5b-3fb7-4c57-a005-c7c403fb2d22",
+    "taskId": "task-1772776754451",
+    "taskTitle": "Docs knowledge base",
+    "agent": "builder",
+    "action": "completed",
+    "summary": "Living knowledge base — Scout reports, agent docs, Baron research, memory",
+    "timestamp": "2026-03-06T06:07:33.620Z"
+  },
+  {
+    "id": "b9466a80-b9a0-4ab9-818d-89165a1072eb",
+    "taskId": "task-1772776754451",
+    "taskTitle": "Build Docs page — living knowledge base",
+    "agent": "builder",
+    "action": "completed",
+    "timestamp": "2026-03-06T06:07:33.563Z"
+  },
+  {
     "id": "9db25cd6-9f05-4b05-9af9-dcfbc3088b98",
     "taskId": "task-1772776754422",
     "taskTitle": "Chat wired to OpenClaw",
