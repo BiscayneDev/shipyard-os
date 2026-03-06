@@ -26,16 +26,14 @@ Think Jarvis. But for real.
 ## Features
 
 - **🗂 Kanban Task Board** — drag tasks to activate agents. Agents move tasks to Done when they finish.
-- **🤖 Agent Team** — built-in support for Vic (Chief of Staff), Scout (research), Builder (engineering), Deal Flow (partnerships), Baron (treasury)
+- **🤖 Agent Team** — Chief of Staff, Scout (research), Builder (engineering), Deal Flow (partnerships), Baron (treasury)
 - **💬 Agent Chat** — talk to your agents directly from the dashboard
 - **📬 Inbox** — important unread emails surfaced automatically (via Gmail)
 - **📅 Calendar** — upcoming events at a glance
 - **📊 Projects** — CI status, open PRs, deploy health across all your repos
 - **🧠 Memory** — browse your agent's memory and daily notes
-- **📚 Docs** — living knowledge base of agent reports and research
-- **💰 Costs** — token usage and estimated spend by model
-- **⚙️ Settings** — configure everything: agent budgets, cron schedules, connected services
-- **🔔 Toasts** — real-time notifications when agents start and complete work
+- **💰 Costs** — real token usage and spend via Anthropic Admin API
+- **🔔 Toasts** — real-time notifications when agents complete work
 
 ---
 
@@ -46,11 +44,9 @@ You drag a task to "In Progress"
         ↓
 Shipyard OS fires an agent turn into your OpenClaw session
         ↓
-Vic (Chief of Staff) reads the task, enriches the brief, delegates to the right agent
+Your Chief of Staff reads the task and delegates to the right agent
         ↓
-Builder/Scout/Baron executes the task
-        ↓
-Agent calls completion hooks → task moves to Done → toast fires → activity logged
+Agent executes → task moves to Done → toast fires → activity logged
 ```
 
 No polling. No manual follow-up. The board reflects reality.
@@ -60,10 +56,9 @@ No polling. No manual follow-up. The board reflects reality.
 ## Stack
 
 - **Next.js 15** (App Router, TypeScript strict)
-- **Tailwind CSS** (dark theme, `#0a0a0f` bg)
+- **Tailwind CSS** (dark theme)
 - **[OpenClaw](https://openclaw.ai)** — agent runtime + gateway
-- **Vercel KV** (optional) — persistent task storage across deploys
-- Local JSON fallback for everything
+- Local JSON for task storage (no database required)
 
 ---
 
@@ -71,90 +66,57 @@ No polling. No manual follow-up. The board reflects reality.
 
 ### Prerequisites
 
-- [OpenClaw](https://openclaw.ai) installed and running (`openclaw gateway start`)
+- [OpenClaw](https://openclaw.ai) installed and running
 - Node.js 18+
-- A Telegram account (or any channel OpenClaw supports)
 
-### Install
+### Install & run
 
 ```bash
 git clone https://github.com/BiscayneDev/shipyard-os
 cd shipyard-os
 npm install
-```
-
-### Configure
-
-```bash
-cp .env.example .env.local
-```
-
-Edit `.env.local`:
-
-```env
-# Your OpenClaw gateway (run: openclaw gateway status)
-OPENCLAW_GATEWAY_URL=http://127.0.0.1:18789
-OPENCLAW_GATEWAY_TOKEN=your-token-here
-
-# Where task activations get sent (your Telegram chat ID)
-AGENT_DELIVERY_TARGET=your-telegram-chat-id
-AGENT_DELIVERY_CHANNEL=telegram
-
-# Your agent workspace (where your MEMORY.md, agent files live)
-AGENT_WORKSPACE=~/clawd
-
-# Public URL for agent completion hooks
-NEXT_PUBLIC_MC_URL=http://localhost:3000
-```
-
-### Run
-
-```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Open [http://localhost:3000/setup](http://localhost:3000/setup) — the setup wizard walks you through everything.
+
+---
+
+## Setup Wizard
+
+The first-run wizard connects Shipyard OS to your OpenClaw instance in a few steps:
+
+1. **OpenClaw** — paste your gateway URL + token (`openclaw gateway status` to find these)
+2. **Delivery channel** — where agents reach you (Telegram, Discord, Signal, WhatsApp)
+3. **Workspace** — path to your agent files (`~/clawd` by default)
+4. **Identity** — your name and your assistant's name
+5. **API Keys** — optional Anthropic Admin key for real cost tracking
 
 ---
 
 ## Agent Setup
 
-Shipyard OS works best with a configured agent team. Each agent is a markdown identity file in your workspace:
+Shipyard OS works with any OpenClaw agent configuration. Each agent is a markdown identity file in your workspace:
 
 ```
 ~/clawd/
+  SOUL.md                ← who your assistant is
   MEMORY.md              ← long-term memory
   agents/
     scout/SCOUT.md       ← market intelligence
     builder/BUILDER.md   ← engineering
-    deal-flow/DEAL_FLOW.md ← partnerships
+    deal-flow/DEAL_FLOW.md
     baron/BARON.md       ← treasury
 ```
-
-Sample agent files are in [`/agents`](/agents). Copy them to your workspace and customize.
-
----
-
-## Deploying to Vercel
-
-```bash
-vercel --prod
-```
-
-Set your env vars in the Vercel dashboard. For persistent task storage, link a Vercel KV database (Dashboard → Storage → Create KV → Connect to Project).
-
-Note: Some features (inbox, memory, crons) require a local OpenClaw instance and won't work on Vercel — they gracefully return empty state.
 
 ---
 
 ## Roadmap
 
-- [ ] Setup wizard (first-run config UI)
-- [ ] Agent marketplace (share/install agent identities)
+- [ ] Agent marketplace — share and install agent identities
 - [ ] Multi-workspace support
 - [ ] Mobile app
 - [ ] Goal → Task progress tracking
-- [ ] Public agent gallery
 
 ---
 
@@ -162,7 +124,7 @@ Note: Some features (inbox, memory, crons) require a local OpenClaw instance and
 
 [Halsey Huth](https://twitter.com/halseyh) — Strategic Partnerships at MoonPay, building in public.
 
-Powered by [OpenClaw](https://openclaw.ai) — the open-source AI agent platform.
+Powered by [OpenClaw](https://openclaw.ai).
 
 ---
 
