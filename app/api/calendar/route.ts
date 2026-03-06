@@ -70,10 +70,12 @@ export async function GET() {
   }
 
   // Try primary gog command
+  const now = new Date().toISOString()
+  const in30days = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+
   const attempts = [
-    [GOG, ["calendar", "list", "--limit", "10", "--format", "json"]],
-    [GOG, ["cal", "list", "--json", "--limit", "10"]],
-    [GOG, ["calendar", "list", "--limit", "10", "--json"]],
+    [GOG, ["calendar", "events", "primary", "--from", now, "--to", in30days, "--json"]],
+    [GOG, ["calendar", "events", "halsey@biscayneventures.xyz", "--from", now, "--to", in30days, "--json"]],
   ] as const
 
   for (const [cmd, args] of attempts) {
