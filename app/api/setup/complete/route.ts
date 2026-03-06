@@ -12,6 +12,7 @@ interface SetupPayload {
   deliveryTarget?: string
   deliveryChannel?: string
   workspace?: string
+  anthropicAdminKey?: string
 }
 
 export async function POST(request: Request) {
@@ -27,6 +28,7 @@ export async function POST(request: Request) {
       deliveryTarget: body.deliveryTarget || "",
       deliveryChannel: body.deliveryChannel || "telegram",
       workspace: body.workspace || "~/clawd",
+      anthropicAdminKey: body.anthropicAdminKey || "",
       completedAt: new Date().toISOString(),
     }
 

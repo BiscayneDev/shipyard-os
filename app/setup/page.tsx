@@ -24,6 +24,7 @@ interface SetupState {
   workspace: string
   userName: string
   assistantName: string
+  anthropicAdminKey: string
 }
 
 interface ScanResult {
@@ -87,6 +88,7 @@ export default function SetupPage() {
     workspace: "~/clawd",
     userName: "",
     assistantName: "Vic",
+    anthropicAdminKey: "",
   })
 
   // Gateway test state
@@ -104,6 +106,7 @@ export default function SetupPage() {
 
   // Token visibility
   const [showToken, setShowToken] = useState(false)
+  const [showAdminKey, setShowAdminKey] = useState(false)
   const [showEnvToken, setShowEnvToken] = useState(false)
 
   // Saving state
@@ -222,38 +225,51 @@ export default function SetupPage() {
           deliveryTarget: state.deliveryTarget,
           deliveryChannel: state.deliveryChannel,
           workspace: state.workspace,
+          anthropicAdminKey: state.anthropicAdminKey,
         }),
       })
-      goTo(5)
+      goTo(6)
     } catch {
       // Still proceed
-      goTo(5)
+      goTo(6)
     } finally {
       setSaving(false)
     }
   }
 
-  const envConfig = [
+  const envLines = [
     `OPENCLAW_GATEWAY_URL=${state.gatewayUrl}`,
     `OPENCLAW_GATEWAY_TOKEN=${state.gatewayToken}`,
     `AGENT_DELIVERY_TARGET=${state.deliveryTarget}`,
     `AGENT_DELIVERY_CHANNEL=${state.deliveryChannel}`,
     `AGENT_WORKSPACE=${state.workspace}`,
     `NEXT_PUBLIC_MC_URL=http://localhost:3000`,
-  ].join("\n")
+  ]
+  if (state.anthropicAdminKey) {
+    envLines.push(`ANTHROPIC_ADMIN_KEY=${state.anthropicAdminKey}`)
+  }
+  const envConfig = envLines.join("\n")
 
   const maskedToken = state.gatewayToken
     ? state.gatewayToken.slice(0, 4) + "•".repeat(Math.max(0, state.gatewayToken.length - 4))
     : "••••••••••••••••••••"
 
-  const envConfigMasked = [
+  const maskedAdminKey = state.anthropicAdminKey
+    ? state.anthropicAdminKey.slice(0, 12) + "•".repeat(Math.max(0, state.anthropicAdminKey.length - 12))
+    : ""
+
+  const envMaskedLines = [
     `OPENCLAW_GATEWAY_URL=${state.gatewayUrl}`,
     `OPENCLAW_GATEWAY_TOKEN=${showEnvToken ? state.gatewayToken : maskedToken}`,
     `AGENT_DELIVERY_TARGET=${state.deliveryTarget}`,
     `AGENT_DELIVERY_CHANNEL=${state.deliveryChannel}`,
     `AGENT_WORKSPACE=${state.workspace}`,
     `NEXT_PUBLIC_MC_URL=http://localhost:3000`,
-  ].join("\n")
+  ]
+  if (state.anthropicAdminKey) {
+    envMaskedLines.push(`ANTHROPIC_ADMIN_KEY=${showEnvToken ? state.anthropicAdminKey : maskedAdminKey}`)
+  }
+  const envConfigMasked = envMaskedLines.join("\n")
 
   async function copyEnv() {
     try {
@@ -412,7 +428,7 @@ function SailboatScene() {
         boxShadow: "0 32px 64px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.03) inset",
       }}>
         {/* Progress dots — hidden on welcome and done */}
-        {step > 0 && step < 5 && <ProgressDots step={step} total={6} />}
+        {step > 0 && step < 6 && <ProgressDots step={step} total={7} />}
 
         <StepWrapper visible={visible}>
           {/* ── Step 0: Welcome ──────────────────────────────────────────── */}
@@ -850,9 +866,85 @@ function SailboatScene() {
                   ← Back
                 </button>
                 <button
+                  onClick={next}
+                  disabled={!canGoNextIdentity}
+                  style={primaryBtnStyle(!canGoNextIdentity)}
+                >
+                  Next →
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ── Step 5: API Keys ──────────────────────────────────────────── */}
+          {step === 5 && (
+            <div>
+              <h2 style={{ fontSize: 28, fontWeight: 700, marginBottom: 8 }}>API Keys</h2>
+              <p style={{ color: "#a1a1aa", marginBottom: 32, lineHeight: 1.6 }}>
+                Connect your AI provider for accurate cost tracking.
+              </p>
+
+              <label style={labelStyle}>Anthropic Admin Key</label>
+              <div style={{ position: "relative" }}>
+                <input
+                  style={{ ...inputStyle, paddingRight: 80 }}
+                  type={showAdminKey ? "text" : "password"}
+                  value={state.anthropicAdminKey}
+                  onChange={(e) => setState((s) => ({ ...s, anthropicAdminKey: e.target.value }))}
+                  placeholder="sk-ant-admin..."
+                />
+                <button
+                  onClick={() => setShowAdminKey((v) => !v)}
+                  style={{
+                    position: "absolute",
+                    right: 12,
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    background: "none",
+                    border: "none",
+                    color: "#71717a",
+                    cursor: "pointer",
+                    fontSize: 13,
+                    padding: "4px 8px",
+                  }}
+                >
+                  {showAdminKey ? "Hide" : "Show"}
+                </button>
+              </div>
+
+              <p style={helpTextStyle}>
+                Optional. Get yours at{" "}
+                <a
+                  href="https://console.anthropic.com/settings/admin-keys"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: "#a78bfa", textDecoration: "underline" }}
+                >
+                  console.anthropic.com/settings/admin-keys
+                </a>
+              </p>
+
+              <div style={navRowStyle}>
+                <button onClick={back} style={backBtnStyle}>
+                  ← Back
+                </button>
+                <button
+                  onClick={next}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "#71717a",
+                    cursor: "pointer",
+                    fontSize: 14,
+                    padding: "8px 12px",
+                  }}
+                >
+                  Skip
+                </button>
+                <button
                   onClick={saveAndFinish}
-                  disabled={!canGoNextIdentity || saving}
-                  style={primaryBtnStyle(!canGoNextIdentity || saving)}
+                  disabled={saving}
+                  style={primaryBtnStyle(saving)}
                 >
                   {saving ? (
                     <>
@@ -866,8 +958,8 @@ function SailboatScene() {
             </div>
           )}
 
-          {/* ── Step 5: Done ─────────────────────────────────────────────── */}
-          {step === 5 && (
+          {/* ── Step 6: Done ─────────────────────────────────────────────── */}
+          {step === 6 && (
             <div style={{ textAlign: "center" }}>
               <div style={{ fontSize: 48, marginBottom: 16 }}>⚓</div>
               <h2 style={{ fontSize: 32, fontWeight: 700, marginBottom: 8 }}>You&apos;re all set.</h2>
