@@ -4,6 +4,7 @@ import { promisify } from "util"
 
 const execFileAsync = promisify(execFile)
 const OPENCLAW = "/opt/homebrew/bin/openclaw"
+const MC_URL = "https://mission-control-two-ebon.vercel.app"
 
 export async function POST(request: Request) {
   try {
@@ -36,9 +37,9 @@ export async function POST(request: Request) {
       `1. Enrich this into a proper brief`,
       `2. Delegate to the right agent (pass them the Task ID: ${taskId})`,
       `3. Agent must call these when done:`,
-      `   PATCH http://localhost:3000/api/tasks/${taskId} with {"column":"done","description":"✅ summary"}`,
-      `   POST http://localhost:3000/api/notify with {"agent":"[name]","message":"✅ Done: ${title}","type":"finish"}`,
-      `   POST http://localhost:3000/api/activity with {"taskId":"${taskId}","taskTitle":"${title}","agent":"[name]","action":"completed","summary":"..."}`,
+      `   curl -s -X PATCH ${MC_URL}/api/tasks/${taskId} -H "Content-Type: application/json" -d '{"column":"done","description":"✅ summary"}'`,
+      `   curl -s -X POST ${MC_URL}/api/notify -H "Content-Type: application/json" -d '{"agent":"[name]","message":"✅ Done: ${title}","type":"finish"}'`,
+      `   curl -s -X POST ${MC_URL}/api/activity -H "Content-Type: application/json" -d '{"taskId":"${taskId}","taskTitle":"${title}","agent":"[name]","action":"completed","summary":"..."}'`,
       ``,
       `Do not ask for clarification — act now.`,
     ].filter(Boolean).join("\n")

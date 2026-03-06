@@ -203,12 +203,12 @@
   {
     "id": "task-1772776985364",
     "title": "Main Dashboard needs a facelift/revamp. Some of the stuff isnt dynamic and some of it is redundant. ",
-    "description": "",
-    "column": "in-progress",
+    "description": "✅ Dashboard revamped — dynamic greeting, cleaner layout, inbox+activity side by side, intel+goals combined strip",
+    "column": "done",
     "priority": "medium",
     "assignee": "vic",
     "tags": [],
     "createdAt": "2026-03-06T06:03:05.364Z",
-    "updatedAt": "2026-03-06T06:15:40.742Z"
+    "updatedAt": "2026-03-06T06:21:56.296Z"
   }
 ]
