@@ -11,6 +11,7 @@ export interface Task {
   assignee: Agent
   tags: string[]
   goalId?: string
+  isDemo?: boolean
   createdAt: string
   updatedAt: string
 }

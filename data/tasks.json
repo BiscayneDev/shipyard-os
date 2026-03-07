@@ -40,8 +40,8 @@
   },
   {
     "id": "task-1772773567056",
-    "title": "Set up the MoonPay CLI and wallet for Baron",
-    "description": "✅ Done:\n- BARON.md identity file created at ~/clawd/agents/baron/BARON.md\n- MoonPay CLI wallet created: Solana 4nEcdo9BPGrKK59AqEGdBff3SDjfTAcSNkcvBkBpn6WU, EVM 0x6715d4DA636b50E579f69fa92D620955Bd1A2e07\n- Scout deployed to research best Solana DeFi + crypto agent tooling (results incoming)\n- MEMORY.md updated with Baron wallet addresses",
+    "title": "Set up treasury agent wallet",
+    "description": "✅ Done:\n- Identity file created for Baron agent\n- Wallet addresses configured\n- Scout deployed to research best DeFi tooling (results incoming)\n- MEMORY.md updated with wallet addresses",
     "column": "done",
     "priority": "medium",
     "assignee": "baron",
@@ -77,7 +77,7 @@
   {
     "id": "task-1772775715810",
     "title": "Set up Scout Signal Watch cron",
-    "description": "✅ Daily 1pm ET cron — scans last 24h for high-signal x402/MoonPay/Solana/OpenClaw news. Only pings Halsey if genuinely notable.",
+    "description": "✅ Daily 1pm ET cron — scans last 24h for high-signal news in your tracked topics. Only pings you if genuinely notable.",
     "column": "done",
     "priority": "high",
     "assignee": "scout",

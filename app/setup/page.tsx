@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { TEAM_TEMPLATES } from "@/lib/agent-templates"
 
 // ── Agent definitions ──────────────────────────────────────────────────────
 
@@ -30,6 +31,7 @@ interface SetupState {
   workspace: string
   userName: string
   assistantName: string
+  companyName: string
   anthropicAdminKey: string
 }
 
@@ -98,8 +100,12 @@ export default function SetupPage() {
     workspace: "~/clawd",
     userName: "",
     assistantName: "Vic",
+    companyName: "",
     anthropicAdminKey: "",
   })
+
+  // Team template state
+  const [selectedTemplate, setSelectedTemplate] = useState("startup")
 
   // Ollama test state
   const [ollamaTesting, setOllamaTesting] = useState(false)
@@ -275,16 +281,18 @@ export default function SetupPage() {
           deliveryTarget: state.deliveryTarget,
           deliveryChannel: state.deliveryChannel,
           workspace: state.workspace,
+          companyName: state.companyName,
+          teamTemplate: selectedTemplate,
           anthropicAdminKey: state.anthropicAdminKey,
           demoMode,
         }),
       })
       const data = await res.json() as { ok: boolean; envWritten?: boolean }
       setEnvWritten(data.envWritten ?? false)
-      goTo(7)
+      goTo(8)
     } catch {
       // Still proceed
-      goTo(7)
+      goTo(8)
     } finally {
       setSaving(false)
     }
@@ -507,7 +515,7 @@ function SailboatScene() {
         boxShadow: "0 32px 64px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.03) inset",
       }}>
         {/* Progress dots — hidden on welcome and done */}
-        {step > 0 && step < 7 && <ProgressDots step={step} total={8} />}
+        {step > 0 && step < 8 && <ProgressDots step={step} total={9} />}
 
         <StepWrapper visible={visible}>
           {/* ── Step 0: Welcome ──────────────────────────────────────────── */}
@@ -1111,7 +1119,7 @@ function SailboatScene() {
                 type="text"
                 value={state.userName}
                 onChange={(e) => setState((s) => ({ ...s, userName: e.target.value }))}
-                placeholder='e.g. "Halsey"'
+                placeholder='e.g. "Alex"'
               />
 
               <label style={{ ...labelStyle, marginTop: 24 }}>Your assistant&apos;s name</label>
@@ -1121,6 +1129,15 @@ function SailboatScene() {
                 value={state.assistantName}
                 onChange={(e) => setState((s) => ({ ...s, assistantName: e.target.value }))}
                 placeholder='e.g. "Jarvis", "Max", "Aria"'
+              />
+
+              <label style={{ ...labelStyle, marginTop: 24 }}>Company / project name <span style={{ color: "#52525b", fontWeight: 400 }}>(optional)</span></label>
+              <input
+                style={inputStyle}
+                type="text"
+                value={state.companyName}
+                onChange={(e) => setState((s) => ({ ...s, companyName: e.target.value }))}
+                placeholder='e.g. "Acme Labs"'
               />
 
               <div style={navRowStyle}>
@@ -1138,8 +1155,78 @@ function SailboatScene() {
             </div>
           )}
 
-          {/* ── Step 6: API Keys ──────────────────────────────────────────── */}
+          {/* ── Step 6: Team Template ─────────────────────────────────────── */}
           {step === 6 && (
+            <div>
+              <h2 style={{ fontSize: 28, fontWeight: 700, marginBottom: 8 }}>Pick your team</h2>
+              <p style={{ color: "#a1a1aa", marginBottom: 24, lineHeight: 1.6 }}>
+                Choose a starting template — you can customize agents later.
+              </p>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 10, maxHeight: 340, overflowY: "auto" }}>
+                {TEAM_TEMPLATES.map((tmpl) => (
+                  <button
+                    key={tmpl.id}
+                    onClick={() => setSelectedTemplate(tmpl.id)}
+                    style={{
+                      display: "flex",
+                      alignItems: "flex-start",
+                      gap: 14,
+                      padding: "14px 18px",
+                      borderRadius: 12,
+                      border: selectedTemplate === tmpl.id
+                        ? "2px solid #7c3aed"
+                        : "1px solid rgba(255,255,255,0.08)",
+                      backgroundColor: selectedTemplate === tmpl.id
+                        ? "rgba(124,58,237,0.08)"
+                        : "rgba(255,255,255,0.03)",
+                      cursor: "pointer",
+                      textAlign: "left",
+                      transition: "all 0.15s",
+                    }}
+                  >
+                    <span style={{ fontSize: 24, marginTop: 2 }}>{tmpl.icon}</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 600, color: "#e4e4e7", fontSize: 15 }}>{tmpl.name}</div>
+                      <div style={{ color: "#71717a", fontSize: 12, marginTop: 2 }}>{tmpl.description}</div>
+                      <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
+                        {tmpl.agents.map((a) => (
+                          <span
+                            key={a.id}
+                            style={{
+                              fontSize: 11,
+                              padding: "2px 8px",
+                              borderRadius: 20,
+                              backgroundColor: `${a.accent}18`,
+                              color: a.accent,
+                              border: `1px solid ${a.accent}30`,
+                            }}
+                          >
+                            {a.emoji} {a.name}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              <div style={navRowStyle}>
+                <button onClick={back} style={backBtnStyle}>
+                  ← Back
+                </button>
+                <button
+                  onClick={next}
+                  style={primaryBtnStyle(false)}
+                >
+                  Next →
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ── Step 7: API Keys ──────────────────────────────────────────── */}
+          {step === 7 && (
             <div>
               <h2 style={{ fontSize: 28, fontWeight: 700, marginBottom: 8 }}>API Keys</h2>
               <p style={{ color: "#a1a1aa", marginBottom: 32, lineHeight: 1.6 }}>
@@ -1191,7 +1278,7 @@ function SailboatScene() {
                   ← Back
                 </button>
                 <button
-                  onClick={next}
+                  onClick={() => saveAndFinish(false)}
                   style={{
                     background: "none",
                     border: "none",
@@ -1220,8 +1307,8 @@ function SailboatScene() {
             </div>
           )}
 
-          {/* ── Step 7: Done + Health Checks ────────────────────────────── */}
-          {step === 7 && (
+          {/* ── Step 8: Done + Health Checks ────────────────────────────── */}
+          {step === 8 && (
             <div style={{ textAlign: "center" }}>
               <div style={{ fontSize: 48, marginBottom: 16 }}>⚓</div>
               <h2 style={{ fontSize: 32, fontWeight: 700, marginBottom: 8 }}>You&apos;re all set.</h2>

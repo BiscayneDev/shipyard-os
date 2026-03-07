@@ -55,8 +55,30 @@ export default function ChatPage() {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" })
   }, [messages, isLoading])
 
+  // Save messages to history whenever they change
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => {
+    if (messages.length === 0) return
+    // Debounce saves to avoid excessive writes
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
+    saveTimeoutRef.current = setTimeout(() => {
+      fetch("/api/chat/history", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages }),
+      }).catch(() => null)
+    }, 1000)
+  }, [messages])
+
   useEffect(() => {
     inputRef.current?.focus()
+    // Load chat history
+    fetch("/api/chat/history")
+      .then((r) => r.json())
+      .then((data: ChatMessage[]) => {
+        if (Array.isArray(data) && data.length > 0) setMessages(data)
+      })
+      .catch(() => null)
     // Check runtime mode
     fetch("/api/setup/status")
       .then((r) => r.json())
@@ -140,7 +162,10 @@ export default function ChatPage() {
         <div className="flex items-center gap-2">
           {messages.length > 0 && (
             <button
-              onClick={() => setMessages([])}
+              onClick={() => {
+                setMessages([])
+                fetch("/api/chat/history", { method: "DELETE" }).catch(() => null)
+              }}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors hover:bg-white/10"
               style={{ color: "#71717a" }}
             >

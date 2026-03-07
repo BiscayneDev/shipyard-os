@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { writeFile, readFile, mkdir } from "fs/promises"
 import { join, dirname } from "path"
+import { TEAM_TEMPLATES } from "@/lib/agent-templates"
 
 const SETUP_PATH = join(process.cwd(), "data", "setup.json")
 const ENV_LOCAL_PATH = join(process.cwd(), ".env.local")
@@ -16,6 +17,8 @@ interface SetupPayload {
   deliveryTarget?: string
   deliveryChannel?: string
   workspace?: string
+  companyName?: string
+  teamTemplate?: string
   anthropicAdminKey?: string
   demoMode?: boolean
 }
@@ -42,6 +45,7 @@ export async function POST(request: Request) {
       deliveryTarget: isDemoMode ? "" : (body.deliveryTarget || ""),
       deliveryChannel: isDemoMode ? "" : (body.deliveryChannel || "telegram"),
       workspace: body.workspace || "~/clawd",
+      companyName: body.companyName || "",
       completedAt: new Date().toISOString(),
     }
 
@@ -112,14 +116,15 @@ export async function POST(request: Request) {
         needsSeed = true
       }
       if (needsSeed) {
-        const defaultAgents = [
-          { id: "chief", name: body.assistantName || "Vic", emoji: "🤖", role: "Chief of Staff", accent: "#7c3aed", description: "Coordinates everything. Keeps memory sharp, delegates tasks, makes sure nothing falls through.", tags: ["Orchestration", "Memory", "Execution"], isVic: true, budget: 50 },
-          { id: "researcher", name: "Scout", emoji: "🔭", role: "Researcher", accent: "#06b6d4", description: "Monitors the web for market signals, competitor moves, and emerging trends.", tags: ["Research", "Analysis", "Signals"], budget: 30 },
-          { id: "engineer", name: "Builder", emoji: "⚡", role: "Engineer", accent: "#10b981", description: "Ships code. Builds and maintains projects, automates workflows.", tags: ["Code", "Automation", "DevOps"], budget: 100 },
-          { id: "deal-flow", name: "Deal Flow", emoji: "🤝", role: "Business Dev", accent: "#f59e0b", description: "Tracks partnerships, opportunities, and strategic moves.", tags: ["Partnerships", "Outreach", "Strategy"], budget: 20 },
-          { id: "treasurer", name: "Treasurer", emoji: "🏦", role: "Finance", accent: "#ec4899", description: "Manages budgets, tracks spending, and handles financial operations.", tags: ["Finance", "Budgets", "Reporting"], budget: 20 },
-        ]
-        await writeFile(agentsPath, JSON.stringify(defaultAgents, null, 2), "utf-8")
+        // Use team template if specified, otherwise fall back to startup template
+        const template = TEAM_TEMPLATES.find((t) => t.id === body.teamTemplate) ?? TEAM_TEMPLATES[0]
+        const seedAgents = template.agents.map((a) => ({
+          ...a,
+          // Override the chief agent's name with the user's chosen assistant name
+          name: a.isChief && body.assistantName ? body.assistantName : a.name,
+          isVic: a.isChief || undefined,
+        }))
+        await writeFile(agentsPath, JSON.stringify(seedAgents, null, 2), "utf-8")
       }
     } catch {
       // Non-fatal
@@ -130,11 +135,11 @@ export async function POST(request: Request) {
       try {
         const tasksPath = join(process.cwd(), "data", "tasks.json")
         const demoTasks = [
-          { id: "demo-1", title: "Research competitor pricing models", column: "backlog", priority: "high", assignee: "scout", tags: ["research"], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-          { id: "demo-2", title: "Build landing page hero section", column: "in-progress", priority: "medium", assignee: "builder", tags: ["frontend"], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-          { id: "demo-3", title: "Review partnership proposal from Acme", column: "in-review", priority: "high", assignee: "deal-flow", tags: ["partnerships"], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-          { id: "demo-4", title: "Audit DeFi yield positions", column: "backlog", priority: "low", assignee: "baron", tags: ["defi"], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-          { id: "demo-5", title: "Set up CI/CD pipeline", column: "done", priority: "medium", assignee: "builder", tags: ["devops"], description: "Completed: GitHub Actions pipeline configured with lint, test, and deploy stages.", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+          { id: "demo-1", title: "Research competitor pricing models", column: "backlog", priority: "high", assignee: "scout", tags: ["research", "demo"], isDemo: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+          { id: "demo-2", title: "Build landing page hero section", column: "in-progress", priority: "medium", assignee: "builder", tags: ["frontend", "demo"], isDemo: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+          { id: "demo-3", title: "Review partnership proposal from Acme", column: "in-review", priority: "high", assignee: "deal-flow", tags: ["partnerships", "demo"], isDemo: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+          { id: "demo-4", title: "Audit DeFi yield positions", column: "backlog", priority: "low", assignee: "baron", tags: ["defi", "demo"], isDemo: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+          { id: "demo-5", title: "Set up CI/CD pipeline", column: "done", priority: "medium", assignee: "builder", tags: ["devops", "demo"], isDemo: true, description: "Completed: GitHub Actions pipeline configured with lint, test, and deploy stages.", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
         ]
         await writeFile(tasksPath, JSON.stringify(demoTasks, null, 2), "utf-8")
       } catch {
