@@ -1,5 +1,6 @@
 <div align="center">
 
+<img src="https://img.shields.io/npm/v/create-shipyard-app?style=flat-square&color=22c55e&label=npm" alt="npm version" />
 <img src="https://img.shields.io/github/stars/BiscayneDev/shipyard-os?style=social" alt="GitHub stars" />
 
 # ⚓ Shipyard OS
