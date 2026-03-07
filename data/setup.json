@@ -3,7 +3,6 @@
   "userName": "Halsey",
   "assistantName": "Vic",
   "gatewayUrl": "http://127.0.0.1:18789",
-  "gatewayToken": "f062a35b477a3c87a59b897728cd96afb84a970b3faa6093",
   "deliveryTarget": "264452755",
   "deliveryChannel": "telegram",
   "workspace": "~/clawd",

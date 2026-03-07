@@ -181,6 +181,15 @@ export default function DashboardPage() {
   const [recentActivity, setRecentActivity] = useState<ActivityEntry[]>([])
   const [emails, setEmails] = useState<EmailEntry[]>([])
   const [inboxLoading, setInboxLoading] = useState(true)
+  const [demoMode, setDemoMode] = useState(false)
+
+  // Check demo mode
+  useEffect(() => {
+    fetch("/api/setup/status")
+      .then((r) => r.json())
+      .then((d: { demoMode?: boolean }) => { if (d.demoMode) setDemoMode(true) })
+      .catch(() => null)
+  }, [])
 
   const fetchInbox = useCallback(async () => {
     try {
@@ -252,6 +261,29 @@ export default function DashboardPage() {
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
+      {/* Demo mode banner */}
+      {demoMode && (
+        <div
+          className="rounded-xl p-4 flex items-center justify-between"
+          style={{ backgroundColor: "#1a1a2e", border: "1px solid #f59e0b30" }}
+        >
+          <div className="flex items-center gap-3">
+            <span className="text-lg">🧪</span>
+            <div>
+              <p className="text-sm font-medium text-amber-400">Running in demo mode</p>
+              <p className="text-xs text-zinc-500">Connect OpenClaw to activate agents and run real tasks.</p>
+            </div>
+          </div>
+          <Link
+            href="/settings"
+            className="text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
+            style={{ backgroundColor: "#f59e0b20", color: "#f59e0b" }}
+          >
+            Connect
+          </Link>
+        </div>
+      )}
+
       {/* ── 1. Header — dynamic greeting ─────────────────────────── */}
       <div>
         <h1 className="text-3xl font-bold text-white">Dashboard</h1>

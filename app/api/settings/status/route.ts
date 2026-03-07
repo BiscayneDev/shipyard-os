@@ -1,4 +1,5 @@
-import { BIN, GATEWAY_URL } from "@/lib/config"
+import { BIN } from "@/lib/config"
+import { runtime } from "@/lib/runtime"
 import { NextResponse } from "next/server"
 import { execFile } from "child_process"
 import { promisify } from "util"
@@ -14,14 +15,13 @@ export interface ServiceStatus {
 }
 
 async function checkOpenClaw(): Promise<ServiceStatus> {
-  if (process.env.VERCEL || process.env.VERCEL_ENV) {
-    return { id: "openclaw", name: "OpenClaw Gateway", description: "Local AI agent runtime", connected: false, error: "Not available on Vercel" }
-  }
-  try {
-    const res = await fetch(`${GATEWAY_URL}/api/health`, { signal: AbortSignal.timeout(3000) })
-    return { id: "openclaw", name: "OpenClaw Gateway", description: "Local AI agent runtime", connected: res.ok }
-  } catch (err) {
-    return { id: "openclaw", name: "OpenClaw Gateway", description: "Local AI agent runtime", connected: false, error: err instanceof Error ? err.message : "Unreachable" }
+  const health = await runtime.healthCheck()
+  return {
+    id: "agent-runtime",
+    name: `${runtime.name} Runtime`,
+    description: "AI agent runtime",
+    connected: health.ok,
+    error: health.error,
   }
 }
 

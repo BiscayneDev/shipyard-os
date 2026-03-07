@@ -1,0 +1,33 @@
+{
+  "name": "create-shipyard-app",
+  "version": "0.1.0",
+  "description": "Create a new Shipyard OS project — the open-source Agent OS",
+  "bin": {
+    "create-shipyard-app": "./index.mjs"
+  },
+  "keywords": [
+    "ai",
+    "agents",
+    "agent-os",
+    "shipyard",
+    "orchestration",
+    "openai",
+    "anthropic",
+    "claude",
+    "autonomous-agents",
+    "task-management"
+  ],
+  "author": "Halsey Huth",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/BiscayneDev/shipyard-os"
+  },
+  "homepage": "https://github.com/BiscayneDev/shipyard-os",
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "index.mjs"
+  ]
+}

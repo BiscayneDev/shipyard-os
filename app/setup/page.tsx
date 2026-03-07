@@ -111,6 +111,12 @@ export default function SetupPage() {
 
   // Saving state
   const [saving, setSaving] = useState(false)
+  const [envWritten, setEnvWritten] = useState(false)
+
+  // Health check state
+  const [healthChecks, setHealthChecks] = useState<Array<{ name: string; status: string; message: string }>>([])
+  const [healthLoading, setHealthLoading] = useState(false)
+  const [healthDone, setHealthDone] = useState(false)
 
   // Animate agents on step 0
   useEffect(() => {
@@ -211,10 +217,10 @@ export default function SetupPage() {
     }
   }
 
-  async function saveAndFinish() {
+  async function saveAndFinish(demoMode = false) {
     setSaving(true)
     try {
-      await fetch("/api/setup/complete", {
+      const res = await fetch("/api/setup/complete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -226,14 +232,31 @@ export default function SetupPage() {
           deliveryChannel: state.deliveryChannel,
           workspace: state.workspace,
           anthropicAdminKey: state.anthropicAdminKey,
+          demoMode,
         }),
       })
+      const data = await res.json() as { ok: boolean; envWritten?: boolean }
+      setEnvWritten(data.envWritten ?? false)
       goTo(6)
     } catch {
       // Still proceed
       goTo(6)
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function runHealthChecks() {
+    setHealthLoading(true)
+    try {
+      const res = await fetch("/api/setup/status?health=true")
+      const data = await res.json() as { checks?: Array<{ name: string; status: string; message: string }> }
+      setHealthChecks(data.checks ?? [])
+    } catch {
+      setHealthChecks([])
+    } finally {
+      setHealthLoading(false)
+      setHealthDone(true)
     }
   }
 
@@ -614,6 +637,19 @@ function SailboatScene() {
                   ← Back
                 </button>
                 <button
+                  onClick={() => goTo(4)}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "#71717a",
+                    cursor: "pointer",
+                    fontSize: 13,
+                    padding: "8px 12px",
+                  }}
+                >
+                  Skip — explore without agents
+                </button>
+                <button
                   onClick={next}
                   disabled={!canGoNextGateway}
                   style={primaryBtnStyle(!canGoNextGateway)}
@@ -942,7 +978,7 @@ function SailboatScene() {
                   Skip
                 </button>
                 <button
-                  onClick={saveAndFinish}
+                  onClick={() => saveAndFinish(!gatewayResult?.ok)}
                   disabled={saving}
                   style={primaryBtnStyle(saving)}
                 >
@@ -958,79 +994,151 @@ function SailboatScene() {
             </div>
           )}
 
-          {/* ── Step 6: Done ─────────────────────────────────────────────── */}
+          {/* ── Step 6: Done + Health Checks ────────────────────────────── */}
           {step === 6 && (
             <div style={{ textAlign: "center" }}>
               <div style={{ fontSize: 48, marginBottom: 16 }}>⚓</div>
               <h2 style={{ fontSize: 32, fontWeight: 700, marginBottom: 8 }}>You&apos;re all set.</h2>
-              <p style={{ color: "#a1a1aa", marginBottom: 36, fontSize: 16 }}>
-                Your Shipyard OS is ready.
-                {state.userName ? ` Welcome aboard, ${state.userName}.` : ""}
+              <p style={{ color: "#a1a1aa", marginBottom: 24, fontSize: 16 }}>
+                {state.userName ? `Welcome aboard, ${state.userName}.` : "Your Shipyard OS is ready."}
               </p>
 
-              <p style={{ color: "#71717a", fontSize: 13, marginBottom: 12, textAlign: "left" }}>
-                Here&apos;s your config — save this as <code style={codeStyle}>.env.local</code>:
-              </p>
-
-              {/* Env config box */}
-              <div
-                style={{
-                  backgroundColor: "#0d0d17",
-                  border: "1px solid #2a2a3a",
-                  borderRadius: 10,
-                  padding: "16px 20px",
-                  textAlign: "left",
-                  fontFamily: "var(--font-geist-mono), monospace",
-                  fontSize: 13,
-                  lineHeight: 1.8,
-                  color: "#a1a1aa",
-                  marginBottom: 16,
-                  position: "relative",
-                }}
-              >
-                {envConfigMasked.split("\n").map((line, i) => {
-                  const [key, ...valParts] = line.split("=")
-                  const val = valParts.join("=")
-                  return (
-                    <div key={i}>
-                      <span style={{ color: "#7c3aed" }}>{key}</span>
-                      <span style={{ color: "#71717a" }}>=</span>
-                      <span style={{ color: "#e4e4e7" }}>{val}</span>
-                    </div>
-                  )
-                })}
-              </div>
-
-              <div style={{ display: "flex", gap: 10, marginBottom: 32, flexWrap: "wrap" }}>
-                <button
-                  onClick={() => setShowEnvToken((v) => !v)}
+              {/* Env status */}
+              {envWritten ? (
+                <div
                   style={{
-                    background: "none",
-                    border: "1px solid #2a2a3a",
-                    borderRadius: 8,
-                    padding: "8px 16px",
-                    color: "#71717a",
-                    cursor: "pointer",
-                    fontSize: 13,
+                    padding: "12px 16px",
+                    borderRadius: 10,
+                    backgroundColor: "#052e16",
+                    border: "1px solid #22c55e44",
+                    color: "#22c55e",
+                    fontSize: 14,
+                    marginBottom: 16,
+                    textAlign: "left",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
                   }}
                 >
-                  {showEnvToken ? "Hide token" : "Show token"}
-                </button>
-                <button
-                  onClick={copyEnv}
+                  ✓ Environment saved to <code style={{ ...codeStyle, color: "#22c55e", backgroundColor: "#0a2a15" }}>.env.local</code>
+                </div>
+              ) : (
+                <div
                   style={{
-                    background: "none",
-                    border: "1px solid #2a2a3a",
-                    borderRadius: 8,
-                    padding: "8px 16px",
+                    padding: "12px 16px",
+                    borderRadius: 10,
+                    backgroundColor: "#1a1a2e",
+                    border: "1px solid #3a3a4a",
                     color: "#a1a1aa",
-                    cursor: "pointer",
                     fontSize: 13,
+                    marginBottom: 16,
+                    textAlign: "left",
                   }}
                 >
-                  Copy to clipboard
+                  Running in demo mode — no environment file needed.
+                </div>
+              )}
+
+              {/* Show config toggle */}
+              <details style={{ marginBottom: 16, textAlign: "left" }}>
+                <summary style={{ color: "#71717a", fontSize: 13, cursor: "pointer", marginBottom: 8 }}>
+                  Show configuration
+                </summary>
+                <div
+                  style={{
+                    backgroundColor: "#0d0d17",
+                    border: "1px solid #2a2a3a",
+                    borderRadius: 10,
+                    padding: "16px 20px",
+                    fontFamily: "var(--font-geist-mono), monospace",
+                    fontSize: 13,
+                    lineHeight: 1.8,
+                    color: "#a1a1aa",
+                    position: "relative",
+                  }}
+                >
+                  {envConfigMasked.split("\n").map((line, i) => {
+                    const [key, ...valParts] = line.split("=")
+                    const val = valParts.join("=")
+                    return (
+                      <div key={i}>
+                        <span style={{ color: "#7c3aed" }}>{key}</span>
+                        <span style={{ color: "#71717a" }}>=</span>
+                        <span style={{ color: "#e4e4e7" }}>{val}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+                <div style={{ display: "flex", gap: 10, marginTop: 8, flexWrap: "wrap" }}>
+                  <button
+                    onClick={() => setShowEnvToken((v) => !v)}
+                    style={{ background: "none", border: "1px solid #2a2a3a", borderRadius: 8, padding: "6px 12px", color: "#71717a", cursor: "pointer", fontSize: 12 }}
+                  >
+                    {showEnvToken ? "Hide token" : "Show token"}
+                  </button>
+                  <button
+                    onClick={copyEnv}
+                    style={{ background: "none", border: "1px solid #2a2a3a", borderRadius: 8, padding: "6px 12px", color: "#a1a1aa", cursor: "pointer", fontSize: 12 }}
+                  >
+                    Copy to clipboard
+                  </button>
+                </div>
+              </details>
+
+              {/* Health checks */}
+              {!healthDone ? (
+                <button
+                  onClick={runHealthChecks}
+                  disabled={healthLoading}
+                  style={{
+                    ...secondaryBtnStyle(healthLoading),
+                    width: "100%",
+                    justifyContent: "center",
+                    marginBottom: 16,
+                  }}
+                >
+                  {healthLoading ? <><Spinner /> Running checks...</> : "Run Health Check"}
                 </button>
-              </div>
+              ) : (
+                <div style={{ marginBottom: 16, textAlign: "left" }}>
+                  <p style={{ fontSize: 12, color: "#71717a", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    System checks
+                  </p>
+                  {healthChecks.map((check) => (
+                    <div
+                      key={check.name}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        padding: "8px 12px",
+                        borderRadius: 8,
+                        marginBottom: 4,
+                        backgroundColor: "#111118",
+                        border: `1px solid ${check.status === "pass" ? "#22c55e22" : check.status === "warn" ? "#f59e0b22" : "#ef444422"}`,
+                      }}
+                    >
+                      <span style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: "50%",
+                        backgroundColor: check.status === "pass" ? "#22c55e" : check.status === "warn" ? "#f59e0b" : "#ef4444",
+                        flexShrink: 0,
+                      }} />
+                      <div>
+                        <span style={{ fontSize: 13, color: "#e4e4e7", fontWeight: 500 }}>{check.name}</span>
+                        <span style={{ fontSize: 12, color: "#71717a", marginLeft: 8 }}>{check.message}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {envWritten && (
+                <p style={{ fontSize: 12, color: "#52525b", marginBottom: 16 }}>
+                  Restart <code style={codeStyle}>npm run dev</code> to pick up the new environment variables.
+                </p>
+              )}
 
               <button
                 onClick={() => router.push("/dashboard")}

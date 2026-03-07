@@ -1,0 +1,37 @@
+# Dependencies
+node_modules
+.pnp
+.pnp.*
+.yarn/*
+
+# Build output
+.next
+out
+build
+
+# Env / secrets
+.env*
+!.env.example
+
+# Git
+.git
+.gitignore
+
+# IDE
+.vscode
+.idea
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Misc
+*.md
+!README.md
+LICENSE
+cli/
+.github/
+.vercel
+coverage/
+*.tsbuildinfo

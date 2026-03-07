@@ -1,133 +1,283 @@
 <div align="center">
-  <h1>⚓ Shipyard OS</h1>
-  <p><strong>The open-source Agent OS for solo founders.</strong></p>
-  <p>Connect your AI agents. Manage your work. Run your company from one dashboard.</p>
 
-  <img src="https://img.shields.io/badge/Next.js-15-black?style=flat-square" />
-  <img src="https://img.shields.io/badge/TypeScript-strict-3178c6?style=flat-square" />
-  <img src="https://img.shields.io/badge/OpenClaw-powered-7c3aed?style=flat-square" />
-  <img src="https://img.shields.io/badge/license-MIT-22c55e?style=flat-square" />
+<img src="https://img.shields.io/github/stars/BiscayneDev/shipyard-os?style=social" alt="GitHub stars" />
+
+# ⚓ Shipyard OS
+
+### The open-source operating system for AI agent teams.
+
+Drag a task → your agents execute → the board reflects reality.
+
+[Get Started](#-quickstart) · [Features](#-features) · [Demo](https://shipyard-os.vercel.app) · [Roadmap](#-roadmap)
+
+<br />
+
+<img src="https://img.shields.io/badge/Next.js-16-black?style=flat-square&logo=nextdotjs" />
+<img src="https://img.shields.io/badge/TypeScript-strict-3178c6?style=flat-square&logo=typescript&logoColor=white" />
+<img src="https://img.shields.io/badge/React-19-61dafb?style=flat-square&logo=react&logoColor=white" />
+<img src="https://img.shields.io/badge/license-MIT-22c55e?style=flat-square" />
+
 </div>
 
----
+<br />
 
-## What is this?
+## The Problem
 
-I was running deals, shipping code, managing research, and monitoring a crypto portfolio — all while working full-time at MoonPay. I needed a way to see everything in one place and have AI agents actually *do* things, not just answer questions.
+You're running a company with AI agents — research, engineering, deals, treasury. But right now you're juggling:
 
-So I built Shipyard OS.
+| Without Shipyard | With Shipyard |
+|:---|:---|
+| Scattered agent outputs across Telegram, Slack, email | One dashboard, all agents, all activity |
+| No idea what your agents are working on | Kanban board that updates in real time |
+| Manually kicking off agent tasks | Drag to "In Progress" → agent activates |
+| No cost visibility until the bill arrives | Per-agent budgets with approval gates |
+| Copy-pasting context between tools | Agents share memory, goals, and workspace |
 
-It's a local-first command center that connects to your AI agent team via [OpenClaw](https://openclaw.ai). Drag a task to "In Progress" — your agents pick it up and execute. No more jumping between Telegram, GitHub, Notion, and your terminal.
+<br />
 
-Think Jarvis. But for real.
+## ✨ Features
 
----
+### 🗂 Kanban Task Board
+Drag a task to "In Progress" and your agent picks it up. When it's done, the task moves to "Done" automatically. Budget checks and approval gates built in.
 
-## Features
+### 🤖 Agent Team Management
+Five specialized agents out of the box — Chief of Staff, Scout (research), Builder (engineering), Deal Flow (partnerships), Baron (treasury). Add your own with custom roles, skills, and accent colors.
 
-- **🗂 Kanban Task Board** — drag tasks to activate agents. Agents move tasks to Done when they finish.
-- **🤖 Agent Team** — Chief of Staff, Scout (research), Builder (engineering), Deal Flow (partnerships), Baron (treasury)
-- **💬 Agent Chat** — talk to your agents directly from the dashboard
-- **📬 Inbox** — important unread emails surfaced automatically (via Gmail)
-- **📅 Calendar** — upcoming events at a glance
-- **📊 Projects** — CI status, open PRs, deploy health across all your repos
-- **🧠 Memory** — browse your agent's memory and daily notes
-- **💰 Costs** — real token usage and spend via Anthropic Admin API
-- **🔔 Toasts** — real-time notifications when agents complete work
+### 📊 Dashboard Command Center
+Morning briefing in one glance: agent status (live pulsing dots), task summary, project health, recent intel, inbox, and goals — all on one screen.
 
----
+### 💰 Budget Enforcement
+Set monthly spend limits per agent. Shipyard checks budgets before activation and warns you when agents approach their limits. No surprise bills.
 
-## How it works
+### 📂 GitHub Projects
+CI status, open PRs, and deploy health for your pinned repos. Color-coded badges update automatically.
 
-```
-You drag a task to "In Progress"
-        ↓
-Shipyard OS fires an agent turn into your OpenClaw session
-        ↓
-Your Chief of Staff reads the task and delegates to the right agent
-        ↓
-Agent executes → task moves to Done → toast fires → activity logged
-```
+### 🔭 Intel Feed
+Market intelligence reports from your Scout agent. Deploy research runs from the dashboard.
 
-No polling. No manual follow-up. The board reflects reality.
+### 📅 Calendar & Inbox
+Google Calendar events and important emails surfaced automatically. No more tab-switching.
 
----
+### 🧠 Agent Memory
+Browse your agents' memory files, daily notes, and long-term context. Everything is transparent.
 
-## Stack
+### 💬 Agent Chat
+Talk directly to your agents from the dashboard. Ask questions, give instructions, get status updates.
 
-- **Next.js 15** (App Router, TypeScript strict)
-- **Tailwind CSS** (dark theme)
-- **[OpenClaw](https://openclaw.ai)** — agent runtime + gateway
-- Local JSON for task storage (no database required)
+### 📱 Mobile Ready
+Responsive design with bottom navigation. Manage your agent team from your phone.
 
----
+<br />
 
-## Getting Started
+## 🚀 Quickstart
 
-### Prerequisites
-
-- [OpenClaw](https://openclaw.ai) installed and running
-- Node.js 18+
-
-### Install & run
+### One command:
 
 ```bash
-git clone https://github.com/BiscayneDev/shipyard-os
+npx create-shipyard-app
+```
+
+This will:
+1. Clone the repo
+2. Install dependencies
+3. Launch the setup wizard
+4. Open your browser
+
+### Or manually:
+
+```bash
+git clone https://github.com/BiscayneDev/shipyard-os.git
 cd shipyard-os
 npm install
 npm run dev
 ```
 
-Open [http://localhost:3000/setup](http://localhost:3000/setup) — the setup wizard walks you through everything.
+Open [localhost:3000](http://localhost:3000) — the setup wizard walks you through connecting your agents.
 
----
+### Demo mode
 
-## Setup Wizard
+Don't have agents set up yet? No problem. Click **"Skip — explore without agents"** in the setup wizard to get a feel for the dashboard with sample data.
 
-The first-run wizard connects Shipyard OS to your OpenClaw instance in a few steps:
+<br />
 
-1. **OpenClaw** — paste your gateway URL + token (`openclaw gateway status` to find these)
-2. **Delivery channel** — where agents reach you (Telegram, Discord, Signal, WhatsApp)
-3. **Workspace** — path to your agent files (`~/clawd` by default)
-4. **Identity** — your name and your assistant's name
-5. **API Keys** — optional Anthropic Admin key for real cost tracking
-
----
-
-## Agent Setup
-
-Shipyard OS works with any OpenClaw agent configuration. Each agent is a markdown identity file in your workspace:
+## 🏗 How It Works
 
 ```
-~/clawd/
-  SOUL.md                ← who your assistant is
-  MEMORY.md              ← long-term memory
-  agents/
-    scout/SCOUT.md       ← market intelligence
-    builder/BUILDER.md   ← engineering
-    deal-flow/DEAL_FLOW.md
-    baron/BARON.md       ← treasury
+┌─────────────────────────────────────────────────────────┐
+│                    SHIPYARD OS                          │
+│                                                         │
+│  ┌──────────┐    ┌──────────┐    ┌──────────┐          │
+│  │ Backlog  │───▶│In Progress│───▶│   Done   │          │
+│  │          │    │          │    │          │          │
+│  │ • Research│    │ 🔭 Scout │    │ ✅ Report │          │
+│  │ • Build  │    │  running  │    │  ready   │          │
+│  │ • Deploy │    │          │    │          │          │
+│  └──────────┘    └────┬─────┘    └──────────┘          │
+│                       │                                  │
+│              ┌────────▼────────┐                        │
+│              │  Budget Check   │                        │
+│              │  Approval Gate  │                        │
+│              └────────┬────────┘                        │
+│                       │                                  │
+│              ┌────────▼────────┐                        │
+│              │  Agent Runtime  │                        │
+│              │   (OpenClaw)    │                        │
+│              └─────────────────┘                        │
+└─────────────────────────────────────────────────────────┘
 ```
 
----
+1. **You drag a task** to "In Progress"
+2. **Budget check** runs — does this agent have spend remaining?
+3. **Approval gate** shows you the cost estimate — confirm or cancel
+4. **Agent activates** via OpenClaw gateway
+5. **Task auto-moves** to "Done" when the agent finishes
+6. **Toast notification** fires — activity logged to the feed
 
-## Roadmap
+No polling. No manual follow-up. The board is the source of truth.
 
-- [ ] Agent marketplace — share and install agent identities
-- [ ] Multi-workspace support
-- [ ] Mobile app
-- [ ] Goal → Task progress tracking
+<br />
 
----
+## 🧱 Stack
+
+| Layer | Technology |
+|:------|:-----------|
+| Framework | Next.js 16 (App Router) |
+| Language | TypeScript (strict mode) |
+| Styling | Tailwind CSS 4 |
+| Drag & Drop | @hello-pangea/dnd |
+| Agent Runtime | OpenClaw |
+| Storage | Vercel KV (prod) / local JSON (dev) |
+| AI SDK | Vercel AI SDK + Anthropic |
+| Icons | Lucide React |
+| Deploy | Vercel |
+
+<br />
+
+## 🤖 Default Agent Team
+
+| Agent | Role | Color |
+|:------|:-----|:------|
+| 🦞 **Vic** (Chief of Staff) | Orchestrates the team, delegates tasks | Purple |
+| 🔭 **Scout** | Market intelligence, research, signals | Cyan |
+| ⚡ **Builder** | Engineering, shipping code, CI/CD | Emerald |
+| 🤝 **Deal Flow** | Partnerships, opportunities, outreach | Amber |
+| 🏦 **Baron** | Treasury, wallet ops, financial tracking | Pink |
+
+Agents are fully customizable — change names, roles, skills, and colors from the Agents page.
+
+<br />
+
+## 📁 Project Structure
+
+```
+shipyard-os/
+├── app/
+│   ├── dashboard/      # Command center overview
+│   ├── tasks/          # Kanban board with drag-to-activate
+│   ├── agents/         # Agent team management
+│   ├── projects/       # GitHub repos + CI status
+│   ├── intel/          # Scout research reports
+│   ├── calendar/       # Google Calendar integration
+│   ├── chat/           # Direct agent chat
+│   ├── settings/       # Config + reset wizard
+│   ├── setup/          # First-run onboarding wizard
+│   └── api/            # 15+ API routes
+├── components/
+│   └── Sidebar.tsx     # Desktop sidebar + mobile bottom nav
+├── lib/
+│   └── config.ts       # Runtime configuration
+├── data/
+│   ├── tasks.json      # Local task store
+│   ├── agents.json     # Agent definitions
+│   └── goals.json      # Goal tracker
+└── public/
+```
+
+<br />
+
+## 🗺 Roadmap
+
+- [x] Kanban drag-to-activate with budget gates
+- [x] Agent team management (CRUD)
+- [x] Setup wizard with demo mode
+- [x] Post-setup health checks
+- [x] Budget enforcement + approval modals
+- [x] Gmail inbox integration
+- [x] Google Calendar integration
+- [ ] **Agent runtime abstraction** — plug in LangGraph, CrewAI, or custom runtimes
+- [ ] **Agent marketplace** — share and install agent identities
+- [ ] **`Cmd+K` command palette** — quick actions from anywhere
+- [ ] **Webhooks** — real-time updates instead of polling
+- [ ] **Docker image** — `docker run -p 3000:3000 shipyard-os`
+- [ ] **Multi-workspace** — manage multiple agent teams
+- [ ] **Mobile app** — native iOS/Android companion
+
+<br />
+
+## 🤝 Contributing
+
+We'd love your help making Shipyard OS better. See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+```bash
+# Fork the repo, then:
+git clone https://github.com/YOUR_USERNAME/shipyard-os.git
+cd shipyard-os
+npm install
+npm run dev
+```
+
+<br />
+
+## ❓ FAQ
+
+<details>
+<summary><strong>Do I need OpenClaw to use this?</strong></summary>
+<br />
+No! You can run in demo mode to explore the dashboard, manage tasks, and track goals without any agent runtime. When you're ready to activate agents, connect OpenClaw.
+</details>
+
+<details>
+<summary><strong>Is this just a dashboard?</strong></summary>
+<br />
+No — it's an operating system. When you drag a task to "In Progress", it actually fires an agent. Budget gates prevent runaway costs. The board reflects what your agents are doing in real time.
+</details>
+
+<details>
+<summary><strong>Can I use my own agents instead of the defaults?</strong></summary>
+<br />
+Yes. Add, edit, or delete agents from the Agents page. Each agent is a markdown identity file in your workspace — fully customizable roles, skills, and personalities.
+</details>
+
+<details>
+<summary><strong>What about costs?</strong></summary>
+<br />
+Shipyard OS tracks per-agent token usage via the Anthropic Admin API. Set monthly budgets per agent, and the system will block activation when limits are reached. No surprise bills.
+</details>
+
+<details>
+<summary><strong>Can I self-host this?</strong></summary>
+<br />
+Yes. It's a standard Next.js app. Run it locally, deploy to Vercel, or host anywhere that supports Node.js. Task storage uses local JSON in dev and Vercel KV in production.
+</details>
+
+<br />
+
+## 📄 License
+
+[MIT](LICENSE) — use it, fork it, ship it.
+
+<br />
 
 ## Built by
 
-[Halsey Huth](https://twitter.com/halseyh) — Strategic Partnerships at MoonPay, building in public.
+[Halsey Huth](https://twitter.com/halseyh) — building in public.
 
 Powered by [OpenClaw](https://openclaw.ai).
 
----
+<br />
 
 <div align="center">
-  <sub>If you build something cool with this, let me know.</sub>
+
+**If Shipyard OS helps you run your agent team, [give it a ⭐](https://github.com/BiscayneDev/shipyard-os)**
+
 </div>

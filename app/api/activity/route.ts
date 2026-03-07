@@ -15,6 +15,12 @@ export interface ActivityEntry {
   timestamp: string
 }
 
+// ── Constants ────────────────────────────────────────────────────────────────
+
+const MAX_ACTIVITY_ENTRIES = 10_000
+const DEFAULT_LIMIT = 50
+const MAX_LIMIT = 200
+
 // ── Storage ──────────────────────────────────────────────────────────────────
 
 const DATA_PATH = join(process.cwd(), "data", "activity.json")
@@ -32,15 +38,21 @@ async function writeActivity(entries: ActivityEntry[]): Promise<void> {
   await writeFile(DATA_PATH, JSON.stringify(entries, null, 2), "utf-8")
 }
 
-// ── GET — last 50 entries, newest first ─────────────────────────────────────
+// ── GET — newest first, with optional ?limit=N ──────────────────────────────
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const url = new URL(request.url)
+    const limitParam = url.searchParams.get("limit")
+    const limit = limitParam
+      ? Math.min(Math.max(1, parseInt(limitParam, 10) || DEFAULT_LIMIT), MAX_LIMIT)
+      : DEFAULT_LIMIT
+
     const entries = await readActivity()
     const sorted = entries
       .slice()
       .sort((a, b) => (b.timestamp > a.timestamp ? 1 : -1))
-      .slice(0, 50)
+      .slice(0, limit)
     return NextResponse.json(sorted)
   } catch {
     return NextResponse.json([])
@@ -69,11 +81,11 @@ export async function POST(request: Request) {
     const existing = await readActivity()
     existing.push(entry)
 
-    // Keep max 200 entries on disk
+    // Keep max 10K entries on disk (up from 200)
     const trimmed = existing
       .slice()
       .sort((a, b) => (b.timestamp > a.timestamp ? 1 : -1))
-      .slice(0, 200)
+      .slice(0, MAX_ACTIVITY_ENTRIES)
 
     await writeActivity(trimmed)
     return NextResponse.json(entry, { status: 201 })

@@ -464,6 +464,72 @@ function NotificationsSection() {
   )
 }
 
+// ── Section: Danger Zone ─────────────────────────────────────────────────────
+
+function DangerZoneSection() {
+  const [confirming, setConfirming] = useState(false)
+  const [resetting, setResetting] = useState(false)
+
+  async function resetSetup() {
+    setResetting(true)
+    try {
+      await fetch("/api/setup/complete", { method: "DELETE" })
+      window.location.href = "/setup"
+    } catch {
+      setResetting(false)
+      setConfirming(false)
+    }
+  }
+
+  return (
+    <section className="space-y-4">
+      <div>
+        <h2 className="text-sm font-semibold text-white">Danger Zone</h2>
+        <p className="text-xs text-zinc-500 mt-0.5">Irreversible actions</p>
+      </div>
+      <div
+        className="rounded-xl p-5 space-y-3"
+        style={{ backgroundColor: "#111118", border: "1px solid rgba(239,68,68,0.15)" }}
+      >
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-white">Reset Setup Wizard</p>
+            <p className="text-[11px] text-zinc-500 mt-0.5">
+              Re-run the onboarding wizard. Your <code className="text-zinc-400">.env.local</code> will not be deleted.
+            </p>
+          </div>
+          {confirming ? (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={resetSetup}
+                disabled={resetting}
+                className="text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
+                style={{ backgroundColor: "rgba(239,68,68,0.15)", color: "#ef4444" }}
+              >
+                {resetting ? "Resetting..." : "Confirm Reset"}
+              </button>
+              <button
+                onClick={() => setConfirming(false)}
+                className="text-xs text-zinc-500 hover:text-zinc-300 px-2 py-1.5"
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setConfirming(true)}
+              className="text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
+              style={{ backgroundColor: "rgba(239,68,68,0.1)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.2)" }}
+            >
+              Reset
+            </button>
+          )}
+        </div>
+      </div>
+    </section>
+  )
+}
+
 // ── Page ───────────────────────────────────────────────────────────────────────
 
 export default function SettingsPage() {
@@ -478,6 +544,7 @@ export default function SettingsPage() {
       <CronsSection />
       <ConnectedServicesSection />
       <NotificationsSection />
+      <DangerZoneSection />
     </div>
   )
 }
