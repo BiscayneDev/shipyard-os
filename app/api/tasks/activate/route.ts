@@ -78,6 +78,23 @@ export async function POST(request: Request) {
       message,
     } as Parameters<typeof runtime.activate>[0] & { message: string }).catch(() => null)
 
+    // ── Log inter-agent delegation message ──────────────────────────
+    try {
+      const origin = new URL(request.url).origin
+      await fetch(`${origin}/api/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          from: "vic",
+          to: assignee || "unassigned",
+          content: `Delegating task: ${title}${description ? `\n${description}` : ""}`,
+          type: "delegation",
+          taskId,
+          taskTitle: title,
+        }),
+      }).catch(() => null)
+    } catch { /* non-fatal */ }
+
     return NextResponse.json({ ok: true, ...budgetWarning })
   } catch {
     return NextResponse.json({ error: "Failed to activate task" }, { status: 500 })

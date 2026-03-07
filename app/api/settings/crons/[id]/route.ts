@@ -1,3 +1,4 @@
+import { BIN } from "@/lib/config"
 import { NextResponse } from "next/server"
 import { execFile } from "child_process"
 import { promisify } from "util"
@@ -17,7 +18,7 @@ export async function PATCH(
     const body = await request.json() as { enabled: boolean }
 
     const subcommand = body.enabled ? "enable" : "disable"
-    await execFileAsync("/opt/homebrew/bin/openclaw", ["cron", subcommand, id], {
+    await execFileAsync(BIN.openclaw, ["cron", subcommand, id], {
       timeout: 8000,
     })
 

@@ -1,10 +1,9 @@
+import { BIN } from "@/lib/config"
 import { NextResponse } from "next/server"
 import { execFile } from "child_process"
 import { promisify } from "util"
 
 const execFileAsync = promisify(execFile)
-
-const GH = "/opt/homebrew/bin/gh"
 
 interface GitHubRepo {
   name: string
@@ -64,7 +63,7 @@ const PINNED_PROJECTS: Record<string, string> = {
 async function fetchPRs(repoName: string): Promise<OpenPR[]> {
   try {
     const { stdout } = await execFileAsync(
-      GH,
+      BIN.gh,
       ["pr", "list", "--repo", `BiscayneDev/${repoName}`, "--json", "number,title,state,url", "--limit", "3"],
       { timeout: 8000 }
     )
@@ -80,7 +79,7 @@ async function fetchPRs(repoName: string): Promise<OpenPR[]> {
 async function fetchLatestRun(repoName: string): Promise<LatestRun | null> {
   try {
     const { stdout } = await execFileAsync(
-      GH,
+      BIN.gh,
       ["run", "list", "--repo", `BiscayneDev/${repoName}`, "--limit", "1", "--json", "status,conclusion,name,url"],
       { timeout: 8000 }
     )

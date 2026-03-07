@@ -1,3 +1,4 @@
+import { BIN } from "@/lib/config"
 import { NextResponse } from "next/server"
 import { exec } from "child_process"
 import { promisify } from "util"
@@ -10,8 +11,8 @@ export async function GET() {
     return NextResponse.json({ error: "remote", message: "Skills require a local OpenClaw instance." }, { status: 503 })
   }
   try {
-    const { stdout } = await execAsync("/opt/homebrew/bin/openclaw skills list --json", {
-      env: { ...process.env, PATH: "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin" }
+    const { stdout } = await execAsync(`${BIN.openclaw} skills list --json`, {
+      env: { ...process.env, PATH: `${BIN.openclaw.replace(/\/[^/]+$/, "")}:/usr/local/bin:/usr/bin:/bin` }
     })
     const data = JSON.parse(stdout)
     // openclaw returns { skills: [...], workspaceDir, managedSkillsDir }

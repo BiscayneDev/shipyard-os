@@ -94,6 +94,17 @@ npm run dev
 
 Open [localhost:3000](http://localhost:3000) — the setup wizard walks you through connecting your agents.
 
+### With Ollama (local models):
+
+```bash
+git clone https://github.com/BiscayneDev/shipyard-os.git
+cd shipyard-os
+npm install
+npm run dev
+```
+
+In the setup wizard, choose **"Ollama / Local Models"** and point it at your running Ollama instance. Works with LM Studio and llama.cpp too — anything that speaks the Ollama API.
+
 ### Demo mode
 
 Don't have agents set up yet? No problem. Click **"Skip — explore without agents"** in the setup wizard to get a feel for the dashboard with sample data.
@@ -121,7 +132,7 @@ Don't have agents set up yet? No problem. Click **"Skip — explore without agen
 │                       │                                  │
 │              ┌────────▼────────┐                        │
 │              │  Agent Runtime  │                        │
-│              │   (OpenClaw)    │                        │
+│              │ OpenClaw/Ollama │                        │
 │              └─────────────────┘                        │
 └─────────────────────────────────────────────────────────┘
 ```
@@ -145,7 +156,7 @@ No polling. No manual follow-up. The board is the source of truth.
 | Language | TypeScript (strict mode) |
 | Styling | Tailwind CSS 4 |
 | Drag & Drop | @hello-pangea/dnd |
-| Agent Runtime | OpenClaw |
+| Agent Runtime | OpenClaw, Ollama, or custom |
 | Storage | Vercel KV (prod) / local JSON (dev) |
 | AI SDK | Vercel AI SDK + Anthropic |
 | Icons | Lucide React |
@@ -204,7 +215,7 @@ shipyard-os/
 - [x] Budget enforcement + approval modals
 - [x] Gmail inbox integration
 - [x] Google Calendar integration
-- [ ] **Agent runtime abstraction** — plug in LangGraph, CrewAI, or custom runtimes
+- [x] **Agent runtime abstraction** — plug in OpenClaw, Ollama, or custom runtimes
 - [ ] **Agent marketplace** — share and install agent identities
 - [ ] **`Cmd+K` command palette** — quick actions from anywhere
 - [ ] **Webhooks** — real-time updates instead of polling
@@ -233,7 +244,7 @@ npm run dev
 <details>
 <summary><strong>Do I need OpenClaw to use this?</strong></summary>
 <br />
-No! You can run in demo mode to explore the dashboard, manage tasks, and track goals without any agent runtime. When you're ready to activate agents, connect OpenClaw.
+No! Shipyard OS supports multiple runtimes: OpenClaw for full agent orchestration, Ollama/LM Studio/llama.cpp for local models, or demo mode to explore without any runtime.
 </details>
 
 <details>

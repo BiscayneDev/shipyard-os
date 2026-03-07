@@ -9,6 +9,7 @@ const ENV_LOCAL_PATH = join(process.cwd(), ".env.local")
 interface SetupData {
   completed: boolean
   demoMode?: boolean
+  runtimeType?: string
   userName?: string
   assistantName?: string
   gatewayUrl?: string
@@ -16,6 +17,9 @@ interface SetupData {
   deliveryChannel?: string
   workspace?: string
   completedAt?: string
+  companyName?: string
+  companyTagline?: string
+  companyMission?: string
 }
 
 interface HealthCheck {
@@ -35,8 +39,12 @@ export async function GET(request: Request) {
     const result: Record<string, unknown> = {
       completed: data.completed ?? false,
       demoMode: data.demoMode ?? false,
+      runtimeType: data.runtimeType ?? "openclaw",
       userName: data.userName,
       assistantName: data.assistantName,
+      companyName: data.companyName,
+      companyTagline: data.companyTagline,
+      companyMission: data.companyMission,
     }
 
     if (includeHealth && data.completed) {

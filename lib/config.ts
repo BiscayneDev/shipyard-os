@@ -63,12 +63,46 @@ export const GOG_ACCOUNT = process.env.GOG_ACCOUNT ?? ""
 export const MC_URL =
   process.env.NEXT_PUBLIC_MC_URL ?? "http://localhost:3000"
 
+// ── Ollama ────────────────────────────────────────────────────────
+export const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL ?? "http://127.0.0.1:11434"
+export const OLLAMA_MODEL = process.env.OLLAMA_MODEL ?? "llama3.2"
+
 // ── CLI paths ────────────────────────────────────────────────────
+// Cross-platform: use env override, or try common paths
+import { execFileSync } from "child_process"
+
+function findBin(name: string, fallbacks: string[]): string {
+  // Allow explicit override via env (e.g. SHIPYARD_BIN_GH=/usr/bin/gh)
+  const envKey = `SHIPYARD_BIN_${name.toUpperCase()}`
+  if (process.env[envKey]) return process.env[envKey]!
+
+  // Try `which` at startup (fast, cached once)
+  try {
+    const result = execFileSync("which", [name], { timeout: 2000, encoding: "utf-8" }).trim()
+    if (result) return result
+  } catch {
+    // `which` failed — try fallback paths
+  }
+
+  // Try known paths in order
+  for (const p of fallbacks) {
+    try {
+      execFileSync("test", ["-x", p], { timeout: 500 })
+      return p
+    } catch {
+      // Not found at this path
+    }
+  }
+
+  // Return the bare name — will fail at call site with a clear error
+  return name
+}
+
 export const BIN = {
-  openclaw: "/opt/homebrew/bin/openclaw",
-  gog: "/opt/homebrew/bin/gog",
-  gh: "/opt/homebrew/bin/gh",
-  moonpay: "/opt/homebrew/bin/moonpay",
-  node: "/opt/homebrew/bin/node",
-  npm: "/opt/homebrew/bin/npm",
+  openclaw: findBin("openclaw", ["/opt/homebrew/bin/openclaw", "/usr/local/bin/openclaw"]),
+  gog: findBin("gog", ["/opt/homebrew/bin/gog", "/usr/local/bin/gog"]),
+  gh: findBin("gh", ["/opt/homebrew/bin/gh", "/usr/local/bin/gh", "/usr/bin/gh"]),
+  moonpay: findBin("moonpay", ["/opt/homebrew/bin/moonpay", "/usr/local/bin/moonpay"]),
+  node: findBin("node", ["/opt/homebrew/bin/node", "/usr/local/bin/node", "/usr/bin/node"]),
+  npm: findBin("npm", ["/opt/homebrew/bin/npm", "/usr/local/bin/npm", "/usr/bin/npm"]),
 }

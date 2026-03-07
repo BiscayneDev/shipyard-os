@@ -154,11 +154,12 @@ function ciLabel(run: Repo["latestRun"]): string {
   return "Failing"
 }
 
-function getDynamicGreeting(): string {
+function getDynamicGreeting(name?: string): string {
   const hour = new Date().getHours()
-  if (hour < 12) return "Good morning, Halsey"
-  if (hour < 17) return "Good afternoon, Halsey"
-  return "Good evening, Halsey"
+  const suffix = name ? `, ${name}` : ""
+  if (hour < 12) return `Good morning${suffix}`
+  if (hour < 17) return `Good afternoon${suffix}`
+  return `Good evening${suffix}`
 }
 
 function getFormattedDate(): string {
@@ -182,12 +183,18 @@ export default function DashboardPage() {
   const [emails, setEmails] = useState<EmailEntry[]>([])
   const [inboxLoading, setInboxLoading] = useState(true)
   const [demoMode, setDemoMode] = useState(false)
+  const [userName, setUserName] = useState("")
+  const [setupCompleted, setSetupCompleted] = useState(true)
 
-  // Check demo mode
+  // Check demo mode + userName
   useEffect(() => {
     fetch("/api/setup/status")
       .then((r) => r.json())
-      .then((d: { demoMode?: boolean }) => { if (d.demoMode) setDemoMode(true) })
+      .then((d: { demoMode?: boolean; userName?: string; completed?: boolean }) => {
+        if (d.demoMode) setDemoMode(true)
+        if (d.userName) setUserName(d.userName)
+        if (d.completed === false) setSetupCompleted(false)
+      })
       .catch(() => null)
   }, [])
 
@@ -287,9 +294,69 @@ export default function DashboardPage() {
       {/* ── 1. Header — dynamic greeting ─────────────────────────── */}
       <div>
         <h1 className="text-3xl font-bold text-white">Dashboard</h1>
-        <p className="text-sm text-zinc-400 mt-1 font-medium">{getDynamicGreeting()}</p>
+        <p className="text-sm text-zinc-400 mt-1 font-medium">{getDynamicGreeting(userName)}</p>
         <p className="text-xs text-zinc-600 mt-0.5">{getFormattedDate()}</p>
       </div>
+
+      {/* ── Getting Started (for new users) ──────────────────────── */}
+      {!loading && !setupCompleted && (
+        <div
+          className="rounded-xl p-5"
+          style={{ backgroundColor: "#111118", border: "1px solid #7c3aed30" }}
+        >
+          <div className="flex items-center gap-3 mb-4">
+            <span className="text-lg">🧭</span>
+            <div>
+              <p className="text-sm font-semibold text-white">Welcome to Shipyard OS</p>
+              <p className="text-xs text-zinc-500">Complete setup to get your agents running.</p>
+            </div>
+          </div>
+          <Link
+            href="/setup"
+            className="text-xs font-medium px-4 py-2 rounded-lg transition-colors inline-block"
+            style={{ backgroundColor: "#7c3aed", color: "#fff" }}
+          >
+            Run Setup Wizard →
+          </Link>
+        </div>
+      )}
+
+      {!loading && setupCompleted && recentActivity.length === 0 && tasks.length <= 5 && (
+        <div
+          className="rounded-xl p-5"
+          style={{ backgroundColor: "#111118", border: "1px solid #7c3aed30" }}
+        >
+          <div className="flex items-center gap-3 mb-3">
+            <span className="text-lg">🧭</span>
+            <p className="text-sm font-semibold text-white">Getting Started</p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {[
+              { step: "1", label: "Create a task", desc: "Add work to the Kanban board", href: "/tasks", color: "#3178c6" },
+              { step: "2", label: "Set up your agents", desc: "Customize roles and skills", href: "/agents", color: "#10b981" },
+              { step: "3", label: "Activate a task", desc: "Drag to In Progress to assign an agent", href: "/tasks", color: "#7c3aed" },
+            ].map((item) => (
+              <Link
+                key={item.step}
+                href={item.href}
+                className="rounded-lg p-3 transition-all hover:bg-white/5"
+                style={{ border: `1px solid ${item.color}28` }}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <span
+                    className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold"
+                    style={{ backgroundColor: `${item.color}20`, color: item.color }}
+                  >
+                    {item.step}
+                  </span>
+                  <p className="text-xs font-semibold text-white">{item.label}</p>
+                </div>
+                <p className="text-[11px] text-zinc-500 ml-7">{item.desc}</p>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ── 2. Agent Status Row ───────────────────────────────────── */}
       <section className="space-y-3">

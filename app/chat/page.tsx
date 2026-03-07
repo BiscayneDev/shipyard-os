@@ -46,6 +46,8 @@ export default function ChatPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [selectedAgent, setSelectedAgent] = useState<AgentDef>(AGENTS[0])
   const [agentMenuOpen, setAgentMenuOpen] = useState(false)
+  const [demoMode, setDemoMode] = useState(false)
+  const [runtimeName, setRuntimeName] = useState("")
   const scrollRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -53,8 +55,38 @@ export default function ChatPage() {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" })
   }, [messages, isLoading])
 
+  // Save messages to history whenever they change
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => {
+    if (messages.length === 0) return
+    // Debounce saves to avoid excessive writes
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
+    saveTimeoutRef.current = setTimeout(() => {
+      fetch("/api/chat/history", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages }),
+      }).catch(() => null)
+    }, 1000)
+  }, [messages])
+
   useEffect(() => {
     inputRef.current?.focus()
+    // Load chat history
+    fetch("/api/chat/history")
+      .then((r) => r.json())
+      .then((data: ChatMessage[]) => {
+        if (Array.isArray(data) && data.length > 0) setMessages(data)
+      })
+      .catch(() => null)
+    // Check runtime mode
+    fetch("/api/setup/status")
+      .then((r) => r.json())
+      .then((d: { demoMode?: boolean; runtimeType?: string }) => {
+        if (d.demoMode) setDemoMode(true)
+        if (d.runtimeType) setRuntimeName(d.runtimeType)
+      })
+      .catch(() => null)
   }, [])
 
   const sendMessage = useCallback(async (text: string) => {
@@ -98,7 +130,7 @@ export default function ChatPage() {
       const errMsg: ChatMessage = {
         id: `err-${Date.now()}`,
         role: "assistant",
-        text: "Failed to reach OpenClaw. Is the gateway running?",
+        text: "Failed to reach agent runtime. Is your runtime running?",
         agent: agent.id,
         timestamp: Date.now(),
       }
@@ -123,12 +155,17 @@ export default function ChatPage() {
       <div className="flex items-center justify-between mb-4 shrink-0">
         <div>
           <h1 className="text-2xl font-bold text-white">Chat</h1>
-          <p className="text-xs text-zinc-500 mt-0.5">Talk to your agents via OpenClaw</p>
+          <p className="text-xs text-zinc-500 mt-0.5">
+            {demoMode ? "Demo mode — connect a runtime to chat" : "Talk to your agents"}
+          </p>
         </div>
         <div className="flex items-center gap-2">
           {messages.length > 0 && (
             <button
-              onClick={() => setMessages([])}
+              onClick={() => {
+                setMessages([])
+                fetch("/api/chat/history", { method: "DELETE" }).catch(() => null)
+              }}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors hover:bg-white/10"
               style={{ color: "#71717a" }}
             >
@@ -190,35 +227,57 @@ export default function ChatPage() {
           <div className="flex flex-col items-center justify-center h-full gap-4 text-center">
             <div
               className="w-14 h-14 rounded-2xl flex items-center justify-center"
-              style={{ backgroundColor: `${selectedAgent.accent}20` }}
+              style={{ backgroundColor: demoMode ? "#f59e0b20" : `${selectedAgent.accent}20` }}
             >
-              <MessageSquare size={24} style={{ color: selectedAgent.accent }} />
+              <MessageSquare size={24} style={{ color: demoMode ? "#f59e0b" : selectedAgent.accent }} />
             </div>
-            <div className="space-y-1">
-              <p className="text-sm font-medium text-zinc-300">
-                Start a conversation with {selectedAgent.name}
-              </p>
-              <p className="text-xs text-zinc-600 max-w-sm">
-                Messages route through OpenClaw gateway to the active agent session.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2 justify-center max-w-md">
-              {SUGGESTIONS.map((suggestion) => (
-                <button
-                  key={suggestion}
-                  onClick={() => sendMessage(suggestion)}
-                  disabled={isLoading}
-                  className="px-3 py-1.5 rounded-lg text-xs transition-colors hover:bg-white/10 disabled:opacity-40"
-                  style={{
-                    backgroundColor: "rgba(255,255,255,0.05)",
-                    border: "1px solid #1a1a2e",
-                    color: "#a1a1aa",
-                  }}
+            {demoMode ? (
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-zinc-300">
+                  Chat requires an active agent runtime
+                </p>
+                <p className="text-xs text-zinc-500 max-w-sm">
+                  You&apos;re running in demo mode. Connect an agent runtime to chat with your agents.
+                </p>
+                <a
+                  href="/settings"
+                  className="inline-block mt-2 px-4 py-2 rounded-lg text-xs font-medium transition-colors hover:opacity-80"
+                  style={{ backgroundColor: "#f59e0b20", color: "#f59e0b", border: "1px solid #f59e0b30" }}
                 >
-                  {suggestion}
-                </button>
-              ))}
-            </div>
+                  Connect Runtime →
+                </a>
+              </div>
+            ) : (
+              <>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-zinc-300">
+                    Start a conversation with {selectedAgent.name}
+                  </p>
+                  <p className="text-xs text-zinc-600 max-w-sm">
+                    {runtimeName === "ollama"
+                      ? `Messages are processed by your local model via Ollama.`
+                      : `Messages route through your agent runtime to the active session.`}
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2 justify-center max-w-md">
+                  {SUGGESTIONS.map((suggestion) => (
+                    <button
+                      key={suggestion}
+                      onClick={() => sendMessage(suggestion)}
+                      disabled={isLoading}
+                      className="px-3 py-1.5 rounded-lg text-xs transition-colors hover:bg-white/10 disabled:opacity-40"
+                      style={{
+                        backgroundColor: "rgba(255,255,255,0.05)",
+                        border: "1px solid #1a1a2e",
+                        color: "#a1a1aa",
+                      }}
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         ) : (
           messages.map((message) => {
@@ -311,7 +370,9 @@ export default function ChatPage() {
           </button>
         </div>
         <p className="text-[10px] text-zinc-700 mt-1.5 text-center">
-          Powered by OpenClaw — messages route to your local agent sessions
+          {runtimeName === "ollama"
+            ? "Powered by Ollama — running on your local hardware"
+            : "Messages route to your local agent sessions"}
         </p>
       </form>
     </div>

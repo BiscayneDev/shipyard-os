@@ -83,71 +83,74 @@ function budgetColor(pct: number): string {
 
 // ── Org Chart ─────────────────────────────────────────────────────────────────
 
-function OrgChart() {
-  const agents = [
-    { name: "Scout", emoji: "🔭", role: "Market Intelligence", accent: "#06b6d4" },
-    { name: "Builder", emoji: "⚡", role: "CTO · Engineering", accent: "#10b981" },
-    { name: "Deal Flow", emoji: "🤝", role: "Partnership Radar", accent: "#f59e0b" },
-    { name: "Baron", emoji: "🏦", role: "The Banker", accent: "#ec4899" },
-  ]
-
+function OrgChart({ userName, chiefAgent, otherAgents }: {
+  userName: string
+  chiefAgent: AgentInfo | null
+  otherAgents: AgentInfo[]
+}) {
   return (
     <div className="flex flex-col items-center gap-0">
-      {/* Halsey */}
+      {/* Owner */}
       <div
         className="rounded-xl px-6 py-4 flex flex-col items-center gap-1 min-w-[160px]"
         style={{ backgroundColor: "#1a1a2e", border: "1px solid #2a2a4e" }}
       >
         <span className="text-2xl">👤</span>
-        <p className="text-sm font-bold text-white">Halsey</p>
-        <p className="text-[11px] text-zinc-400">Board</p>
+        <p className="text-sm font-bold text-white">{userName || "You"}</p>
+        <p className="text-[11px] text-zinc-400">Owner</p>
       </div>
 
       <div className="w-px h-6" style={{ backgroundColor: "#2a2a4e" }} />
 
-      {/* Vic */}
-      <div
-        className="rounded-xl px-6 py-4 flex flex-col items-center gap-1 min-w-[180px]"
-        style={{
-          backgroundColor: "#1a1a2e",
-          border: "1px solid rgba(124,58,237,0.4)",
-          boxShadow: "0 0 20px rgba(124,58,237,0.1)",
-        }}
-      >
-        <span className="text-2xl">🦞</span>
-        <p className="text-sm font-bold" style={{ color: "#a78bfa" }}>Vic</p>
-        <p className="text-[11px] text-zinc-400">Chief of Staff · Orchestrator</p>
-      </div>
-
-      <div className="w-px h-6" style={{ backgroundColor: "#2a2a4e" }} />
-
-      {/* Horizontal connector spanning agent row */}
-      <div className="relative flex items-start justify-center w-full max-w-2xl">
+      {/* Chief of Staff */}
+      {chiefAgent && (
         <div
-          className="absolute top-0 left-[12.5%] right-[12.5%] h-px"
-          style={{ backgroundColor: "#2a2a4e" }}
-        />
-
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 w-full pt-6">
-          {agents.map((agent) => (
-            <div key={agent.name} className="flex flex-col items-center gap-0">
-              <div className="w-px h-6" style={{ backgroundColor: "#2a2a4e" }} />
-              <div
-                className="rounded-xl px-3 py-4 flex flex-col items-center gap-1 w-full"
-                style={{
-                  backgroundColor: "#1a1a2e",
-                  border: `1px solid ${agent.accent}33`,
-                  boxShadow: `0 0 12px ${agent.accent}0d`,
-                }}
-              >
-                <span className="text-2xl">{agent.emoji}</span>
-                <p className="text-xs font-bold" style={{ color: agent.accent }}>{agent.name}</p>
-                <p className="text-[10px] text-zinc-500 text-center leading-tight">{agent.role}</p>
-              </div>
-            </div>
-          ))}
+          className="rounded-xl px-6 py-4 flex flex-col items-center gap-1 min-w-[180px]"
+          style={{
+            backgroundColor: "#1a1a2e",
+            border: `1px solid ${chiefAgent.accent}66`,
+            boxShadow: `0 0 20px ${chiefAgent.accent}1a`,
+          }}
+        >
+          <span className="text-2xl">{chiefAgent.emoji}</span>
+          <p className="text-sm font-bold" style={{ color: chiefAgent.accent }}>{chiefAgent.name}</p>
+          <p className="text-[11px] text-zinc-400">{chiefAgent.role}</p>
         </div>
-      </div>
+      )}
+
+      {otherAgents.length > 0 && (
+        <>
+          <div className="w-px h-6" style={{ backgroundColor: "#2a2a4e" }} />
+
+          {/* Horizontal connector spanning agent row */}
+          <div className="relative flex items-start justify-center w-full max-w-2xl">
+            <div
+              className="absolute top-0 left-[12.5%] right-[12.5%] h-px"
+              style={{ backgroundColor: "#2a2a4e" }}
+            />
+
+            <div className={`grid grid-cols-2 ${otherAgents.length >= 4 ? "md:grid-cols-4" : `md:grid-cols-${Math.min(otherAgents.length, 4)}`} gap-3 w-full pt-6`}>
+              {otherAgents.map((agent) => (
+                <div key={agent.id} className="flex flex-col items-center gap-0">
+                  <div className="w-px h-6" style={{ backgroundColor: "#2a2a4e" }} />
+                  <div
+                    className="rounded-xl px-3 py-4 flex flex-col items-center gap-1 w-full"
+                    style={{
+                      backgroundColor: "#1a1a2e",
+                      border: `1px solid ${agent.accent}33`,
+                      boxShadow: `0 0 12px ${agent.accent}0d`,
+                    }}
+                  >
+                    <span className="text-2xl">{agent.emoji}</span>
+                    <p className="text-xs font-bold" style={{ color: agent.accent }}>{agent.name}</p>
+                    <p className="text-[10px] text-zinc-500 text-center leading-tight">{agent.role}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   )
 }
@@ -157,9 +160,10 @@ function OrgChart() {
 interface AddGoalFormProps {
   onAdd: (goal: Goal) => void
   onCancel: () => void
+  agents: AgentInfo[]
 }
 
-function AddGoalForm({ onAdd, onCancel }: AddGoalFormProps) {
+function AddGoalForm({ onAdd, onCancel, agents }: AddGoalFormProps) {
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
   const [priority, setPriority] = useState<Goal["priority"]>("medium")
@@ -225,11 +229,9 @@ function AddGoalForm({ onAdd, onCancel }: AddGoalFormProps) {
           onChange={(e) => setAssignedTo(e.target.value)}
         >
           <option value="">No agent</option>
-          <option value="vic">🦞 Vic</option>
-          <option value="scout">🔭 Scout</option>
-          <option value="builder">⚡ Builder</option>
-          <option value="deal-flow">🤝 Deal Flow</option>
-          <option value="baron">🏦 Baron</option>
+          {agents.map((a) => (
+            <option key={a.id} value={a.id}>{a.emoji} {a.name}</option>
+          ))}
         </select>
       </div>
       <div className="flex gap-2">
@@ -367,6 +369,22 @@ function GoalCard({ goal, tasks, onCycleStatus }: GoalCardProps) {
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
+interface SetupData {
+  userName?: string
+  assistantName?: string
+  companyName?: string
+  companyTagline?: string
+  companyMission?: string
+}
+
+interface AgentInfo {
+  id: string
+  name: string
+  emoji: string
+  role: string
+  accent: string
+}
+
 export default function CompanyPage() {
   const [budgets, setBudgets] = useState<AgentBudget[]>([])
   const [goals, setGoals] = useState<Goal[]>([])
@@ -374,6 +392,8 @@ export default function CompanyPage() {
   const [loadingBudgets, setLoadingBudgets] = useState(true)
   const [loadingGoals, setLoadingGoals] = useState(true)
   const [showAddGoal, setShowAddGoal] = useState(false)
+  const [setup, setSetup] = useState<SetupData>({})
+  const [agents, setAgents] = useState<AgentInfo[]>([])
 
   const fetchBudgets = useCallback(async () => {
     try {
@@ -409,11 +429,29 @@ export default function CompanyPage() {
     }
   }, [])
 
+  const fetchSetup = useCallback(async () => {
+    try {
+      const res = await fetch("/api/setup/status", { cache: "no-store" })
+      const data = await res.json() as SetupData
+      setSetup(data)
+    } catch { /* leave defaults */ }
+  }, [])
+
+  const fetchAgents = useCallback(async () => {
+    try {
+      const res = await fetch("/api/agents", { cache: "no-store" })
+      const data = await res.json() as AgentInfo[]
+      if (Array.isArray(data)) setAgents(data)
+    } catch { /* leave empty */ }
+  }, [])
+
   useEffect(() => {
     fetchBudgets()
     fetchGoals()
     fetchTasks()
-  }, [fetchBudgets, fetchGoals, fetchTasks])
+    fetchSetup()
+    fetchAgents()
+  }, [fetchBudgets, fetchGoals, fetchTasks, fetchSetup, fetchAgents])
 
   async function cycleGoalStatus(goal: Goal) {
     const nextStatus = STATUS_CYCLE[goal.status]
@@ -439,7 +477,7 @@ export default function CompanyPage() {
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold text-white">Company</h1>
-        <p className="text-sm text-zinc-500 mt-1">Biscayne Ventures · AI × Crypto</p>
+        <p className="text-sm text-zinc-500 mt-1">{setup.companyName || "My Company"}{setup.companyTagline ? ` · ${setup.companyTagline}` : ""}</p>
       </div>
 
       {/* ── Section 1: Mission Statement ─────────────────────────── */}
@@ -460,12 +498,12 @@ export default function CompanyPage() {
             />
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: "#7c3aed" }}>
-                Biscayne Ventures · AI × Crypto
+                {setup.companyName || "My Company"}{setup.companyTagline ? ` · ${setup.companyTagline}` : ""}
               </p>
             </div>
           </div>
           <blockquote className="text-lg font-medium text-white leading-relaxed pl-3">
-            &ldquo;Build an unfair advantage at the AI × crypto frontier — staying ahead of deals, protocols, and agent economies while automating everything that doesn&apos;t need Halsey in it.&rdquo;
+            &ldquo;{setup.companyMission || "Build and run an autonomous agent team that executes, learns, and scales — so you can focus on strategy."}&rdquo;
           </blockquote>
         </div>
       </section>
@@ -477,7 +515,14 @@ export default function CompanyPage() {
           className="rounded-2xl p-8"
           style={{ backgroundColor: "#111118", border: "1px solid #1a1a2e" }}
         >
-          <OrgChart />
+          <OrgChart
+            userName={setup.userName || ""}
+            chiefAgent={agents.find((a) => a.id === "vic" || a.id === "chief" || a.role?.toLowerCase().includes("chief")) ?? agents[0] ?? null}
+            otherAgents={agents.filter((a) => {
+              const chief = agents.find((ag) => ag.id === "vic" || ag.id === "chief" || ag.role?.toLowerCase().includes("chief")) ?? agents[0]
+              return chief ? a.id !== chief.id : true
+            })}
+          />
         </div>
       </section>
 
@@ -561,6 +606,7 @@ export default function CompanyPage() {
           <AddGoalForm
             onAdd={handleGoalAdded}
             onCancel={() => setShowAddGoal(false)}
+            agents={agents}
           />
         )}
 

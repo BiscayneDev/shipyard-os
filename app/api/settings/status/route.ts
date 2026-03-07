@@ -42,7 +42,7 @@ async function checkGitHub(): Promise<ServiceStatus> {
     return { id: "github", name: "GitHub", description: "via gh CLI", connected: false, error: "Not available on Vercel" }
   }
   try {
-    const { stderr } = await execFileAsync("/opt/homebrew/bin/gh", ["auth", "status"], { timeout: 5000 })
+    const { stderr } = await execFileAsync(BIN.gh, ["auth", "status"], { timeout: 5000 })
     const connected = !stderr.toLowerCase().includes("not logged") && !stderr.toLowerCase().includes("no accounts")
     return { id: "github", name: "GitHub", description: "via gh CLI", connected }
   } catch {
@@ -55,7 +55,7 @@ async function checkMoonPay(): Promise<ServiceStatus> {
     return { id: "moonpay", name: "MoonPay CLI", description: "On-chain wallet access", connected: false, error: "Not available on Vercel" }
   }
   try {
-    await execFileAsync("/opt/homebrew/bin/mooniq", ["wallet", "list"], { timeout: 5000 })
+    await execFileAsync(BIN.moonpay, ["wallet", "list"], { timeout: 5000 })
     return { id: "moonpay", name: "MoonPay CLI", description: "On-chain wallet access", connected: true }
   } catch {
     return { id: "moonpay", name: "MoonPay CLI", description: "On-chain wallet access", connected: false, error: "CLI unavailable or not authenticated" }

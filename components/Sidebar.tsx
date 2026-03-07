@@ -16,6 +16,9 @@ import {
   MessageSquare,
   Activity,
   SlidersHorizontal,
+  MessagesSquare,
+  Clock,
+  Wallet,
 } from "lucide-react";
 
 const navSections = [
@@ -26,6 +29,9 @@ const navSections = [
       { href: "/tasks", label: "Tasks", icon: CheckSquare },
       { href: "/agents", label: "Agents", icon: Users },
       { href: "/agents/skills", label: "Agent Skills", icon: SlidersHorizontal },
+      { href: "/messages", label: "Messages", icon: MessagesSquare },
+      { href: "/schedules", label: "Schedules", icon: Clock },
+      { href: "/treasury", label: "Treasury", icon: Wallet },
     ],
   },
   {

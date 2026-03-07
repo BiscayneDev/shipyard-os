@@ -155,6 +155,16 @@ function TaskCard({
         ...(draggableProps as { style?: React.CSSProperties }).style,
       }}
     >
+      {/* Demo badge */}
+      {task.isDemo && (
+        <span
+          className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full self-start"
+          style={{ backgroundColor: "rgba(245,158,11,0.15)", color: "#f59e0b", border: "1px solid rgba(245,158,11,0.25)" }}
+        >
+          Sample
+        </span>
+      )}
+
       {/* Title */}
       <p
         className={[
@@ -405,6 +415,7 @@ export default function TasksPage() {
   const [pendingActivation, setPendingActivation] = useState<PendingActivation | null>(null)
   const [activating, setActivating] = useState(false)
   const [budgetError, setBudgetError] = useState<string | null>(null)
+  const [demoMode, setDemoMode] = useState(false)
   const [, setTick] = useState(0)
   const tasksSnapshotRef = useRef<string>("")
 
@@ -441,6 +452,10 @@ export default function TasksPage() {
   useEffect(() => {
     fetchTasks(false)
     fetchGoals()
+    fetch("/api/setup/status")
+      .then((r) => r.json())
+      .then((d: { demoMode?: boolean }) => { if (d.demoMode) setDemoMode(true) })
+      .catch(() => null)
   }, [fetchTasks, fetchGoals])
 
   useEffect(() => {
@@ -873,10 +888,21 @@ export default function TasksPage() {
               </span>
             </div>
 
+            {/* Demo mode notice */}
+            {demoMode && (
+              <div
+                className="rounded-lg p-3 text-xs"
+                style={{ backgroundColor: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.25)", color: "#f59e0b" }}
+              >
+                <p className="font-medium mb-1">Demo Mode</p>
+                <p className="text-zinc-400">No agent runtime connected. Use &quot;Move Only&quot; to organize tasks, or connect a runtime in Settings to activate agents.</p>
+              </div>
+            )}
+
             {/* Budget status */}
-            {pendingActivation.loading ? (
+            {!demoMode && pendingActivation.loading ? (
               <div className="text-xs text-zinc-500 py-2">Checking budget...</div>
-            ) : pendingActivation.budgetInfo && pendingActivation.budgetInfo.budgetUsd > 0 ? (
+            ) : !demoMode && pendingActivation.budgetInfo && pendingActivation.budgetInfo.budgetUsd > 0 ? (
               <div
                 className="rounded-lg p-3 text-xs space-y-1"
                 style={{
@@ -930,35 +956,39 @@ export default function TasksPage() {
 
             {/* Actions */}
             <div className="flex gap-2 pt-1">
-              <button
-                onClick={confirmActivation}
-                disabled={activating || (pendingActivation.budgetInfo !== null && !pendingActivation.budgetInfo.allowed)}
-                className="flex-1 py-2.5 rounded-lg text-sm font-medium transition-all"
-                style={{
-                  backgroundColor:
-                    pendingActivation.budgetInfo && !pendingActivation.budgetInfo.allowed
-                      ? "#3f3f46"
-                      : "#f59e0b",
-                  color:
-                    pendingActivation.budgetInfo && !pendingActivation.budgetInfo.allowed
-                      ? "#71717a"
-                      : "#0a0a0f",
-                  opacity: activating ? 0.7 : 1,
-                  cursor:
-                    pendingActivation.budgetInfo && !pendingActivation.budgetInfo.allowed
-                      ? "not-allowed"
-                      : "pointer",
-                }}
-              >
-                {activating ? "Activating..." : "Activate Agent"}
-              </button>
+              {!demoMode && (
+                <button
+                  onClick={confirmActivation}
+                  disabled={activating || (pendingActivation.budgetInfo !== null && !pendingActivation.budgetInfo.allowed)}
+                  className="flex-1 py-2.5 rounded-lg text-sm font-medium transition-all"
+                  style={{
+                    backgroundColor:
+                      pendingActivation.budgetInfo && !pendingActivation.budgetInfo.allowed
+                        ? "#3f3f46"
+                        : "#f59e0b",
+                    color:
+                      pendingActivation.budgetInfo && !pendingActivation.budgetInfo.allowed
+                        ? "#71717a"
+                        : "#0a0a0f",
+                    opacity: activating ? 0.7 : 1,
+                    cursor:
+                      pendingActivation.budgetInfo && !pendingActivation.budgetInfo.allowed
+                        ? "not-allowed"
+                        : "pointer",
+                  }}
+                >
+                  {activating ? "Activating..." : "Activate Agent"}
+                </button>
+              )}
               <button
                 onClick={moveWithoutActivating}
-                className="px-3 py-2.5 rounded-lg text-xs font-medium text-zinc-400 hover:text-white transition-colors"
-                style={{ backgroundColor: "#1a1a2e" }}
+                className={`${demoMode ? "flex-1" : ""} px-3 py-2.5 rounded-lg text-xs font-medium transition-colors`}
+                style={demoMode
+                  ? { backgroundColor: "#f59e0b", color: "#0a0a0f", fontWeight: 600, fontSize: 14 }
+                  : { backgroundColor: "#1a1a2e", color: "#a1a1aa" }}
                 title="Move to In Progress without triggering agent"
               >
-                Move Only
+                {demoMode ? "Move Task" : "Move Only"}
               </button>
               <button
                 onClick={cancelActivation}

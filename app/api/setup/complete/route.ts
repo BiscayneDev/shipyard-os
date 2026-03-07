@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { writeFile, readFile, mkdir } from "fs/promises"
 import { join, dirname } from "path"
+import { TEAM_TEMPLATES } from "@/lib/agent-templates"
 
 const SETUP_PATH = join(process.cwd(), "data", "setup.json")
 const ENV_LOCAL_PATH = join(process.cwd(), ".env.local")
@@ -8,11 +9,16 @@ const ENV_LOCAL_PATH = join(process.cwd(), ".env.local")
 interface SetupPayload {
   userName?: string
   assistantName?: string
+  runtimeType?: string
   gatewayUrl?: string
   gatewayToken?: string
+  ollamaUrl?: string
+  ollamaModel?: string
   deliveryTarget?: string
   deliveryChannel?: string
   workspace?: string
+  companyName?: string
+  teamTemplate?: string
   anthropicAdminKey?: string
   demoMode?: boolean
 }
@@ -24,16 +30,22 @@ export async function POST(request: Request) {
     const body = await request.json() as SetupPayload
     const isDemoMode = body.demoMode === true
 
+    const runtimeType = isDemoMode ? "demo" : (body.runtimeType || "openclaw")
+
     // Store only non-secret config in setup.json
     const data = {
       completed: true,
       demoMode: isDemoMode,
+      runtimeType,
       userName: body.userName || "",
       assistantName: body.assistantName || "Vic",
       gatewayUrl: isDemoMode ? "" : (body.gatewayUrl || ""),
+      ollamaUrl: runtimeType === "ollama" ? (body.ollamaUrl || "http://127.0.0.1:11434") : "",
+      ollamaModel: runtimeType === "ollama" ? (body.ollamaModel || "") : "",
       deliveryTarget: isDemoMode ? "" : (body.deliveryTarget || ""),
       deliveryChannel: isDemoMode ? "" : (body.deliveryChannel || "telegram"),
       workspace: body.workspace || "~/clawd",
+      companyName: body.companyName || "",
       completedAt: new Date().toISOString(),
     }
 
@@ -42,9 +54,14 @@ export async function POST(request: Request) {
 
     // Auto-create .env.local with secrets + config
     if (!isDemoMode) {
-      const envLines: string[] = []
-      if (body.gatewayUrl) envLines.push(`OPENCLAW_GATEWAY_URL=${body.gatewayUrl}`)
-      if (body.gatewayToken) envLines.push(`OPENCLAW_GATEWAY_TOKEN=${body.gatewayToken}`)
+      const envLines: string[] = [`AGENT_RUNTIME=${runtimeType}`]
+      if (runtimeType === "openclaw") {
+        if (body.gatewayUrl) envLines.push(`OPENCLAW_GATEWAY_URL=${body.gatewayUrl}`)
+        if (body.gatewayToken) envLines.push(`OPENCLAW_GATEWAY_TOKEN=${body.gatewayToken}`)
+      } else if (runtimeType === "ollama") {
+        envLines.push(`OLLAMA_BASE_URL=${body.ollamaUrl || "http://127.0.0.1:11434"}`)
+        if (body.ollamaModel) envLines.push(`OLLAMA_MODEL=${body.ollamaModel}`)
+      }
       if (body.deliveryTarget) envLines.push(`AGENT_DELIVERY_TARGET=${body.deliveryTarget}`)
       if (body.deliveryChannel) envLines.push(`AGENT_DELIVERY_CHANNEL=${body.deliveryChannel}`)
       if (body.workspace) envLines.push(`AGENT_WORKSPACE=${body.workspace}`)
@@ -87,16 +104,42 @@ export async function POST(request: Request) {
       }
     }
 
+    // Seed default agents if agents.json is empty or missing
+    try {
+      const agentsPath = join(process.cwd(), "data", "agents.json")
+      let needsSeed = false
+      try {
+        const existing = await readFile(agentsPath, "utf-8")
+        const parsed = JSON.parse(existing)
+        if (!Array.isArray(parsed) || parsed.length === 0) needsSeed = true
+      } catch {
+        needsSeed = true
+      }
+      if (needsSeed) {
+        // Use team template if specified, otherwise fall back to startup template
+        const template = TEAM_TEMPLATES.find((t) => t.id === body.teamTemplate) ?? TEAM_TEMPLATES[0]
+        const seedAgents = template.agents.map((a) => ({
+          ...a,
+          // Override the chief agent's name with the user's chosen assistant name
+          name: a.isChief && body.assistantName ? body.assistantName : a.name,
+          isVic: a.isChief || undefined,
+        }))
+        await writeFile(agentsPath, JSON.stringify(seedAgents, null, 2), "utf-8")
+      }
+    } catch {
+      // Non-fatal
+    }
+
     // Seed demo tasks if demo mode
     if (isDemoMode) {
       try {
         const tasksPath = join(process.cwd(), "data", "tasks.json")
         const demoTasks = [
-          { id: "demo-1", title: "Research competitor pricing models", column: "backlog", priority: "high", assignee: "scout", tags: ["research"], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-          { id: "demo-2", title: "Build landing page hero section", column: "in-progress", priority: "medium", assignee: "builder", tags: ["frontend"], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-          { id: "demo-3", title: "Review partnership proposal from Acme", column: "in-review", priority: "high", assignee: "deal-flow", tags: ["partnerships"], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-          { id: "demo-4", title: "Audit DeFi yield positions", column: "backlog", priority: "low", assignee: "baron", tags: ["defi"], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-          { id: "demo-5", title: "Set up CI/CD pipeline", column: "done", priority: "medium", assignee: "builder", tags: ["devops"], description: "Completed: GitHub Actions pipeline configured with lint, test, and deploy stages.", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+          { id: "demo-1", title: "Research competitor pricing models", column: "backlog", priority: "high", assignee: "scout", tags: ["research", "demo"], isDemo: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+          { id: "demo-2", title: "Build landing page hero section", column: "in-progress", priority: "medium", assignee: "builder", tags: ["frontend", "demo"], isDemo: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+          { id: "demo-3", title: "Review partnership proposal from Acme", column: "in-review", priority: "high", assignee: "deal-flow", tags: ["partnerships", "demo"], isDemo: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+          { id: "demo-4", title: "Audit DeFi yield positions", column: "backlog", priority: "low", assignee: "baron", tags: ["defi", "demo"], isDemo: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+          { id: "demo-5", title: "Set up CI/CD pipeline", column: "done", priority: "medium", assignee: "builder", tags: ["devops", "demo"], isDemo: true, description: "Completed: GitHub Actions pipeline configured with lint, test, and deploy stages.", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
         ]
         await writeFile(tasksPath, JSON.stringify(demoTasks, null, 2), "utf-8")
       } catch {
