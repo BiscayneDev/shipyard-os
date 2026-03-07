@@ -9,6 +9,7 @@ const ENV_LOCAL_PATH = join(process.cwd(), ".env.local")
 interface SetupData {
   completed: boolean
   demoMode?: boolean
+  runtimeType?: string
   userName?: string
   assistantName?: string
   gatewayUrl?: string
@@ -35,6 +36,7 @@ export async function GET(request: Request) {
     const result: Record<string, unknown> = {
       completed: data.completed ?? false,
       demoMode: data.demoMode ?? false,
+      runtimeType: data.runtimeType ?? "openclaw",
       userName: data.userName,
       assistantName: data.assistantName,
     }

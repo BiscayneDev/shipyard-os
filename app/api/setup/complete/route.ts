@@ -100,6 +100,31 @@ export async function POST(request: Request) {
       }
     }
 
+    // Seed default agents if agents.json is empty or missing
+    try {
+      const agentsPath = join(process.cwd(), "data", "agents.json")
+      let needsSeed = false
+      try {
+        const existing = await readFile(agentsPath, "utf-8")
+        const parsed = JSON.parse(existing)
+        if (!Array.isArray(parsed) || parsed.length === 0) needsSeed = true
+      } catch {
+        needsSeed = true
+      }
+      if (needsSeed) {
+        const defaultAgents = [
+          { id: "chief", name: body.assistantName || "Vic", emoji: "🤖", role: "Chief of Staff", accent: "#7c3aed", description: "Coordinates everything. Keeps memory sharp, delegates tasks, makes sure nothing falls through.", tags: ["Orchestration", "Memory", "Execution"], isVic: true, budget: 50 },
+          { id: "researcher", name: "Scout", emoji: "🔭", role: "Researcher", accent: "#06b6d4", description: "Monitors the web for market signals, competitor moves, and emerging trends.", tags: ["Research", "Analysis", "Signals"], budget: 30 },
+          { id: "engineer", name: "Builder", emoji: "⚡", role: "Engineer", accent: "#10b981", description: "Ships code. Builds and maintains projects, automates workflows.", tags: ["Code", "Automation", "DevOps"], budget: 100 },
+          { id: "deal-flow", name: "Deal Flow", emoji: "🤝", role: "Business Dev", accent: "#f59e0b", description: "Tracks partnerships, opportunities, and strategic moves.", tags: ["Partnerships", "Outreach", "Strategy"], budget: 20 },
+          { id: "treasurer", name: "Treasurer", emoji: "🏦", role: "Finance", accent: "#ec4899", description: "Manages budgets, tracks spending, and handles financial operations.", tags: ["Finance", "Budgets", "Reporting"], budget: 20 },
+        ]
+        await writeFile(agentsPath, JSON.stringify(defaultAgents, null, 2), "utf-8")
+      }
+    } catch {
+      // Non-fatal
+    }
+
     // Seed demo tasks if demo mode
     if (isDemoMode) {
       try {

@@ -965,6 +965,19 @@ function SailboatScene() {
                 </button>
                 <button
                   onClick={next}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "#71717a",
+                    cursor: "pointer",
+                    fontSize: 14,
+                    padding: "8px 12px",
+                  }}
+                >
+                  Skip
+                </button>
+                <button
+                  onClick={next}
                   disabled={!canGoNextDelivery}
                   style={primaryBtnStyle(!canGoNextDelivery)}
                 >
