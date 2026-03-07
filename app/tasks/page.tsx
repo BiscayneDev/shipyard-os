@@ -36,6 +36,20 @@ const INITIAL_FORM: AddTaskFormState = {
   priority: "medium",
 }
 
+interface PendingActivation {
+  task: Task
+  newColumn: Column
+  budgetInfo: {
+    allowed: boolean
+    agentName?: string
+    spentUsd: number
+    budgetUsd: number
+    percentUsed: number
+    warning: string | null
+  } | null
+  loading: boolean
+}
+
 interface GoalOption {
   id: string
   title: string
@@ -388,6 +402,9 @@ export default function TasksPage() {
   const [addingTo, setAddingTo] = useState<Column | null>(null)
   const [form, setForm] = useState<AddTaskFormState>(INITIAL_FORM)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+  const [pendingActivation, setPendingActivation] = useState<PendingActivation | null>(null)
+  const [activating, setActivating] = useState(false)
+  const [budgetError, setBudgetError] = useState<string | null>(null)
   const [, setTick] = useState(0)
   const tasksSnapshotRef = useRef<string>("")
 
@@ -444,6 +461,45 @@ export default function TasksPage() {
     const task = tasks.find((t) => t.id === draggableId)
     if (!task || task.column === newColumn) return
 
+    // If moving to in-progress, show approval gate first
+    if (newColumn === "in-progress" && task.column !== "in-progress") {
+      // Optimistically move the card
+      setTasks((prev) =>
+        prev.map((t) => (t.id === draggableId ? { ...t, column: newColumn } : t))
+      )
+      setLastUpdated(new Date())
+
+      // Fetch budget info and show modal
+      const pending: PendingActivation = {
+        task,
+        newColumn,
+        budgetInfo: null,
+        loading: true,
+      }
+      setPendingActivation(pending)
+
+      // Fetch budget check in background
+      if (task.assignee !== "unassigned") {
+        try {
+          const res = await fetch(`/api/company/budgets/check?agent=${encodeURIComponent(task.assignee)}`)
+          const budget = await res.json()
+          setPendingActivation((prev) =>
+            prev ? { ...prev, budgetInfo: budget, loading: false } : null
+          )
+        } catch {
+          setPendingActivation((prev) =>
+            prev ? { ...prev, loading: false } : null
+          )
+        }
+      } else {
+        setPendingActivation((prev) =>
+          prev ? { ...prev, loading: false } : null
+        )
+      }
+      return
+    }
+
+    // Non-in-progress moves: proceed directly
     setTasks((prev) =>
       prev.map((t) => (t.id === draggableId ? { ...t, column: newColumn } : t))
     )
@@ -455,23 +511,93 @@ export default function TasksPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ column: newColumn }),
       })
-
-      if (newColumn === "in-progress" && task.column !== "in-progress") {
-        fetch("/api/tasks/activate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            taskId: task.id,
-            title: task.title,
-            description: task.description,
-            assignee: task.assignee,
-            priority: task.priority,
-          }),
-        }).catch(() => null)
-      }
     } catch {
       fetchTasks(false)
     }
+  }
+
+  const confirmActivation = async () => {
+    if (!pendingActivation) return
+    setActivating(true)
+    setBudgetError(null)
+
+    const { task, newColumn } = pendingActivation
+
+    try {
+      // Persist column move
+      await fetch(`/api/tasks/${task.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ column: newColumn }),
+      })
+
+      // Fire agent activation
+      const activateRes = await fetch("/api/tasks/activate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          taskId: task.id,
+          title: task.title,
+          description: task.description,
+          assignee: task.assignee,
+          priority: task.priority,
+        }),
+      })
+
+      if (!activateRes.ok) {
+        const err = await activateRes.json()
+        if (activateRes.status === 403) {
+          setBudgetError(`${err.agent} is over budget ($${err.spentUsd}/$${err.budgetUsd})`)
+          // Revert to original column
+          setTasks((prev) =>
+            prev.map((t) => (t.id === task.id ? { ...t, column: task.column } : t))
+          )
+          await fetch(`/api/tasks/${task.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ column: task.column }),
+          })
+          setActivating(false)
+          return
+        }
+      }
+
+      setPendingActivation(null)
+    } catch {
+      fetchTasks(false)
+    } finally {
+      setActivating(false)
+    }
+  }
+
+  const moveWithoutActivating = async () => {
+    if (!pendingActivation) return
+    const { task, newColumn } = pendingActivation
+
+    try {
+      await fetch(`/api/tasks/${task.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ column: newColumn }),
+      })
+    } catch {
+      fetchTasks(false)
+    }
+
+    setPendingActivation(null)
+    setBudgetError(null)
+  }
+
+  const cancelActivation = async () => {
+    if (!pendingActivation) return
+    const { task } = pendingActivation
+
+    // Revert to original column
+    setTasks((prev) =>
+      prev.map((t) => (t.id === task.id ? { ...t, column: task.column } : t))
+    )
+    setPendingActivation(null)
+    setBudgetError(null)
   }
 
   const handleAddTask = async (column: Column) => {
@@ -700,6 +826,151 @@ export default function TasksPage() {
           })}
         </div>
       </DragDropContext>
+
+      {/* ── Activation Approval Modal ────────────────────────────────── */}
+      {pendingActivation && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ backgroundColor: "rgba(0,0,0,0.7)" }}
+          onClick={(e) => { if (e.target === e.currentTarget) cancelActivation() }}
+        >
+          <div
+            className="w-full max-w-md rounded-xl p-6 space-y-4"
+            style={{ backgroundColor: "#111118", border: "1px solid #1a1a2e" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-sm font-bold text-white uppercase tracking-wider" style={{ color: "#f59e0b" }}>
+              Activate Agent
+            </h3>
+
+            {/* Task info */}
+            <div className="space-y-2">
+              <p className="text-base font-semibold text-white">{pendingActivation.task.title}</p>
+              {pendingActivation.task.description && (
+                <p className="text-xs text-zinc-400 leading-relaxed line-clamp-3">
+                  {pendingActivation.task.description}
+                </p>
+              )}
+            </div>
+
+            {/* Agent + Priority row */}
+            <div className="flex items-center gap-3">
+              <span
+                className="flex items-center gap-2 text-sm px-3 py-1.5 rounded-lg"
+                style={{ backgroundColor: "#1a1a2e" }}
+              >
+                <span>{AGENT_EMOJI[pendingActivation.task.assignee]}</span>
+                <span className="text-zinc-300">{AGENT_LABELS[pendingActivation.task.assignee]}</span>
+              </span>
+              <span
+                className="text-xs px-2 py-1 rounded-full font-medium"
+                style={{
+                  backgroundColor: `${PRIORITY_CONFIG[pendingActivation.task.priority].color}20`,
+                  color: PRIORITY_CONFIG[pendingActivation.task.priority].color,
+                }}
+              >
+                {PRIORITY_CONFIG[pendingActivation.task.priority].label}
+              </span>
+            </div>
+
+            {/* Budget status */}
+            {pendingActivation.loading ? (
+              <div className="text-xs text-zinc-500 py-2">Checking budget...</div>
+            ) : pendingActivation.budgetInfo && pendingActivation.budgetInfo.budgetUsd > 0 ? (
+              <div
+                className="rounded-lg p-3 text-xs space-y-1"
+                style={{
+                  backgroundColor: "#0a0a0f",
+                  border: `1px solid ${
+                    !pendingActivation.budgetInfo.allowed
+                      ? "#ef444440"
+                      : pendingActivation.budgetInfo.warning
+                      ? "#f59e0b40"
+                      : "#22c55e40"
+                  }`,
+                }}
+              >
+                <div className="flex justify-between">
+                  <span className="text-zinc-400">Monthly budget</span>
+                  <span className="text-zinc-300">
+                    ${pendingActivation.budgetInfo.spentUsd} / ${pendingActivation.budgetInfo.budgetUsd}
+                  </span>
+                </div>
+                <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: "#1a1a2e" }}>
+                  <div
+                    className="h-full rounded-full transition-all"
+                    style={{
+                      width: `${Math.min(pendingActivation.budgetInfo.percentUsed, 100)}%`,
+                      backgroundColor: !pendingActivation.budgetInfo.allowed
+                        ? "#ef4444"
+                        : pendingActivation.budgetInfo.warning
+                        ? "#f59e0b"
+                        : "#22c55e",
+                    }}
+                  />
+                </div>
+                {!pendingActivation.budgetInfo.allowed && (
+                  <p className="text-red-400 font-medium mt-1">Budget exceeded — activation blocked</p>
+                )}
+                {pendingActivation.budgetInfo.warning && (
+                  <p className="text-amber-400 mt-1">Approaching budget limit ({pendingActivation.budgetInfo.percentUsed}% used)</p>
+                )}
+              </div>
+            ) : null}
+
+            {/* Budget error */}
+            {budgetError && (
+              <div
+                className="rounded-lg p-3 text-xs"
+                style={{ backgroundColor: "#2d0a0a", border: "1px solid #ef444440", color: "#ef4444" }}
+              >
+                {budgetError}
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={confirmActivation}
+                disabled={activating || (pendingActivation.budgetInfo !== null && !pendingActivation.budgetInfo.allowed)}
+                className="flex-1 py-2.5 rounded-lg text-sm font-medium transition-all"
+                style={{
+                  backgroundColor:
+                    pendingActivation.budgetInfo && !pendingActivation.budgetInfo.allowed
+                      ? "#3f3f46"
+                      : "#f59e0b",
+                  color:
+                    pendingActivation.budgetInfo && !pendingActivation.budgetInfo.allowed
+                      ? "#71717a"
+                      : "#0a0a0f",
+                  opacity: activating ? 0.7 : 1,
+                  cursor:
+                    pendingActivation.budgetInfo && !pendingActivation.budgetInfo.allowed
+                      ? "not-allowed"
+                      : "pointer",
+                }}
+              >
+                {activating ? "Activating..." : "Activate Agent"}
+              </button>
+              <button
+                onClick={moveWithoutActivating}
+                className="px-3 py-2.5 rounded-lg text-xs font-medium text-zinc-400 hover:text-white transition-colors"
+                style={{ backgroundColor: "#1a1a2e" }}
+                title="Move to In Progress without triggering agent"
+              >
+                Move Only
+              </button>
+              <button
+                onClick={cancelActivation}
+                className="px-3 py-2.5 rounded-lg text-xs font-medium text-zinc-500 hover:text-zinc-300 transition-colors"
+                style={{ backgroundColor: "#1a1a2e" }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

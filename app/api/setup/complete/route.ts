@@ -19,16 +19,16 @@ export async function POST(request: Request) {
   try {
     const body = await request.json() as SetupPayload
 
+    // Store only non-secret config in setup.json
+    // Secrets (gatewayToken, anthropicAdminKey) should be set via .env.local
     const data = {
       completed: true,
       userName: body.userName || "",
       assistantName: body.assistantName || "Vic",
       gatewayUrl: body.gatewayUrl || "",
-      gatewayToken: body.gatewayToken || "",
       deliveryTarget: body.deliveryTarget || "",
       deliveryChannel: body.deliveryChannel || "telegram",
       workspace: body.workspace || "~/clawd",
-      anthropicAdminKey: body.anthropicAdminKey || "",
       completedAt: new Date().toISOString(),
     }
 

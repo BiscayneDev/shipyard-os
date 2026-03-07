@@ -2,6 +2,16 @@ import { NextResponse } from "next/server"
 import { readdir, readFile } from "fs/promises"
 import { homedir } from "os"
 import path from "path"
+import { join } from "path"
+import { kv } from "@vercel/kv"
+
+interface AgentData {
+  id: string
+  name: string
+  emoji: string
+  accent: string
+  budget?: number
+}
 
 interface AgentBudget {
   name: string
@@ -15,15 +25,6 @@ interface AgentBudget {
 interface BudgetsResponse {
   agents: AgentBudget[]
 }
-
-// Hardcoded monthly budgets
-const AGENT_BUDGETS: AgentBudget[] = [
-  { name: "Vic", emoji: "🦞", accent: "#7c3aed", spentUsd: 0, budgetUsd: 50, tokens: 0 },
-  { name: "Scout", emoji: "🔭", accent: "#06b6d4", spentUsd: 0, budgetUsd: 30, tokens: 0 },
-  { name: "Builder", emoji: "⚡", accent: "#10b981", spentUsd: 0, budgetUsd: 100, tokens: 0 },
-  { name: "Deal Flow", emoji: "🤝", accent: "#f59e0b", spentUsd: 0, budgetUsd: 20, tokens: 0 },
-  { name: "Baron", emoji: "🏦", accent: "#ec4899", spentUsd: 0, budgetUsd: 20, tokens: 0 },
-]
 
 // Map session labels to agent names
 const AGENT_KEY_MAP: Record<string, string> = {
@@ -73,8 +74,38 @@ function getMonthStart(): Date {
   return new Date(now.getFullYear(), now.getMonth(), 1)
 }
 
+// Read agent definitions from KV or local JSON
+async function readAgents(): Promise<AgentData[]> {
+  try {
+    if (process.env.KV_REST_API_URL) {
+      const data = await kv.get<AgentData[]>("agents")
+      if (data) return data
+    }
+  } catch {
+    // fall through to file
+  }
+
+  try {
+    const filePath = join(process.cwd(), "data", "agents.json")
+    const raw = await readFile(filePath, "utf-8")
+    return JSON.parse(raw) as AgentData[]
+  } catch {
+    return []
+  }
+}
+
 export async function GET() {
-  const agents = AGENT_BUDGETS.map((a) => ({ ...a }))
+  // Read budgets from agent definitions (not hardcoded)
+  const agentDefs = await readAgents()
+  const agents: AgentBudget[] = agentDefs.map((a) => ({
+    name: a.name,
+    emoji: a.emoji,
+    accent: a.accent,
+    spentUsd: 0,
+    budgetUsd: a.budget ?? 0,
+    tokens: 0,
+  }))
+
   const agentMap = new Map<string, AgentBudget>()
   for (const agent of agents) {
     agentMap.set(agent.name, agent)
