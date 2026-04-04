@@ -52,7 +52,6 @@ export interface Repo {
   latestRun: LatestRun | null
 }
 
-// Pinned projects in display order with fallback descriptions
 const PINNED_PROJECTS: Record<string, string> = {
   shipyard: "API marketplace for autonomous AI agents",
   "mission-control": "Personal AI command center",
@@ -92,7 +91,7 @@ async function fetchLatestRun(repoName: string): Promise<LatestRun | null> {
   }
 }
 
-export async function GET() {
+export async function fetchProjects(): Promise<Repo[]> {
   try {
     const headers: Record<string, string> = {
       Accept: "application/vnd.github+json",
@@ -110,7 +109,6 @@ export async function GET() {
     if (!res.ok) throw new Error(`GitHub API ${res.status}`)
     const data: GitHubRepo[] = await res.json()
 
-    // Fetch PR/CI data for pinned repos in parallel
     const pinnedNames = Object.keys(PINNED_PROJECTS)
     const pinnedInData = data.filter((r) => pinnedNames.includes(r.name))
 
@@ -137,8 +135,7 @@ export async function GET() {
       }
     }
 
-    const pinnedOrder = pinnedNames
-    const pinned = pinnedOrder
+    const pinned = pinnedNames
       .map((name) => data.find((r) => r.name === name))
       .filter((r): r is GitHubRepo => r !== undefined)
       .map(mapRepo)
@@ -147,8 +144,12 @@ export async function GET() {
       .filter((r) => !pinnedNames.includes(r.name))
       .map(mapRepo)
 
-    return NextResponse.json([...pinned, ...rest])
+    return [...pinned, ...rest]
   } catch {
-    return NextResponse.json([], { status: 200 })
+    return []
   }
+}
+
+export async function GET() {
+  return NextResponse.json(await fetchProjects(), { status: 200 })
 }

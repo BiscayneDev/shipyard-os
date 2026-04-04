@@ -1,30 +1,8 @@
 "use client"
 
+import Link from "next/link"
 import { useEffect, useState } from "react"
-
-interface OpenPR {
-  number: number
-  title: string
-  url: string
-}
-
-interface LatestRun {
-  status: string
-  conclusion: string | null
-  name: string
-  url: string
-}
-
-interface Repo {
-  name: string
-  description: string | null
-  url: string
-  updatedAt: string
-  primaryLanguage: { name: string } | null
-  isPrivate: boolean
-  openPRs: OpenPR[]
-  latestRun: LatestRun | null
-}
+import type { Repo } from "@/app/api/projects/route"
 
 const LANGUAGE_COLORS: Record<string, string> = {
   JavaScript: "#f7df1e",
@@ -56,7 +34,7 @@ function relativeTime(dateStr: string): string {
   return `${Math.floor(diffDays / 30)}mo ago`
 }
 
-function CIBadge({ run }: { run: LatestRun | null }) {
+function CIBadge({ run }: { run: Repo["latestRun"] }) {
   if (!run) return null
 
   const isRunning = run.status === "in_progress" || run.status === "queued"
@@ -135,44 +113,42 @@ function RepoCard({ repo, isPinned }: { repo: Repo; isPinned: boolean }) {
   const langColor = lang ? LANGUAGE_COLORS[lang] || "#71717a" : null
 
   return (
-    <a
-      href={repo.url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="block rounded-xl p-5 space-y-3 transition-all"
+    <div
+      className="rounded-xl border p-5 space-y-3 transition-all hover:border-[rgba(124,58,237,0.3)] hover:shadow-[0_0_20px_rgba(124,58,237,0.15)]"
       style={{
         backgroundColor: "#111118",
-        border: isPinned ? "1px solid rgba(124, 58, 237, 0.25)" : "1px solid #1a1a2e",
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.boxShadow = "0 0 20px rgba(124, 58, 237, 0.15)"
-        e.currentTarget.style.borderColor = "rgba(124, 58, 237, 0.3)"
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.boxShadow = "none"
-        e.currentTarget.style.borderColor = isPinned
-          ? "rgba(124, 58, 237, 0.25)"
-          : "#1a1a2e"
+        borderColor: isPinned ? "rgba(124, 58, 237, 0.25)" : "#1a1a2e",
       }}
     >
       <div className="space-y-1">
-        <div className="flex items-center gap-2">
-          <h3 className="text-sm font-bold text-white">{repo.name}</h3>
-          {isPinned && (
-            <span
-              className="text-[10px] px-1.5 py-0.5 rounded font-medium"
-              style={{ backgroundColor: "rgba(124, 58, 237, 0.15)", color: "#a78bfa" }}
-            >
-              PINNED
-            </span>
-          )}
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Link href={`/projects/${repo.name}`} className="text-sm font-bold text-white hover:text-violet-200">
+              {repo.name}
+            </Link>
+            {isPinned && (
+              <span
+                className="text-[10px] px-1.5 py-0.5 rounded font-medium"
+                style={{ backgroundColor: "rgba(124, 58, 237, 0.15)", color: "#a78bfa" }}
+              >
+                PINNED
+              </span>
+            )}
+          </div>
+          <a
+            href={repo.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-zinc-500 hover:text-white"
+          >
+            GitHub ↗
+          </a>
         </div>
         <p className="text-xs text-zinc-500 line-clamp-2">
           {repo.description || "No description"}
         </p>
       </div>
 
-      {/* PR / CI badges row */}
       <div className="flex items-center gap-3 flex-wrap">
         {repo.openPRs.length > 0 && (
           <a
@@ -185,7 +161,6 @@ function RepoCard({ repo, isPinned }: { repo: Repo; isPinned: boolean }) {
               color: "#f59e0b",
               border: "1px solid rgba(245, 158, 11, 0.3)",
             }}
-            onClick={(e) => e.stopPropagation()}
           >
             {repo.openPRs.length} PR{repo.openPRs.length > 1 ? "s" : ""}
           </a>
@@ -219,7 +194,7 @@ function RepoCard({ repo, isPinned }: { repo: Repo; isPinned: boolean }) {
 
         <span className="text-xs text-zinc-600">{relativeTime(repo.updatedAt)}</span>
       </div>
-    </a>
+    </div>
   )
 }
 
@@ -232,11 +207,15 @@ export default function ProjectsPage() {
     async function fetchRepos() {
       try {
         const res = await fetch("/api/projects")
+        if (!res.ok) {
+          throw new Error(`Request failed: ${res.status}`)
+        }
+
         const data = await res.json()
-        if (Array.isArray(data) && data.length > 0) {
+        if (Array.isArray(data)) {
           setRepos(data)
         } else {
-          setError(true)
+          throw new Error("Invalid projects response")
         }
       } catch {
         setError(true)
@@ -282,12 +261,20 @@ export default function ProjectsPage() {
           style={{ backgroundColor: "#111118", border: "1px solid #1a1a2e" }}
         >
           <p className="text-zinc-500 text-sm">
-            Could not load repositories. Make sure the{" "}
-            <code className="text-zinc-400">gh</code> CLI is installed and authenticated.
+            Could not load repositories right now. Please try again in a moment.
           </p>
         </div>
       ) : (
         <>
+          {repos.length === 0 && (
+            <div
+              className="rounded-xl p-8 text-center"
+              style={{ backgroundColor: "#111118", border: "1px solid #1a1a2e" }}
+            >
+              <p className="text-zinc-500 text-sm">No repositories found yet.</p>
+            </div>
+          )}
+
           {/* Pinned projects */}
           {pinnedRepos.length > 0 && (
             <div className="space-y-3">
