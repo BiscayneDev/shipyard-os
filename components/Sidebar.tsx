@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   Users,
   CheckSquare,
+  Bell,
   Folder,
   Zap,
   Brain,
@@ -19,12 +20,15 @@ import {
   MessagesSquare,
   Clock,
   Wallet,
+  PanelRightOpen,
 } from "lucide-react";
 
 const navSections = [
   {
     items: [
       { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/conversations", label: "Conversations", icon: PanelRightOpen },
+      { href: "/alerts", label: "Alerts", icon: Bell },
       { href: "/chat", label: "Chat", icon: MessageSquare },
       { href: "/tasks", label: "Tasks", icon: CheckSquare },
       { href: "/agents", label: "Agents", icon: Users },
