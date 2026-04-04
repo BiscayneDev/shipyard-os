@@ -2,6 +2,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import type { ReactNode } from "react"
 import { type AlertRecord } from "@/lib/alerts"
+import { summarizeProject } from "@/lib/summaries"
 import { getProjectWarRoom } from "@/app/api/projects/[name]/route"
 
 function relativeTime(iso: string): string {
@@ -28,6 +29,12 @@ export default async function ProjectWarRoomPage({ params }: { params: Promise<{
   if (!warRoom) notFound()
 
   const { project, relatedConversations, relatedTasks, relatedAlerts } = warRoom
+  const summary = summarizeProject({
+    project,
+    relatedTasks,
+    relatedAlerts,
+    relatedConversations,
+  })
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 pb-12">
@@ -65,6 +72,14 @@ export default async function ProjectWarRoomPage({ params }: { params: Promise<{
           </div>
         </div>
       )}
+      {summary
+        ? sectionCard(
+            <div className="space-y-3">
+              <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">Summary</h2>
+              <p className="whitespace-pre-wrap text-sm text-zinc-300">{summary}</p>
+            </div>,
+          )
+        : null}
 
       <div className="grid gap-6 lg:grid-cols-2">
         {sectionCard(

@@ -101,14 +101,18 @@ export default function ConversationsPage() {
   const [selectedRunId, setSelectedRunId] = useState<string>("")
   const [detail, setDetail] = useState<ConversationDetail | null>(null)
   const [runDetail, setRunDetail] = useState<RunDetail | null>(null)
+  const [conversationSummary, setConversationSummary] = useState("")
+  const [summaryLoading, setSummaryLoading] = useState(false)
   const [query, setQuery] = useState("")
   const [draft, setDraft] = useState("")
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const [creating, setCreating] = useState(false)
+  const [createError, setCreateError] = useState("")
   const selectedIdRef = useRef("")
   const detailRequestRef = useRef(0)
   const runRequestRef = useRef(0)
+  const summaryRequestRef = useRef(0)
 
   useEffect(() => {
     selectedIdRef.current = selectedId
@@ -160,6 +164,32 @@ export default function ConversationsPage() {
     return data
   }, [])
 
+  const fetchConversationSummary = useCallback(async (id: string) => {
+    const requestId = ++summaryRequestRef.current
+    setSummaryLoading(true)
+    try {
+      const res = await fetch(`/api/summaries/conversation/${id}`, { cache: "no-store" })
+      if (requestId !== summaryRequestRef.current || selectedIdRef.current !== id) {
+        return null
+      }
+      if (!res.ok) {
+        setConversationSummary("")
+        return null
+      }
+      const data = (await res.json()) as { summary?: string }
+      if (requestId !== summaryRequestRef.current || selectedIdRef.current !== id) {
+        return null
+      }
+      const summary = typeof data.summary === "string" ? data.summary : ""
+      setConversationSummary(summary)
+      return summary
+    } finally {
+      if (requestId === summaryRequestRef.current) {
+        setSummaryLoading(false)
+      }
+    }
+  }, [])
+
   useEffect(() => {
     fetchList()
       .catch(() => null)
@@ -167,8 +197,16 @@ export default function ConversationsPage() {
   }, [fetchList])
 
   useEffect(() => {
+    detailRequestRef.current += 1
+    runRequestRef.current += 1
+    summaryRequestRef.current += 1
+    setDetail(null)
+    setConversationSummary("")
+    setSelectedRunId("")
+    setRunDetail(null)
+    setSummaryLoading(false)
+
     if (!selectedId) {
-      setDetail(null)
       return
     }
     if (requestedId !== selectedId) {
@@ -177,14 +215,8 @@ export default function ConversationsPage() {
       router.replace(`/conversations?${next.toString()}`)
     }
     fetchDetail(selectedId).catch(() => null)
-  }, [fetchDetail, requestedId, router, searchParams, selectedId])
-
-  useEffect(() => {
-    setDetail(null)
-    setSelectedRunId("")
-    setRunDetail(null)
-    runRequestRef.current += 1
-  }, [selectedId])
+    fetchConversationSummary(selectedId).catch(() => null)
+  }, [fetchConversationSummary, fetchDetail, requestedId, router, searchParams, selectedId])
 
   const selectedSummary = useMemo(
     () => conversations.find((conversation) => conversation.id === selectedId) ?? null,
@@ -193,16 +225,24 @@ export default function ConversationsPage() {
 
   async function createConversation() {
     setCreating(true)
+    setCreateError("")
     try {
       const res = await fetch("/api/conversations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title: "New conversation", agent: "vic" }),
       })
+
+      if (!res.ok) {
+        throw new Error(`Failed to create conversation (${res.status})`)
+      }
+
       const created = (await res.json()) as ConversationDetail
       await fetchList(query)
       setSelectedId(created.id)
       setDetail(created)
+    } catch {
+      setCreateError("Could not create a conversation. Please try again.")
     } finally {
       setCreating(false)
     }
@@ -277,6 +317,7 @@ export default function ConversationsPage() {
               className="w-full bg-transparent outline-none placeholder:text-zinc-600"
             />
           </label>
+          {createError ? <p className="text-xs text-red-400">{createError}</p> : null}
         </div>
         <div className="min-h-0 space-y-2 overflow-y-auto p-2">
           {loading ? (
@@ -295,6 +336,7 @@ export default function ConversationsPage() {
                   onClick={() => {
                     setSelectedId(conversation.id)
                     setDetail(null)
+                    setConversationSummary("")
                     setSelectedRunId("")
                     setRunDetail(null)
                   }}
@@ -342,6 +384,17 @@ export default function ConversationsPage() {
               </Link>
             )}
           </div>
+          {selectedId ? (
+            <button
+              onClick={() => {
+                void fetchConversationSummary(selectedId)
+              }}
+              disabled={summaryLoading}
+              className="mt-4 rounded-lg border border-cyan-500/30 bg-cyan-500/10 px-3 py-2 text-xs font-semibold text-cyan-300 transition-colors hover:bg-cyan-500/15 disabled:opacity-50"
+            >
+              {summaryLoading ? "Loading summary..." : conversationSummary ? "Regenerate summary" : "Fetch summary"}
+            </button>
+          ) : null}
         </div>
         <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
           {detail?.messages.length ? (
@@ -485,6 +538,17 @@ export default function ConversationsPage() {
                 <p className="text-sm text-zinc-500">No events yet.</p>
               )}
             </div>
+          </div>
+
+          <div>
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-widest text-zinc-600">Summary</h3>
+            {conversationSummary ? (
+              <div className="rounded-xl border border-zinc-800 bg-[#0a0a0f] px-3 py-3">
+                <p className="whitespace-pre-wrap text-sm text-zinc-300">{conversationSummary}</p>
+              </div>
+            ) : (
+              <p className="text-sm text-zinc-500">{summaryLoading ? "Loading summary..." : "No summary yet."}</p>
+            )}
           </div>
         </div>
       </section>
