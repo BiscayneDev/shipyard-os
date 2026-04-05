@@ -276,6 +276,12 @@ export default function DashboardPage() {
 
   const intelSummary = intel?.summary || intel?.headline || "No scout report yet."
   const activeGoals = goals.filter((g) => g.status === "active").slice(0, 3)
+  const activeAgents = sessions
+    .filter((session) => {
+      const status = (session.status ?? "").toLowerCase()
+      return status === "running" || status === "active" || status === "busy" || status === "in_progress"
+    })
+    .slice(0, 4)
   const urgentTasks = tasks
     .filter((task) => task.column !== "done")
     .sort((a, b) => {
@@ -400,7 +406,37 @@ export default function DashboardPage() {
 
           <section className="rounded-xl border border-zinc-800 bg-[#111118] p-5">
             <div className="flex items-center justify-between">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">Approvals</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">Who’s busy</p>
+              <span className="text-[10px] text-zinc-600">{loading ? "…" : `${activeAgents.length} live`}</span>
+            </div>
+            <div className="mt-4 grid gap-2">
+              {activeAgents.length === 0 ? (
+                <p className="text-sm text-zinc-500">No agents are currently active.</p>
+              ) : (
+                activeAgents.map((session) => {
+                  const agent = session.key ?? session.id ?? session.label ?? "agent"
+                  const label = agent.replace(/^agent:main:/, "").replace(/[:_]/g, " ")
+                  return (
+                    <div key={agent} className="rounded-xl border border-zinc-800 bg-black/20 px-3 py-2.5">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-sm text-white">{label}</p>
+                          <p className="mt-1 text-[11px] text-zinc-500">Busy now • {session.model ?? "runtime session"}</p>
+                        </div>
+                        <span className="rounded-full border border-cyan-500/20 bg-cyan-500/10 px-2 py-1 text-[10px] uppercase tracking-widest text-cyan-300">
+                          Live
+                        </span>
+                      </div>
+                    </div>
+                  )
+                })
+              )}
+            </div>
+          </section>
+
+          <section className="rounded-xl border border-zinc-800 bg-[#111118] p-5">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">Approvals</p>
               <span className="text-[10px] text-zinc-600">{loading ? "…" : "Live"}</span>
             </div>
             <div className="mt-4 grid gap-3">
