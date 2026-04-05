@@ -266,16 +266,21 @@ export function CopilotSidebar({ activeGoals, urgentTasks, repos, recentActivity
       </div>
 
       <div className="rounded-2xl border border-zinc-800 bg-[#111118] p-4">
-        <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">Risks</h3>
+        <div className="flex items-center justify-between">
+          <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">Risks</h3>
+          <Link href="/alerts" className="text-[10px] font-medium text-amber-300 hover:text-amber-200">
+            Open alerts →
+          </Link>
+        </div>
         <div className="mt-3 space-y-2">
-          <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 px-3 py-2">
+          <Link href={hotRepo ? `/projects/${encodeURIComponent(hotRepo.name)}` : "/alerts"} className="block rounded-xl border border-amber-500/20 bg-amber-500/5 px-3 py-2 transition-colors hover:bg-amber-500/10 hover:border-amber-500/30">
             <p className="text-sm text-amber-200">{hotRepo ? `${hotRepo.name} needs attention` : "No repo risk detected"}</p>
             {hotRepo ? <p className="mt-1 text-[11px] text-zinc-500">Last updated {relativeTime(hotRepo.updatedAt)}</p> : null}
-          </div>
+          </Link>
           {lastAction ? (
-            <div className="rounded-xl border border-zinc-800 bg-black/20 px-3 py-2">
+            <Link href="/tasks" className="block rounded-xl border border-zinc-800 bg-black/20 px-3 py-2 transition-colors hover:border-cyan-500/30 hover:bg-cyan-500/5">
               <p className="text-sm text-zinc-200">Latest action: {lastAction.agent} {lastAction.action} “{lastAction.taskTitle}”</p>
-            </div>
+            </Link>
           ) : null}
         </div>
       </div>

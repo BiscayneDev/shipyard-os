@@ -115,6 +115,12 @@ export function summarizeProject(input: ProjectSummaryInput): string {
     lines.push("Latest CI run: unavailable.")
   }
 
+  const openAlerts = input.relatedAlerts.filter((alert) => alert.status !== "resolved")
+  if (openAlerts.length > 0) {
+    const alerts = openAlerts.slice(0, 2).map((alert) => `${alert.severity} ${alert.title}`)
+    lines.push(`Open alerts: ${alerts.join("; ")}${openAlerts.length > 2 ? "; more open alerts" : ""}.`)
+  }
+
   if (input.project.openPRs.length > 0) {
     const titles = input.project.openPRs.slice(0, 2).map((pr) => `#${pr.number} ${pr.title}`)
     lines.push(`Open PRs: ${titles.join("; ")}${input.project.openPRs.length > 2 ? "; more pending" : ""}.`)
@@ -123,12 +129,6 @@ export function summarizeProject(input: ProjectSummaryInput): string {
   if (input.relatedTasks.length > 0) {
     const tasks = input.relatedTasks.slice(0, 3).map((task) => `${task.title} (${task.column})`)
     lines.push(`Task focus: ${tasks.join("; ")}.`)
-  }
-
-  const openAlerts = input.relatedAlerts.filter((alert) => alert.status !== "resolved")
-  if (openAlerts.length > 0) {
-    const alerts = openAlerts.slice(0, 2).map((alert) => `${alert.severity} ${alert.title}`)
-    lines.push(`Open alerts: ${alerts.join("; ")}${openAlerts.length > 2 ? "; more open alerts" : ""}.`)
   }
 
   if (input.relatedConversations.length > 0) {
@@ -140,6 +140,17 @@ export function summarizeProject(input: ProjectSummaryInput): string {
       `Most recent conversation: ${activeConversation.title} is ${activeConversation.status} with ${formatCount(activeConversation.runCount, "run")}${preview ? `; latest update: ${preview.slice(0, 120)}${preview.length > 120 ? "…" : ""}` : ""}.`
     )
   }
+
+  const recommendedNextStep =
+    openAlerts.length > 0
+      ? `Recommended next step: address the highest-severity open alert first, then re-run the latest CI check and update the linked task or conversation.`
+      : input.project.latestRun?.conclusion && input.project.latestRun.conclusion !== "success"
+      ? `Recommended next step: inspect the latest CI run, review the failing PR or task, and resolve the regression before pushing more changes.`
+      : input.relatedTasks.length > 0
+      ? `Recommended next step: advance the most active task and keep the conversation thread attached to the project war room.`
+      : `Recommended next step: create a concrete task from the project summary and attach it to the project.`
+
+  lines.push(recommendedNextStep)
 
   return lines.join(" ")
 }

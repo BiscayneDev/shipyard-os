@@ -171,8 +171,12 @@ function getFormattedDate(): string {
   })
 }
 
+function hotRiskRepo(repos: Repo[]): Repo | undefined {
+  return repos.find((repo) => repo.latestRun?.status === "in_progress" || repo.latestRun?.conclusion !== "success")
+}
+
 function hotRiskLabel(repos: Repo[]): string {
-  const hot = repos.find((repo) => repo.latestRun?.status === "in_progress" || repo.latestRun?.conclusion !== "success")
+  const hot = hotRiskRepo(repos)
   if (!hot) return "No live risk"
   return hot.latestRun?.conclusion === "failure" ? `${hot.name} failing` : `${hot.name} active`
 }
@@ -378,11 +382,19 @@ export default function DashboardPage() {
                 <p className="mt-1 text-sm text-white">{urgentTasks[1]?.title ?? "All caught up"}</p>
                 <p className="mt-1 text-[10px] text-zinc-600">Queued follow-up</p>
               </div>
-              <div className="rounded-xl border border-zinc-800 bg-black/20 p-3 transition-transform duration-300 hover:-translate-y-0.5">
-                <p className="text-[10px] uppercase tracking-widest text-zinc-500">Risk</p>
-                <p className="mt-1 text-sm text-white">{hotRiskLabel(repos)}</p>
-                <p className="mt-1 text-[10px] text-zinc-600">Needs attention</p>
-              </div>
+              {hotRiskRepo(repos) ? (
+                <Link href={`/projects/${encodeURIComponent(hotRiskRepo(repos)!.name)}`} className="rounded-xl border border-zinc-800 bg-black/20 p-3 transition-transform duration-300 hover:-translate-y-0.5 hover:border-amber-500/30 hover:bg-amber-500/5">
+                  <p className="text-[10px] uppercase tracking-widest text-zinc-500">Risk</p>
+                  <p className="mt-1 text-sm text-white">{hotRiskLabel(repos)}</p>
+                  <p className="mt-1 text-[10px] text-zinc-600">Open project war room →</p>
+                </Link>
+              ) : (
+                <Link href="/alerts" className="rounded-xl border border-zinc-800 bg-black/20 p-3 transition-transform duration-300 hover:-translate-y-0.5 hover:border-amber-500/30 hover:bg-amber-500/5">
+                  <p className="text-[10px] uppercase tracking-widest text-zinc-500">Risk</p>
+                  <p className="mt-1 text-sm text-white">No live risk</p>
+                  <p className="mt-1 text-[10px] text-zinc-600">Open alerts →</p>
+                </Link>
+              )}
             </div>
           </section>
 

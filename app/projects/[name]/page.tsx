@@ -35,6 +35,10 @@ export default async function ProjectWarRoomPage({ params }: { params: Promise<{
     relatedAlerts,
     relatedConversations,
   })
+  const openAlerts = relatedAlerts.filter((alert) => alert.status !== "resolved")
+  const topAlert = openAlerts[0]
+  const activeTask = relatedTasks[0]
+  const activeConversation = relatedConversations[0]
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 pb-12">
@@ -74,9 +78,34 @@ export default async function ProjectWarRoomPage({ params }: { params: Promise<{
       )}
       {summary
         ? sectionCard(
-            <div className="space-y-3">
-              <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">Summary</h2>
-              <p className="whitespace-pre-wrap text-sm text-zinc-300">{summary}</p>
+            <div className="space-y-4">
+              <div className="space-y-3">
+                <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">Summary</h2>
+                <p className="whitespace-pre-wrap text-sm text-zinc-300">{summary}</p>
+              </div>
+              <div className="grid gap-3 md:grid-cols-3">
+                <div className="rounded-xl border border-zinc-800 bg-[#0a0a0f] p-4">
+                  <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">What to do now</p>
+                  <p className="mt-2 text-sm text-white">{topAlert ? topAlert.title : activeTask ? activeTask.title : "No immediate action"}</p>
+                  <p className="mt-1 text-[11px] text-zinc-500">
+                    {topAlert
+                      ? topAlert.summary
+                      : activeTask
+                      ? `${activeTask.priority} priority • ${activeTask.column} • ${activeTask.assignee}`
+                      : "Pick the next concrete task."}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-zinc-800 bg-[#0a0a0f] p-4">
+                  <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Likely owner</p>
+                  <p className="mt-2 text-sm text-white">{activeTask?.assignee ?? project.name}</p>
+                  <p className="mt-1 text-[11px] text-zinc-500">{activeConversation ? activeConversation.title : "No active conversation"}</p>
+                </div>
+                <div className="rounded-xl border border-zinc-800 bg-[#0a0a0f] p-4">
+                  <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Unblockers</p>
+                  <p className="mt-2 text-sm text-white">{openAlerts.length > 0 ? `${openAlerts.length} open alert${openAlerts.length === 1 ? "" : "s"}` : "No open alerts"}</p>
+                  <p className="mt-1 text-[11px] text-zinc-500">{project.latestRun ? `Latest CI: ${project.latestRun.name} • ${project.latestRun.status}${project.latestRun.conclusion ? ` • ${project.latestRun.conclusion}` : ""}` : "No recent CI run"}</p>
+                </div>
+              </div>
             </div>,
           )
         : null}
