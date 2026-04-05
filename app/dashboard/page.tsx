@@ -297,24 +297,37 @@ export default function DashboardPage() {
 
   const intelSummary = intel?.summary || intel?.headline || "No scout report yet."
   const activeGoals = goals.filter((g) => g.status === "active").slice(0, 3)
-  const activeAgents = sessions
-    .filter((session) => {
-      const status = (session.status ?? "").toLowerCase()
-      return status === "running" || status === "active" || status === "busy" || status === "in_progress"
-    })
+  const activeTaskAgents = tasks
+    .filter((task) => task.column === "in-progress" || task.column === "in-review")
+    .filter((task) => task.assignee !== "unassigned")
     .slice(0, 4)
-    .map((session) => {
-      const agentKey = (session.key ?? session.id ?? session.label ?? "agent").toLowerCase()
-      const agentName = agentKey.replace(/^agent:main:/, "").replace(/[:_]/g, " ")
-      const conversation = conversations.find((conv) => conv.agent.toLowerCase() === agentName || conv.id.includes(agentName) || conv.latestPreview.toLowerCase().includes(agentName))
-      const latestActivity = recentActivity.find((entry) => entry.agent.toLowerCase().includes(agentName) || entry.taskTitle.toLowerCase().includes(agentName))
+    .map((task) => {
+      const agentName = task.assignee
+      const conversation = conversations.find((conv) => conv.taskId === task.id || conv.agent.toLowerCase() === agentName)
+      const latestActivity = recentActivity.find((entry) => entry.taskId === task.id)
       return {
-        session,
         agentName,
+        session: sessions.find((session) => (session.key ?? session.id ?? session.label ?? "").toLowerCase().includes(agentName)) ?? null,
+        task,
         conversation,
         latestActivity,
       }
     })
+  const activeAgents = activeTaskAgents.length > 0
+    ? activeTaskAgents
+    : sessions
+        .filter((session) => {
+          const status = (session.status ?? "").toLowerCase()
+          return status === "running" || status === "active" || status === "busy" || status === "in_progress"
+        })
+        .slice(0, 4)
+        .map((session) => {
+          const agentKey = (session.key ?? session.id ?? session.label ?? "agent").toLowerCase()
+          const agentName = agentKey.replace(/^agent:main:/, "").replace(/[:_]/g, " ")
+          const conversation = conversations.find((conv) => conv.agent.toLowerCase() === agentName || conv.id.includes(agentName) || conv.latestPreview.toLowerCase().includes(agentName))
+          const latestActivity = recentActivity.find((entry) => entry.agent.toLowerCase().includes(agentName) || entry.taskTitle.toLowerCase().includes(agentName))
+          return { session, agentName, conversation, latestActivity, task: null }
+        })
   const urgentTasks = tasks
     .filter((task) => task.column !== "done")
     .sort((a, b) => {
@@ -329,6 +342,9 @@ export default function DashboardPage() {
     severity: index === 0 ? "high" : "medium",
   }))
   const livePulse = recentActivity[0]?.timestamp ?? intel?.generatedAt ?? new Date().toISOString()
+  const activeWorkItems = tasks
+    .filter((task) => task.column === "in-progress" || task.column === "in-review")
+    .slice(0, 3)
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 px-4 lg:px-6">
@@ -374,24 +390,25 @@ export default function DashboardPage() {
           <section className="rounded-xl border border-zinc-800 bg-[#111118] p-5 shadow-[0_0_30px_rgba(124,58,237,0.05)]">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">What matters now</p>
-                <p className="mt-2 text-sm text-zinc-300">{intelSummary}</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">Active work</p>
+                <p className="mt-2 text-sm text-zinc-300">Your agents are currently executing these tasks.</p>
               </div>
               {intel?.generatedAt ? <span className="text-[10px] text-zinc-700">{relativeTime(intel.generatedAt)}</span> : null}
             </div>
-            <div className="mt-4 grid grid-cols-3 gap-3">
-              <div className="rounded-xl border border-zinc-800 bg-black/20 p-3">
-                <p className="text-[10px] uppercase tracking-widest text-zinc-500">Tasks</p>
-                <p className="mt-1 text-2xl font-semibold text-white">{loading ? "—" : tasks.filter((t) => t.column !== "done").length}</p>
-              </div>
-              <div className="rounded-xl border border-zinc-800 bg-black/20 p-3">
-                <p className="text-[10px] uppercase tracking-widest text-zinc-500">Goals</p>
-                <p className="mt-1 text-2xl font-semibold text-white">{loading ? "—" : activeGoals.length}</p>
-              </div>
-              <div className="rounded-xl border border-zinc-800 bg-black/20 p-3">
-                <p className="text-[10px] uppercase tracking-widest text-zinc-500">Inbox</p>
-                <p className="mt-1 text-2xl font-semibold text-white">{inboxLoading ? "—" : emails.length}</p>
-              </div>
+            <div className="mt-4 grid gap-3 md:grid-cols-3">
+              {activeWorkItems.length === 0 ? (
+                <div className="rounded-xl border border-zinc-800 bg-black/20 p-3 md:col-span-3">
+                  <p className="text-sm text-zinc-400">No tasks are actively in progress right now.</p>
+                </div>
+              ) : (
+                activeWorkItems.map((task) => (
+                  <Link key={task.id} href={`/tasks?id=${task.id}`} className="rounded-xl border border-zinc-800 bg-black/20 p-3 transition-transform duration-300 hover:-translate-y-0.5 hover:border-cyan-500/30 hover:bg-cyan-500/5">
+                    <p className="text-[10px] uppercase tracking-widest text-zinc-500">{task.assignee}</p>
+                    <p className="mt-1 text-sm text-white leading-5">{task.title}</p>
+                    <p className="mt-2 text-[10px] text-zinc-600">{task.column === "in-progress" ? "In progress" : "In review"} • open task →</p>
+                  </Link>
+                ))
+              )}
             </div>
           </section>
 
@@ -446,19 +463,17 @@ export default function DashboardPage() {
               {activeAgents.length === 0 ? (
                 <p className="text-sm text-zinc-500">No agents are currently active.</p>
               ) : (
-                activeAgents.map(({ session, agentName, conversation, latestActivity }) => {
-                  const agent = session.key ?? session.id ?? session.label ?? agentName
+                activeAgents.map(({ session, agentName, conversation, latestActivity, task }) => {
+                  const agent = session?.key ?? session?.id ?? session?.label ?? agentName
                   const conversationHref = conversation ? `/conversations?id=${conversation.id}` : "/conversations"
-                  const taskHref = latestActivity?.taskId ? `/tasks?id=${latestActivity.taskId}` : "/tasks"
-                  const lastHeard = latestActivity?.timestamp ?? conversation?.updatedAt ?? session.startedAt ?? session.created_at ?? new Date().toISOString()
+                  const taskHref = task ? `/tasks?id=${task.id}` : latestActivity?.taskId ? `/tasks?id=${latestActivity.taskId}` : "/tasks"
+                  const lastHeard = latestActivity?.timestamp ?? conversation?.updatedAt ?? session?.startedAt ?? session?.created_at ?? new Date().toISOString()
                   return (
                     <div key={agent} className="rounded-xl border border-zinc-800 bg-black/20 px-3 py-2.5">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="text-sm text-white">{agentName}</p>
-                          <p className="mt-1 text-[11px] text-zinc-500">
-                            Busy now • {session.model ?? "runtime session"} • last heard {relativeTime(lastHeard)}
-                          </p>
+                          <p className="text-sm text-white">{agentName}{task ? ` • ${task.title}` : ""}</p>
+                          <p className="mt-1 text-[11px] text-zinc-500">{task ? `In progress • ${task.column.replace("-", " ")}` : `Busy now • ${session?.model ?? "runtime session"}`} • last heard {relativeTime(lastHeard)}</p>
                           <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
                             <Link href={conversationHref} className="rounded-full border border-zinc-700 bg-zinc-900/60 px-2 py-1 text-zinc-300 hover:border-cyan-500/30 hover:text-cyan-200">
                               Open thread
