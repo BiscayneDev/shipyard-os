@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server"
 import { readFile, writeFile, mkdir } from "fs/promises"
 import { join, dirname } from "path"
-import type { ExternalSkill } from "../route"
+type ExternalSkill = {
+  name: string
+  description: string
+  category: string
+  source_url?: string
+  added_at: string
+}
 
 const EXTERNAL_SKILLS_PATH = join(process.cwd(), "data", "external-skills.json")
 

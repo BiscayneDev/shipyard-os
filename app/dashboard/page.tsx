@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react"
 import Link from "next/link"
+import { CopilotSidebar } from "@/components/CopilotSidebar"
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -265,9 +266,18 @@ export default function DashboardPage() {
 
   const intelSummary = intel?.summary || intel?.headline || "No scout report yet."
   const activeGoals = goals.filter((g) => g.status === "active").slice(0, 3)
+  const urgentTasks = tasks
+    .filter((task) => task.column !== "done")
+    .sort((a, b) => {
+      const priorityOrder: Record<string, number> = { high: 0, medium: 1, low: 2 }
+      return (priorityOrder[a.priority] ?? 3) - (priorityOrder[b.priority] ?? 3)
+    })
+    .slice(0, 6)
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
+    <div className="mx-auto max-w-7xl space-y-6 px-4 lg:px-6">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="space-y-6">
       {/* Demo mode banner */}
       {demoMode && (
         <div
@@ -741,6 +751,18 @@ export default function DashboardPage() {
           </div>
         </div>
       </section>
+        </div>
+
+        <CopilotSidebar
+          activeGoals={activeGoals}
+          urgentTasks={urgentTasks}
+          repos={repos}
+          recentActivity={recentActivity}
+          inboxItems={emails}
+          intelSummary={intelSummary}
+          demoMode={demoMode}
+        />
+      </div>
     </div>
   )
 }
