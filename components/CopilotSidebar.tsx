@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useState } from "react"
+import { useMemo, useState } from "react"
 
 interface Task {
   id: string
@@ -41,6 +41,7 @@ interface InboxItem {
   id: string
   fromName: string
   subject: string
+  snippet?: string
   date: string
 }
 
@@ -93,42 +94,49 @@ export function CopilotSidebar({ activeGoals, urgentTasks, repos, recentActivity
   const hotRepo = repos.find((r) => r.latestRun?.status === "in_progress" || r.latestRun?.conclusion !== "success") ?? repos[0]
   const lastAction = recentActivity[0]
 
-  const approvalQueue = [
-    topPriority[0]
-      ? {
-          id: `approve-${topPriority[0].id}`,
-          label: "Approve top task",
-          detail: `${topPriority[0].title} is the most urgent task.`,
-          severity: "high",
-          taskId: topPriority[0].id,
-          taskTitle: topPriority[0].title,
-          taskDescription: topPriority[0].description,
-          assignee: topPriority[0].assignee,
-          priority: topPriority[0].priority,
-        }
-      : null,
-    topPriority[1]
-      ? {
-          id: `hold-${topPriority[1].id}`,
-          label: "Hold secondary task",
-          detail: `${topPriority[1].title} is a good candidate to pause or re-scope.`,
-          severity: "medium",
-          taskId: topPriority[1].id,
-          taskTitle: topPriority[1].title,
-          taskDescription: topPriority[1].description,
-          assignee: topPriority[1].assignee,
-          priority: topPriority[1].priority,
-        }
-      : null,
-    inboxItems[0]
-      ? {
-          id: `delegate-${inboxItems[0].id}`,
-          label: "Delegate inbound response",
-          detail: `${inboxItems[0].fromName}: ${inboxItems[0].subject}`,
-          severity: "low",
-        }
-      : null,
-  ].filter(Boolean) as ApprovalItem[]
+  const approvalQueue = useMemo(() => {
+    const priorityScore = { high: 3, medium: 2, low: 1 }
+    const columnScore = { "in-review": 3, "in-progress": 2, backlog: 1, done: 0 }
+    const inboxText = inboxItems.map((item) => `${item.fromName} ${item.subject} ${item.snippet ?? ""}`.toLowerCase()).join(" ")
+
+    const scored = urgentTasks
+      .filter((task) => task.column !== "done")
+      .map((task) => {
+        const priority = priorityScore[task.priority as keyof typeof priorityScore] ?? 1
+        const column = columnScore[task.column as keyof typeof columnScore] ?? 0
+        const goalHit = activeGoals.some((goal) => goal.title.toLowerCase().includes(task.title.toLowerCase()))
+        const activityHit = recentActivity.some((entry) => entry.taskTitle.toLowerCase().includes(task.title.toLowerCase()) || entry.agent.toLowerCase() === task.assignee.toLowerCase()) ? 1 : 0
+        const inboxHit = inboxText.includes(task.title.toLowerCase()) ? 1 : 0
+        const repoHit = repos.some((repo) => repo.name.toLowerCase().includes(task.title.toLowerCase()) || repo.latestRun?.conclusion !== "success") ? 1 : 0
+        const score = priority * 30 + column * 20 + (goalHit ? 15 : 0) + activityHit * 10 + inboxHit * 5 + repoHit * 3
+        return { task, score }
+      })
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 3)
+
+    const items: ApprovalItem[] = scored.map(({ task }, index) => ({
+      id: `task-${task.id}`,
+      label: index === 0 ? "Approve top task" : index === 1 ? "Hold secondary task" : "Review backlog task",
+      detail: `${task.title} • ${task.priority} • ${task.column}`,
+      severity: index === 0 ? "high" : index === 1 ? "medium" : "low",
+      taskId: task.id,
+      taskTitle: task.title,
+      taskDescription: task.description,
+      assignee: task.assignee,
+      priority: task.priority,
+    }))
+
+    if (items.length < 3 && inboxItems[0]) {
+      items.push({
+        id: `delegate-${inboxItems[0].id}`,
+        label: "Delegate inbound response",
+        detail: `${inboxItems[0].fromName}: ${inboxItems[0].subject}`,
+        severity: "low",
+      })
+    }
+
+    return items
+  }, [activeGoals, inboxItems, recentActivity, repos, urgentTasks])
 
   const briefLines = [
     `You have ${urgentTasks.length} open tasks, ${activeGoals.length} active goals, and ${inboxItems.length} inbox item${inboxItems.length === 1 ? "" : "s"}.`,
