@@ -4,6 +4,7 @@ import type { ReactNode } from "react"
 import { type AlertRecord } from "@/lib/alerts"
 import { summarizeProject } from "@/lib/summaries"
 import { getProjectWarRoom } from "@/app/api/projects/[name]/route"
+import { ProjectActions } from "./ProjectActions"
 
 function relativeTime(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime()
@@ -104,6 +105,22 @@ export default async function ProjectWarRoomPage({ params }: { params: Promise<{
                   <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Unblockers</p>
                   <p className="mt-2 text-sm text-white">{openAlerts.length > 0 ? `${openAlerts.length} open alert${openAlerts.length === 1 ? "" : "s"}` : "No open alerts"}</p>
                   <p className="mt-1 text-[11px] text-zinc-500">{project.latestRun ? `Latest CI: ${project.latestRun.name} • ${project.latestRun.status}${project.latestRun.conclusion ? ` • ${project.latestRun.conclusion}` : ""}` : "No recent CI run"}</p>
+                </div>
+                <div className="rounded-xl border border-zinc-800 bg-[#0a0a0f] p-4 md:col-span-3">
+                  <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Action</p>
+                  <div className="mt-2 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <p className="text-sm text-white">Turn the top risk into a task</p>
+                      <p className="mt-1 text-[11px] text-zinc-500">Creates an AI-enriched backlog task with the project context attached.</p>
+                    </div>
+                    <ProjectActions
+                      projectName={project.name}
+                      taskTitle={topAlert ? `Fix ${topAlert.title}` : `Stabilize ${project.name}`}
+                      taskDescription={topAlert ? topAlert.summary : summary}
+                      taskPriority={topAlert?.severity === "critical" ? "high" : topAlert?.severity === "warning" ? "medium" : "low"}
+                      taskAssignee="unassigned"
+                    />
+                  </div>
                 </div>
               </div>
             </div>,
