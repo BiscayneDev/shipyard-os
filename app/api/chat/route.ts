@@ -1,6 +1,20 @@
 import { NextResponse } from "next/server"
 import { runtime } from "@/lib/runtime"
 import { appendEvent, appendMessage, ensureConversation, finishRun, startRun } from "@/lib/conversations"
+import { addRecentNotification, notificationEmitter } from "@/lib/notificationEmitter"
+import type { NotificationPayload } from "@/lib/notificationEmitter"
+
+function emitRunNotification(agent: string, message: string, type: NotificationPayload["type"]) {
+  const payload: NotificationPayload = {
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    agent,
+    message,
+    type,
+    timestamp: Date.now(),
+  }
+  addRecentNotification(payload)
+  notificationEmitter.emit("notification", payload)
+}
 
 export async function POST(request: Request) {
   let conversationId = "main-chat"
@@ -43,6 +57,7 @@ export async function POST(request: Request) {
       summary: `${agent} started a run via ${runtime.name}`,
       data: { runtime: runtime.name, taskId },
     })
+    emitRunNotification(agent, `${agent} started a run`, "start")
 
     await appendMessage(conversationId, {
       role: "user",
@@ -83,6 +98,7 @@ export async function POST(request: Request) {
       agent,
       summary: `${agent} completed the run`,
     })
+    emitRunNotification(agent, `${agent} finished the run`, "finish")
 
     return NextResponse.json({ reply, conversationId, runId: run.id })
   } catch (error) {
@@ -96,6 +112,7 @@ export async function POST(request: Request) {
         summary: `${agent} failed the run`,
         data: { error: message },
       }).catch(() => null)
+      emitRunNotification(agent, `${agent} run failed`, "info")
     }
     return NextResponse.json({ error: message }, { status: 500 })
   }
