@@ -68,6 +68,7 @@ const STATUS_STYLE: Record<Goal["status"], { bg: string; color: string; label: s
 
 const COLUMN_DOT: Record<string, string> = {
   backlog: "#71717a",
+  planning: "#a855f7",
   "in-progress": "#3b82f6",
   "in-review": "#f59e0b",
   done: "#22c55e",

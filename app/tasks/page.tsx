@@ -18,6 +18,7 @@ import {
 
 const COLUMN_COLORS: Record<Column, string> = {
   backlog: "#6366f1",
+  planning: "#a855f7",
   "in-progress": "#f59e0b",
   "in-review": "#06b6d4",
   done: "#22c55e",
@@ -36,6 +37,8 @@ const INITIAL_FORM: AddTaskFormState = {
   assignee: "unassigned",
   priority: "medium",
 }
+
+const BOARD_COLUMNS: Column[] = ["backlog", "planning", "in-progress", "in-review", "done"]
 
 interface PendingActivation {
   task: Task
@@ -491,6 +494,22 @@ export default function TasksPage() {
     const newColumn = destination.droppableId as Column
     const task = tasks.find((t) => t.id === draggableId)
     if (!task || task.column === newColumn) return
+
+    // If moving from backlog to planning, keep it in planning first
+    if (newColumn === "planning" && task.column === "backlog") {
+      setTasks((prev) => prev.map((t) => (t.id === draggableId ? { ...t, column: newColumn } : t)))
+      setLastUpdated(new Date())
+      try {
+        await fetch(`/api/tasks/${task.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ column: newColumn }),
+        })
+      } catch {
+        setTasks((prev) => prev.map((t) => (t.id === task.id ? { ...t, column: task.column } : t)))
+      }
+      return
+    }
 
     // If moving to in-progress, show approval gate first
     if (newColumn === "in-progress" && task.column !== "in-progress") {

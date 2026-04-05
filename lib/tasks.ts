@@ -1,5 +1,5 @@
 export type Priority = "high" | "medium" | "low"
-export type Column = "backlog" | "in-progress" | "in-review" | "done"
+export type Column = "backlog" | "planning" | "in-progress" | "in-review" | "done"
 export type Agent = "vic" | "scout" | "deal-flow" | "builder" | "baron" | "unassigned"
 
 export interface Task {
@@ -38,6 +38,7 @@ export interface UpdateTaskInput {
 
 export const COLUMNS: { id: Column; label: string }[] = [
   { id: "backlog", label: "Backlog" },
+  { id: "planning", label: "Planning" },
   { id: "in-progress", label: "In Progress" },
   { id: "in-review", label: "In Review" },
   { id: "done", label: "Done" },

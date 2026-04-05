@@ -228,7 +228,7 @@ export async function PATCH(
     }
 
     // Type-guard column
-    const validColumns: Column[] = ["backlog", "in-progress", "in-review", "done"]
+    const validColumns: Column[] = ["backlog", "planning", "in-progress", "in-review", "done"]
     if (body.column && !validColumns.includes(body.column as Column)) {
       return NextResponse.json({ error: "Invalid column" }, { status: 400 })
     }
