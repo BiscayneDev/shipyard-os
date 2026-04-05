@@ -77,6 +77,25 @@ export async function POST(request: Request) {
       summary: `Task ${title} linked to conversation`,
       data: { taskId, title, priority, assignee },
     })
+    await appendEvent(conversation.id, {
+      type: "run.started",
+      agent: assignee || "vic",
+      summary: `Activation started for ${title}`,
+      data: { taskId, title, priority, assignee, status: "in-progress" },
+    })
+
+    const origin = new URL(request.url).origin
+    await fetch(`${origin}/api/activity`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        taskId,
+        taskTitle: title,
+        agent: assignee || "vic",
+        action: "started",
+        summary: `Activated: ${title}`,
+      }),
+    }).catch(() => null)
 
     const message = buildBrief(taskId, enrichment.enrichedTitle, enrichment.enrichedDescription, assignee || "unassigned", priority)
     let budgetWarning: { warning: string; percentUsed: number } | null = null
