@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useChat, type UIMessage } from "@ai-sdk/react"
 import { DefaultChatTransport } from "ai"
@@ -175,7 +175,7 @@ function ChatThread({
   )
 }
 
-export default function ChatPage() {
+function ChatPageInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const requestedId = searchParams.get("id") ?? "main-chat"
@@ -314,5 +314,13 @@ export default function ChatPage() {
         />
       </section>
     </div>
+  )
+}
+
+export default function ChatPage() {
+  return (
+    <Suspense fallback={<div className="flex h-screen items-center justify-center text-zinc-500">Loading…</div>}>
+      <ChatPageInner />
+    </Suspense>
   )
 }
