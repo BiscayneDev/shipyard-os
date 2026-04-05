@@ -896,11 +896,16 @@ export default function TasksPage() {
             style={{ backgroundColor: "#111118", border: "1px solid #1a1a2e" }}
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-sm font-bold text-white uppercase tracking-wider" style={{ color: "#f59e0b" }}>
-              Activate Agent
+            <h3 className="text-sm font-bold text-white uppercase tracking-wider" style={{ color: "#a855f7" }}>
+              {pendingActivation.task.column === "planning" ? "Planning Mode" : "Activate Agent"}
             </h3>
 
             {/* Task info */}
+            {pendingActivation.task.column === "planning" && (
+              <div className="rounded-lg border border-zinc-800 bg-black/20 p-3 text-xs text-zinc-400">
+                Refine the idea here. When the plan looks right, hit Go to move this into In Progress and spin up the agent.
+              </div>
+            )}
             <div className="space-y-2">
               <p className="text-base font-semibold text-white">{pendingActivation.enrichment?.enrichedTitle ?? pendingActivation.task.title}</p>
               {(pendingActivation.enrichment?.enrichedDescription || pendingActivation.task.description) && (
@@ -1046,7 +1051,7 @@ export default function TasksPage() {
                         : "pointer",
                   }}
                 >
-                  {activating ? "Activating..." : "Activate Agent"}
+                  {activating ? "Going..." : pendingActivation.task.column === "planning" ? "Go" : "Activate Agent"}
                 </button>
               )}
               <button
