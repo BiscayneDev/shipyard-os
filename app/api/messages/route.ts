@@ -2,8 +2,7 @@ import { NextResponse } from "next/server"
 import { readFile, writeFile, mkdir } from "fs/promises"
 import { join, dirname } from "path"
 import { randomUUID } from "crypto"
-
-// ── Types ────────────────────────────────────────────────────────────────────
+import { appendEvent, appendMessage, ensureTaskConversation, listAllEvents } from "@/lib/conversations"
 
 export interface AgentMessage {
   id: string
@@ -16,8 +15,6 @@ export interface AgentMessage {
   timestamp: string
   read: boolean
 }
-
-// ── Storage ──────────────────────────────────────────────────────────────────
 
 const DATA_PATH = join(process.cwd(), "data", "messages.json")
 const MAX_MESSAGES = 500
@@ -39,17 +36,61 @@ async function writeMessages(msgs: AgentMessage[]): Promise<void> {
   await writeFile(DATA_PATH, JSON.stringify(trimmed, null, 2), "utf-8")
 }
 
-// ── GET — list messages with optional filters ─────────────────────────────
+function eventTypeToMessageType(type: string): AgentMessage["type"] {
+  if (type === "delegation") return "delegation"
+  if (type === "question") return "question"
+  if (type === "alert") return "alert"
+  if (type === "handoff") return "handoff"
+  return "report"
+}
+
+function parseAgentMessage(summary: string, data?: Record<string, unknown>): { from: string; to: string; content: string } {
+  const from = typeof data?.from === "string" ? data.from : "unknown"
+  const to = typeof data?.to === "string" ? data.to : "unknown"
+  const contentFromData = typeof data?.content === "string" ? data.content : ""
+  if (contentFromData) return { from, to, content: contentFromData }
+
+  const marker = ": "
+  const idx = summary.indexOf(marker)
+  const content = idx >= 0 ? summary.slice(idx + marker.length) : summary
+  return { from, to, content }
+}
 
 export async function GET(request: Request) {
   const url = new URL(request.url)
   const agent = url.searchParams.get("agent")
+  const canonical = url.searchParams.get("canonical")
   const limitParam = url.searchParams.get("limit")
   const limit = limitParam ? Math.min(Math.max(1, parseInt(limitParam, 10) || 50), 200) : 50
 
-  let messages = await readMessages()
+  if (canonical === "1") {
+    const events = await listAllEvents(limit * 4)
+    let messages = events
+      .filter((event) => event.type === "message.agent")
+      .map((event) => {
+        const data = (event.data ?? {}) as Record<string, unknown>
+        const parsed = parseAgentMessage(event.summary, data)
+        return {
+          id: event.id,
+          from: parsed.from,
+          to: parsed.to,
+          content: parsed.content,
+          type: eventTypeToMessageType(typeof data.type === "string" ? data.type : "report"),
+          taskId: typeof data.taskId === "string" ? data.taskId : undefined,
+          taskTitle: typeof data.taskTitle === "string" ? data.taskTitle : undefined,
+          timestamp: event.timestamp,
+          read: true,
+        } satisfies AgentMessage
+      })
 
-  // Filter by agent (either from or to)
+    if (agent) {
+      messages = messages.filter((message) => message.from === agent || message.to === agent)
+    }
+
+    return NextResponse.json(messages.slice(0, limit))
+  }
+
+  let messages = await readMessages()
   if (agent) {
     messages = messages.filter((m) => m.from === agent || m.to === agent)
   }
@@ -61,11 +102,9 @@ export async function GET(request: Request) {
   return NextResponse.json(sorted)
 }
 
-// ── POST — send an inter-agent message ────────────────────────────────────
-
 export async function POST(request: Request) {
   try {
-    const body = await request.json() as Partial<AgentMessage>
+    const body = (await request.json()) as Partial<AgentMessage>
 
     if (!body.from || !body.to || !body.content) {
       return NextResponse.json(
@@ -89,6 +128,35 @@ export async function POST(request: Request) {
     const existing = await readMessages()
     existing.push(msg)
     await writeMessages(existing)
+
+    if (msg.taskId && msg.taskTitle) {
+      const conversation = await ensureTaskConversation({
+        taskId: msg.taskId,
+        title: msg.taskTitle,
+        agent: msg.to,
+      })
+      await appendMessage(conversation.id, {
+        id: msg.id,
+        role: "agent",
+        text: `${msg.from} → ${msg.to}: ${msg.content}`,
+        agent: msg.to,
+        timestamp: new Date(msg.timestamp).getTime(),
+      })
+      await appendEvent(conversation.id, {
+        type: "message.agent",
+        agent: msg.to,
+        summary: `${msg.from} → ${msg.to}: ${msg.content}`,
+        timestamp: msg.timestamp,
+        data: {
+          from: msg.from,
+          to: msg.to,
+          content: msg.content,
+          type: msg.type,
+          taskId: msg.taskId,
+          taskTitle: msg.taskTitle,
+        },
+      })
+    }
 
     return NextResponse.json(msg, { status: 201 })
   } catch {

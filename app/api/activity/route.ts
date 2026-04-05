@@ -2,8 +2,7 @@ import { NextResponse } from "next/server"
 import { readFile, writeFile } from "fs/promises"
 import { join } from "path"
 import { randomUUID } from "crypto"
-
-// ── Types ────────────────────────────────────────────────────────────────────
+import { appendEvent, ensureTaskConversation, updateConversation, listAllEvents } from "@/lib/conversations"
 
 export interface ActivityEntry {
   id: string
@@ -15,14 +14,9 @@ export interface ActivityEntry {
   timestamp: string
 }
 
-// ── Constants ────────────────────────────────────────────────────────────────
-
 const MAX_ACTIVITY_ENTRIES = 10_000
 const DEFAULT_LIMIT = 50
 const MAX_LIMIT = 200
-
-// ── Storage ──────────────────────────────────────────────────────────────────
-
 const DATA_PATH = join(process.cwd(), "data", "activity.json")
 
 async function readActivity(): Promise<ActivityEntry[]> {
@@ -38,15 +32,45 @@ async function writeActivity(entries: ActivityEntry[]): Promise<void> {
   await writeFile(DATA_PATH, JSON.stringify(entries, null, 2), "utf-8")
 }
 
-// ── GET — newest first, with optional ?limit=N ──────────────────────────────
+function toActionType(action: ActivityEntry["action"]): "activity.started" | "activity.completed" | "activity.reviewed" {
+  if (action === "completed") return "activity.completed"
+  if (action === "reviewed") return "activity.reviewed"
+  return "activity.started"
+}
 
 export async function GET(request: Request) {
   try {
     const url = new URL(request.url)
     const limitParam = url.searchParams.get("limit")
+    const canonical = url.searchParams.get("canonical")
     const limit = limitParam
       ? Math.min(Math.max(1, parseInt(limitParam, 10) || DEFAULT_LIMIT), MAX_LIMIT)
       : DEFAULT_LIMIT
+
+    if (canonical === "1") {
+      const events = await listAllEvents(limit * 4)
+      const entries = events
+        .filter((event) => event.type.startsWith("activity."))
+        .slice(0, limit)
+        .map((event) => {
+          const action = event.type === "activity.completed"
+            ? "completed"
+            : event.type === "activity.reviewed"
+              ? "reviewed"
+              : "started"
+          const data = event.data ?? {}
+          return {
+            id: event.id,
+            taskId: typeof data.taskId === "string" ? data.taskId : "",
+            taskTitle: typeof data.taskTitle === "string" ? data.taskTitle : event.summary,
+            agent: event.agent ?? (typeof data.agent === "string" ? data.agent : "unknown"),
+            action,
+            summary: typeof data.summary === "string" ? data.summary : event.summary,
+            timestamp: event.timestamp,
+          } satisfies ActivityEntry
+        })
+      return NextResponse.json(entries)
+    }
 
     const entries = await readActivity()
     const sorted = entries
@@ -58,8 +82,6 @@ export async function GET(request: Request) {
     return NextResponse.json([])
   }
 }
-
-// ── POST — append a new entry ────────────────────────────────────────────────
 
 export async function POST(request: Request) {
   try {
@@ -80,14 +102,35 @@ export async function POST(request: Request) {
 
     const existing = await readActivity()
     existing.push(entry)
-
-    // Keep max 10K entries on disk (up from 200)
     const trimmed = existing
       .slice()
       .sort((a, b) => (b.timestamp > a.timestamp ? 1 : -1))
       .slice(0, MAX_ACTIVITY_ENTRIES)
-
     await writeActivity(trimmed)
+
+    if (entry.taskId && entry.taskTitle) {
+      const conversation = await ensureTaskConversation({
+        taskId: entry.taskId,
+        title: entry.taskTitle,
+        agent: entry.agent,
+      })
+      await appendEvent(conversation.id, {
+        type: toActionType(entry.action),
+        agent: entry.agent,
+        timestamp: entry.timestamp,
+        summary: `${entry.agent} ${entry.action} ${entry.taskTitle}`,
+        data: {
+          taskId: entry.taskId,
+          taskTitle: entry.taskTitle,
+          summary: entry.summary,
+          agent: entry.agent,
+        },
+      })
+      if (entry.action === "completed") {
+        await updateConversation(conversation.id, { status: "completed" })
+      }
+    }
+
     return NextResponse.json(entry, { status: 201 })
   } catch {
     return NextResponse.json({ error: "Failed to append activity" }, { status: 400 })

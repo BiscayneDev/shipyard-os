@@ -3,8 +3,6 @@
 import { useEffect, useState, useCallback } from "react"
 import Link from "next/link"
 
-// ── Types ─────────────────────────────────────────────────────────────────────
-
 interface ActivityEntry {
   id: string
   taskId: string
@@ -14,8 +12,6 @@ interface ActivityEntry {
   summary?: string
   timestamp: string
 }
-
-// ── Constants ─────────────────────────────────────────────────────────────────
 
 const AGENT_EMOJI: Record<string, string> = {
   vic: "🦞",
@@ -37,8 +33,6 @@ const ACTION_LABEL: Record<string, string> = {
   reviewed: "submitted for review",
   completed: "completed",
 }
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function relativeTime(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime()
@@ -67,15 +61,13 @@ function dayKey(iso: string): string {
   return new Date(iso).toDateString()
 }
 
-// ── Component ─────────────────────────────────────────────────────────────────
-
 export default function ActivityPage() {
   const [entries, setEntries] = useState<ActivityEntry[]>([])
   const [loading, setLoading] = useState(true)
 
   const fetchActivity = useCallback(async () => {
     try {
-      const res = await fetch("/api/activity", { cache: "no-store" })
+      const res = await fetch("/api/activity?canonical=1", { cache: "no-store" })
       if (res.ok) {
         const data = (await res.json()) as ActivityEntry[]
         setEntries(Array.isArray(data) ? data : [])
@@ -93,7 +85,6 @@ export default function ActivityPage() {
     return () => clearInterval(interval)
   }, [fetchActivity])
 
-  // Group by day
   const grouped: { day: string; label: string; entries: ActivityEntry[] }[] = []
   const seen = new Set<string>()
   for (const entry of entries) {
@@ -107,13 +98,11 @@ export default function ActivityPage() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      {/* Header */}
       <div>
         <h1 className="text-3xl font-bold text-white">Activity</h1>
-        <p className="text-sm text-zinc-500 mt-1">Everything the team has shipped — newest first</p>
+        <p className="text-sm text-zinc-500 mt-1">Canonical event timeline across task conversations</p>
       </div>
 
-      {/* Feed */}
       {loading ? (
         <div
           className="rounded-xl p-8 text-center"
@@ -129,14 +118,13 @@ export default function ActivityPage() {
           <p className="text-2xl mb-3">📋</p>
           <p className="text-sm text-zinc-400 font-medium">No activity yet — start shipping!</p>
           <p className="text-xs text-zinc-600 mt-1">
-            Tasks moving to In Progress, In Review, or Done will appear here.
+            Task conversations emit started, review, and completed events here.
           </p>
         </div>
       ) : (
         <div className="space-y-6">
           {grouped.map((group) => (
             <div key={group.day}>
-              {/* Day divider */}
               <div className="flex items-center gap-3 mb-4">
                 <span className="text-xs font-mono uppercase tracking-widest text-zinc-600">
                   {group.label}
@@ -144,7 +132,6 @@ export default function ActivityPage() {
                 <div className="flex-1 h-px bg-zinc-800" />
               </div>
 
-              {/* Entries */}
               <div className="space-y-1">
                 {group.entries.map((entry, i) => {
                   const emoji = AGENT_EMOJI[entry.agent] ?? "🤖"
@@ -154,7 +141,6 @@ export default function ActivityPage() {
 
                   return (
                     <div key={entry.id} className="flex gap-4">
-                      {/* Left: timeline line + dot */}
                       <div className="flex flex-col items-center" style={{ width: "2.5rem", flexShrink: 0 }}>
                         <div
                           className="flex items-center justify-center rounded-full text-base"
@@ -176,7 +162,6 @@ export default function ActivityPage() {
                         )}
                       </div>
 
-                      {/* Right: content */}
                       <div
                         className="flex-1 rounded-xl px-4 py-3 mb-2"
                         style={{ backgroundColor: "#111118", border: "1px solid #1a1a2e" }}
@@ -191,7 +176,7 @@ export default function ActivityPage() {
                             </span>{" "}
                             <span className="text-zinc-500">{label}</span>{" "}
                             <Link
-                              href="/tasks"
+                              href={entry.taskId ? `/conversations?id=task-${entry.taskId}` : "/conversations"}
                               className="font-medium text-white hover:underline underline-offset-2"
                             >
                               {entry.taskTitle}

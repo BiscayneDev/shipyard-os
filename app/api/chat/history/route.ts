@@ -1,8 +1,5 @@
 import { NextResponse } from "next/server"
-import { readFile, writeFile, mkdir } from "fs/promises"
-import { join, dirname } from "path"
-
-const HISTORY_PATH = join(process.cwd(), "data", "chat-history.json")
+import { ConversationMessage, getDefaultConversation, replaceDefaultConversationMessages } from "@/lib/conversations"
 
 interface ChatMessage {
   id: string
@@ -12,55 +9,46 @@ interface ChatMessage {
   timestamp: number
 }
 
-async function readHistory(): Promise<ChatMessage[]> {
-  try {
-    const raw = await readFile(HISTORY_PATH, "utf-8")
-    const data = JSON.parse(raw)
-    return Array.isArray(data) ? data : []
-  } catch {
-    return []
+function toChatMessage(message: ConversationMessage): ChatMessage {
+  return {
+    id: message.id,
+    role: message.role === "assistant" ? "assistant" : "user",
+    text: message.text,
+    agent: message.agent,
+    timestamp: message.timestamp,
   }
 }
 
-async function writeHistory(messages: ChatMessage[]): Promise<void> {
-  await mkdir(dirname(HISTORY_PATH), { recursive: true })
-  // Keep only last 200 messages to prevent file bloat
-  const trimmed = messages.slice(-200)
-  await writeFile(HISTORY_PATH, JSON.stringify(trimmed, null, 2), "utf-8")
-}
-
-// GET — load chat history
 export async function GET() {
-  const messages = await readHistory()
-  return NextResponse.json(messages)
+  const conversation = await getDefaultConversation()
+  return NextResponse.json(conversation.messages.map(toChatMessage))
 }
 
-// POST — append messages
 export async function POST(request: Request) {
   try {
-    const body = await request.json() as { messages: ChatMessage[] }
+    const body = (await request.json()) as { messages: ChatMessage[] }
     if (!Array.isArray(body.messages)) {
       return NextResponse.json({ error: "messages array required" }, { status: 400 })
     }
 
-    const existing = await readHistory()
-    const existingIds = new Set(existing.map((m) => m.id))
-    const newMessages = body.messages.filter((m) => !existingIds.has(m.id))
+    const normalized: ConversationMessage[] = body.messages.map((message) => ({
+      id: message.id,
+      role: message.role,
+      text: message.text,
+      agent: message.agent,
+      timestamp: message.timestamp,
+    }))
 
-    if (newMessages.length > 0) {
-      await writeHistory([...existing, ...newMessages])
-    }
-
-    return NextResponse.json({ ok: true, count: existing.length + newMessages.length })
+    const conversation = await replaceDefaultConversationMessages(normalized)
+    return NextResponse.json({ ok: true, count: conversation.messages.length })
   } catch {
     return NextResponse.json({ error: "Failed to save" }, { status: 500 })
   }
 }
 
-// DELETE — clear history
 export async function DELETE() {
   try {
-    await writeHistory([])
+    await replaceDefaultConversationMessages([])
     return NextResponse.json({ ok: true })
   } catch {
     return NextResponse.json({ error: "Failed to clear" }, { status: 500 })

@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { useEffect, useState, useCallback, useRef } from "react"
 import {
   DragDropContext,
@@ -231,6 +232,14 @@ function TaskCard({
           <span className="text-xs text-zinc-500">
             {AGENT_LABELS[task.assignee]}
           </span>
+          <Link
+            href={`/conversations?id=task-${task.id}`}
+            className="text-[10px] px-2 py-0.5 rounded-full transition-colors hover:bg-white/10"
+            style={{ backgroundColor: "rgba(34,211,238,0.12)", color: "#67e8f9", border: "1px solid rgba(34,211,238,0.2)" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            Thread
+          </Link>
         </div>
 
         <div className="flex items-center gap-2">

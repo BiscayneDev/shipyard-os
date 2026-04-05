@@ -3,8 +3,6 @@
 import { useEffect, useState, useCallback } from "react"
 import Link from "next/link"
 
-// ── Types ─────────────────────────────────────────────────────────────────────
-
 interface AgentMessage {
   id: string
   from: string
@@ -24,8 +22,6 @@ interface AgentInfo {
   accent: string
 }
 
-// ── Constants ─────────────────────────────────────────────────────────────────
-
 const TYPE_CONFIG: Record<string, { label: string; color: string; icon: string }> = {
   delegation: { label: "Delegation", color: "#7c3aed", icon: "📋" },
   report: { label: "Report", color: "#22c55e", icon: "📊" },
@@ -42,8 +38,6 @@ const FALLBACK_AGENTS: Record<string, { name: string; emoji: string; accent: str
   baron: { name: "Baron", emoji: "🏦", accent: "#ec4899" },
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
 function relativeTime(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime()
   const mins = Math.floor(diff / 60000)
@@ -55,8 +49,6 @@ function relativeTime(iso: string): string {
   if (days < 7) return `${days}d ago`
   return new Date(iso).toLocaleDateString()
 }
-
-// ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function MessagesPage() {
   const [messages, setMessages] = useState<AgentMessage[]>([])
@@ -72,11 +64,14 @@ export default function MessagesPage() {
 
   const fetchMessages = useCallback(async () => {
     try {
-      const res = await fetch("/api/messages?limit=100")
+      const res = await fetch("/api/messages?limit=100&canonical=1")
       const data = await res.json()
       if (Array.isArray(data)) setMessages(data)
-    } catch { /* leave empty */ }
-    finally { setLoading(false) }
+    } catch {
+      // leave empty
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
   const fetchAgents = useCallback(async () => {
@@ -84,7 +79,9 @@ export default function MessagesPage() {
       const res = await fetch("/api/agents")
       const data = await res.json()
       if (Array.isArray(data)) setAgents(data)
-    } catch { /* use fallbacks */ }
+    } catch {
+      // use fallbacks
+    }
   }, [])
 
   useEffect(() => {
@@ -117,7 +114,9 @@ export default function MessagesPage() {
         setComposeContent("")
         fetchMessages()
       }
-    } finally { setSending(false) }
+    } finally {
+      setSending(false)
+    }
   }
 
   const filtered = filter === "all"
@@ -128,11 +127,10 @@ export default function MessagesPage() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 pb-16">
-      {/* Header */}
       <div className="flex items-end justify-between">
         <div>
           <h1 className="text-3xl font-bold text-white">Messages</h1>
-          <p className="text-sm text-zinc-500 mt-1">Inter-agent communications</p>
+          <p className="text-sm text-zinc-500 mt-1">Canonical inter-agent message feed across task conversations</p>
         </div>
         <button
           onClick={() => {
@@ -154,7 +152,6 @@ export default function MessagesPage() {
         </button>
       </div>
 
-      {/* Compose Modal */}
       {composing && (
         <div
           className="rounded-xl p-5 space-y-4"
@@ -238,7 +235,6 @@ export default function MessagesPage() {
         </div>
       )}
 
-      {/* Filter pills */}
       {agentIds.length > 0 && (
         <div className="flex gap-2 flex-wrap">
           <button
@@ -272,7 +268,6 @@ export default function MessagesPage() {
         </div>
       )}
 
-      {/* Messages Feed */}
       {loading ? (
         <div
           className="rounded-2xl p-8 text-center text-xs text-zinc-600"
@@ -288,8 +283,7 @@ export default function MessagesPage() {
           <p className="text-3xl">💬</p>
           <p className="text-sm text-zinc-400">No inter-agent messages yet</p>
           <p className="text-xs text-zinc-600 max-w-sm mx-auto">
-            When agents delegate tasks, share reports, or ask questions, their messages appear here.
-            Use &quot;New Message&quot; to simulate agent communication.
+            Canonical task conversations now emit delegation, report, and handoff messages here.
           </p>
         </div>
       ) : (
@@ -305,7 +299,6 @@ export default function MessagesPage() {
                 className="rounded-xl p-4 space-y-2 transition-all hover:bg-white/[0.02]"
                 style={{ backgroundColor: "#111118", border: "1px solid #1a1a2e" }}
               >
-                {/* Header */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="text-base">{fromAgent.emoji}</span>
@@ -331,16 +324,14 @@ export default function MessagesPage() {
                   </div>
                 </div>
 
-                {/* Content */}
                 <p className="text-sm text-zinc-300 leading-relaxed whitespace-pre-wrap pl-7">
                   {msg.content}
                 </p>
 
-                {/* Task reference */}
                 {msg.taskTitle && (
                   <div className="pl-7">
                     <Link
-                      href="/tasks"
+                      href={msg.taskId ? `/conversations?id=task-${msg.taskId}` : "/conversations"}
                       className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full transition-colors hover:bg-white/5"
                       style={{ backgroundColor: "rgba(99,102,241,0.1)", color: "#818cf8", border: "1px solid rgba(99,102,241,0.2)" }}
                     >
@@ -354,7 +345,6 @@ export default function MessagesPage() {
         </div>
       )}
 
-      {/* Back link */}
       <div className="pt-2">
         <Link href="/dashboard" className="text-xs text-zinc-600 hover:text-zinc-400 transition-colors">
           ← Dashboard
