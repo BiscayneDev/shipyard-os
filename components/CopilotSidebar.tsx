@@ -43,6 +43,13 @@ interface InboxItem {
   date: string
 }
 
+interface ApprovalItem {
+  id: string
+  label: string
+  detail: string
+  severity: "high" | "medium" | "low"
+}
+
 interface CopilotSidebarProps {
   activeGoals: Goal[]
   urgentTasks: Task[]
@@ -68,6 +75,39 @@ export function CopilotSidebar({ activeGoals, urgentTasks, repos, recentActivity
   const hotRepo = repos.find((r) => r.latestRun?.status === "in_progress" || r.latestRun?.conclusion !== "success") ?? repos[0]
   const lastAction = recentActivity[0]
 
+  const approvalQueue: ApprovalItem[] = [
+    hotRepo
+      ? {
+          id: `repo-${hotRepo.name}`,
+          label: "Approve repo attention",
+          detail: `${hotRepo.name} is the highest-risk project right now.`,
+          severity: "high",
+        }
+      : null,
+    topPriority[0]
+      ? {
+          id: `task-${topPriority[0].id}`,
+          label: "Approve top task",
+          detail: `${topPriority[0].title} is the most urgent task.`,
+          severity: "medium",
+        }
+      : null,
+    inboxItems[0]
+      ? {
+          id: `inbox-${inboxItems[0].id}`,
+          label: "Review inbound message",
+          detail: `${inboxItems[0].fromName}: ${inboxItems[0].subject}`,
+          severity: "low",
+        }
+      : null,
+  ].filter((item): item is ApprovalItem => item !== null)
+
+  const briefLines = [
+    `You have ${urgentTasks.length} open tasks, ${activeGoals.length} active goals, and ${inboxItems.length} inbox item${inboxItems.length === 1 ? "" : "s"}.`,
+    hotRepo ? `${hotRepo.name} is the biggest risk signal.` : "No current project risk signal.",
+    lastAction ? `${lastAction.agent} last ${lastAction.action} “${lastAction.taskTitle}”.` : "No recent agent activity.",
+  ]
+
   return (
     <aside className="space-y-4 lg:sticky lg:top-6 self-start">
       <div className="rounded-2xl border border-cyan-500/20 bg-[#101018] p-4 shadow-[0_0_30px_rgba(34,211,238,0.06)]">
@@ -81,9 +121,17 @@ export function CopilotSidebar({ activeGoals, urgentTasks, repos, recentActivity
           </span>
         </div>
 
-        <p className="mt-3 text-sm leading-6 text-zinc-300">
-          {intelSummary}
-        </p>
+        <div className="mt-3 space-y-2">
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-zinc-500">Morning brief</p>
+          <div className="rounded-xl border border-zinc-800 bg-black/20 p-3 text-sm leading-6 text-zinc-300">
+            {briefLines.map((line) => (
+              <p key={line} className="mb-2 last:mb-0">
+                {line}
+              </p>
+            ))}
+          </div>
+          <p className="text-sm leading-6 text-zinc-300">{intelSummary}</p>
+        </div>
 
         <div className="mt-4 grid grid-cols-2 gap-2">
           <Link href="/tasks" className="rounded-xl border border-zinc-800 bg-black/20 px-3 py-2 text-xs font-medium text-white hover:border-cyan-500/30 hover:bg-cyan-500/10">
@@ -124,6 +172,40 @@ export function CopilotSidebar({ activeGoals, urgentTasks, repos, recentActivity
               <p className="text-sm text-zinc-200">Latest action: {lastAction.agent} {lastAction.action} “{lastAction.taskTitle}”</p>
             </div>
           ) : null}
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-zinc-800 bg-[#111118] p-4">
+        <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">Approval queue</h3>
+        <div className="mt-3 space-y-2">
+          {approvalQueue.length === 0 ? (
+            <p className="text-sm text-zinc-500">Nothing awaiting approval.</p>
+          ) : (
+            approvalQueue.map((item) => (
+              <div key={item.id} className="rounded-xl border border-zinc-800 bg-black/20 p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm text-white">{item.label}</p>
+                    <p className="mt-1 text-[11px] text-zinc-500">{item.detail}</p>
+                  </div>
+                  <span className="rounded-full border border-zinc-700 px-2 py-1 text-[10px] uppercase tracking-widest text-zinc-400">
+                    {item.severity}
+                  </span>
+                </div>
+                <div className="mt-3 grid grid-cols-3 gap-2 text-[11px]">
+                  <button className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-2 py-1 text-emerald-200 hover:bg-emerald-500/15">
+                    Approve
+                  </button>
+                  <button className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-2 py-1 text-amber-200 hover:bg-amber-500/15">
+                    Hold
+                  </button>
+                  <button className="rounded-lg border border-cyan-500/20 bg-cyan-500/10 px-2 py-1 text-cyan-200 hover:bg-cyan-500/15">
+                    Delegate
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
 
