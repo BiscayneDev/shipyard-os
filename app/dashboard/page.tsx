@@ -65,6 +65,21 @@ interface ActivityEntry {
   timestamp: string
 }
 
+interface ConversationSummary {
+  id: string
+  title: string
+  agent: string
+  status: "active" | "completed" | "failed" | "paused"
+  createdAt: string
+  updatedAt: string
+  lastMessageAt: string
+  latestPreview: string
+  project?: string
+  taskId?: string
+  messageCount: number
+  runCount: number
+}
+
 interface EmailEntry {
   id: string
   from: string
@@ -191,6 +206,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [goals, setGoals] = useState<Goal[]>([])
   const [recentActivity, setRecentActivity] = useState<ActivityEntry[]>([])
+  const [conversations, setConversations] = useState<ConversationSummary[]>([])
   const [emails, setEmails] = useState<EmailEntry[]>([])
   const [inboxLoading, setInboxLoading] = useState(true)
   const [demoMode, setDemoMode] = useState(false)
@@ -221,13 +237,14 @@ export default function DashboardPage() {
   }, [])
 
   const fetchAll = useCallback(async () => {
-    const [sessRes, taskRes, projRes, intelRes, goalsRes, activityRes] = await Promise.allSettled([
+    const [sessRes, taskRes, projRes, intelRes, goalsRes, activityRes, convRes] = await Promise.allSettled([
       fetch("/api/sessions", { cache: "no-store" }).then((r) => r.json()),
       fetch("/api/tasks", { cache: "no-store" }).then((r) => r.json()),
       fetch("/api/projects", { cache: "no-store" }).then((r) => r.json()),
       fetch("/api/intel/report", { cache: "no-store" }).then((r) => r.json()),
       fetch("/api/company/goals", { cache: "no-store" }).then((r) => r.json()),
       fetch("/api/activity", { cache: "no-store" }).then((r) => r.json()),
+      fetch("/api/conversations", { cache: "no-store" }).then((r) => r.json()),
     ])
 
     if (sessRes.status === "fulfilled") {
@@ -252,6 +269,10 @@ export default function DashboardPage() {
     if (activityRes.status === "fulfilled") {
       const a = activityRes.value as ActivityEntry[]
       setRecentActivity(Array.isArray(a) ? a.slice(0, 5) : [])
+    }
+    if (convRes.status === "fulfilled") {
+      const c = convRes.value as ConversationSummary[] | { conversations?: ConversationSummary[] }
+      setConversations(Array.isArray(c) ? c : (c.conversations ?? []))
     }
     setLoading(false)
   }, [])
@@ -282,6 +303,18 @@ export default function DashboardPage() {
       return status === "running" || status === "active" || status === "busy" || status === "in_progress"
     })
     .slice(0, 4)
+    .map((session) => {
+      const agentKey = (session.key ?? session.id ?? session.label ?? "agent").toLowerCase()
+      const agentName = agentKey.replace(/^agent:main:/, "").replace(/[:_]/g, " ")
+      const conversation = conversations.find((conv) => conv.agent.toLowerCase() === agentName || conv.id.includes(agentName) || conv.latestPreview.toLowerCase().includes(agentName))
+      const latestActivity = recentActivity.find((entry) => entry.agent.toLowerCase().includes(agentName) || entry.taskTitle.toLowerCase().includes(agentName))
+      return {
+        session,
+        agentName,
+        conversation,
+        latestActivity,
+      }
+    })
   const urgentTasks = tasks
     .filter((task) => task.column !== "done")
     .sort((a, b) => {
@@ -413,20 +446,37 @@ export default function DashboardPage() {
               {activeAgents.length === 0 ? (
                 <p className="text-sm text-zinc-500">No agents are currently active.</p>
               ) : (
-                activeAgents.map((session) => {
-                  const agent = session.key ?? session.id ?? session.label ?? "agent"
-                  const label = agent.replace(/^agent:main:/, "").replace(/[:_]/g, " ")
+                activeAgents.map(({ session, agentName, conversation, latestActivity }) => {
+                  const agent = session.key ?? session.id ?? session.label ?? agentName
+                  const conversationHref = conversation ? `/conversations?id=${conversation.id}` : "/conversations"
+                  const taskHref = latestActivity?.taskId ? `/tasks?id=${latestActivity.taskId}` : "/tasks"
+                  const lastHeard = latestActivity?.timestamp ?? conversation?.updatedAt ?? session.startedAt ?? session.created_at ?? new Date().toISOString()
                   return (
                     <div key={agent} className="rounded-xl border border-zinc-800 bg-black/20 px-3 py-2.5">
-                      <div className="flex items-center justify-between gap-3">
-                        <div>
-                          <p className="text-sm text-white">{label}</p>
-                          <p className="mt-1 text-[11px] text-zinc-500">Busy now • {session.model ?? "runtime session"}</p>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-sm text-white">{agentName}</p>
+                          <p className="mt-1 text-[11px] text-zinc-500">
+                            Busy now • {session.model ?? "runtime session"} • last heard {relativeTime(lastHeard)}
+                          </p>
+                          <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
+                            <Link href={conversationHref} className="rounded-full border border-zinc-700 bg-zinc-900/60 px-2 py-1 text-zinc-300 hover:border-cyan-500/30 hover:text-cyan-200">
+                              Open thread
+                            </Link>
+                            <Link href={taskHref} className="rounded-full border border-zinc-700 bg-zinc-900/60 px-2 py-1 text-zinc-300 hover:border-cyan-500/30 hover:text-cyan-200">
+                              Open task
+                            </Link>
+                          </div>
                         </div>
                         <span className="rounded-full border border-cyan-500/20 bg-cyan-500/10 px-2 py-1 text-[10px] uppercase tracking-widest text-cyan-300">
                           Live
                         </span>
                       </div>
+                      {latestActivity ? (
+                        <p className="mt-2 text-[11px] text-zinc-600">{latestActivity.taskTitle} • {ACTION_LABEL_MAP[latestActivity.action]}</p>
+                      ) : conversation ? (
+                        <p className="mt-2 text-[11px] text-zinc-600">{conversation.title} • {conversation.status}</p>
+                      ) : null}
                     </div>
                   )
                 })
