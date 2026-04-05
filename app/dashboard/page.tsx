@@ -345,6 +345,12 @@ export default function DashboardPage() {
   const activeWorkItems = tasks
     .filter((task) => task.column === "in-progress" || task.column === "in-review")
     .slice(0, 3)
+    .map((task) => {
+      const conversation = conversations.find((conv) => conv.taskId === task.id)
+      const latestActivity = recentActivity.find((entry) => entry.taskId === task.id)
+      const lastHeard = latestActivity?.timestamp ?? conversation?.lastMessageAt ?? conversation?.updatedAt ?? ""
+      return { task, conversation, latestActivity, lastHeard }
+    })
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 px-4 lg:px-6">
@@ -401,12 +407,21 @@ export default function DashboardPage() {
                   <p className="text-sm text-zinc-400">No tasks are actively in progress right now.</p>
                 </div>
               ) : (
-                activeWorkItems.map((task) => (
-                  <Link key={task.id} href={`/tasks?id=${task.id}`} className="rounded-xl border border-zinc-800 bg-black/20 p-3 transition-transform duration-300 hover:-translate-y-0.5 hover:border-cyan-500/30 hover:bg-cyan-500/5">
-                    <p className="text-[10px] uppercase tracking-widest text-zinc-500">{task.assignee}</p>
-                    <p className="mt-1 text-sm text-white leading-5">{task.title}</p>
-                    <p className="mt-2 text-[10px] text-zinc-600">{task.column === "in-progress" ? "In progress" : "In review"} • open task →</p>
-                  </Link>
+                activeWorkItems.map(({ task, conversation, latestActivity, lastHeard }) => (
+                  <div key={task.id} className="rounded-xl border border-zinc-800 bg-black/20 p-3 transition-transform duration-300 hover:-translate-y-0.5 hover:border-cyan-500/30 hover:bg-cyan-500/5">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-[10px] uppercase tracking-widest text-zinc-500">{task.assignee}</p>
+                        <p className="mt-1 text-sm text-white leading-5">{task.title}</p>
+                        <p className="mt-2 text-[10px] text-zinc-600">{task.column === "in-progress" ? "In progress" : "In review"} • last heard {relativeTime(lastHeard)}</p>
+                      </div>
+                      <Link href={`/tasks?id=${task.id}`} className="rounded-full border border-zinc-700 bg-zinc-900/60 px-2 py-1 text-[10px] text-zinc-300 hover:border-cyan-500/30 hover:text-cyan-200">Open task</Link>
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
+                      <Link href={conversation ? `/conversations?id=${conversation.id}` : `/conversations?id=task-${task.id}`} className="rounded-full border border-zinc-700 bg-zinc-900/60 px-2 py-1 text-zinc-300 hover:border-cyan-500/30 hover:text-cyan-200">Open thread</Link>
+                    </div>
+                    {latestActivity ? <p className="mt-2 text-[11px] text-zinc-500">Latest: {latestActivity.action} • {latestActivity.summary ?? latestActivity.taskTitle}</p> : null}
+                  </div>
                 ))
               )}
             </div>
