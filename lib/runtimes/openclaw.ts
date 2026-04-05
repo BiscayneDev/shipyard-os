@@ -5,6 +5,17 @@ import type { AgentRuntime, RuntimeSession, ActivateParams, ChatParams } from ".
 
 const execFileAsync = promisify(execFile)
 
+/** Node 22+ path for openclaw CLI (it checks process.version and rejects <22) */
+const NODE22 = "/opt/homebrew/Cellar/node/25.4.0/bin/node"
+const OPENCLAW_MJS = "/opt/homebrew/lib/node_modules/openclaw/openclaw.mjs"
+
+function ocExec(args: string[], timeout = 30000) {
+  return execFileAsync(NODE22, [OPENCLAW_MJS, ...args], {
+    timeout,
+    env: { ...process.env, PATH: `/opt/homebrew/Cellar/node/25.4.0/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin` },
+  })
+}
+
 export class OpenClawRuntime implements AgentRuntime {
   readonly name = "OpenClaw"
   readonly id = "openclaw"
@@ -45,56 +56,50 @@ export class OpenClawRuntime implements AgentRuntime {
     }
   }
 
-  async chat({ message }: ChatParams): Promise<string> {
-    // Try HTTP gateway first
+  async chat({ message, sessionId }: ChatParams): Promise<string> {
     try {
-      const res = await fetch(`${GATEWAY_URL}/turn`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${GATEWAY_TOKEN}`,
-        },
-        body: JSON.stringify({ message, sessionKey: "agent:main:main" }),
-        signal: AbortSignal.timeout(30000),
-      })
+      // Resolve the UUID session-id for the main session
+      const resolvedId = sessionId ?? await this.resolveMainSessionId()
+      const args = ["agent", "--message", message, "--json"]
+      if (resolvedId) args.push("--session-id", resolvedId)
 
-      if (res.ok) {
-        interface GatewayReply { reply?: string; response?: string; text?: string; content?: string; message?: string }
-        const data = (await res.json()) as GatewayReply
-        const reply = data.reply ?? data.response ?? data.text ?? data.content ?? data.message
-        if (reply) return reply
+      const { stdout } = await ocExec(args, 60000)
+
+      interface CLIResult {
+        result?: { payloads?: Array<{ text?: string }> }
+        reply?: string; response?: string; text?: string; content?: string; output?: string
       }
-    } catch {
-      // Fall through to CLI
-    }
+      const parsed = JSON.parse(stdout) as CLIResult
 
-    // Fallback: CLI
-    try {
-      const { stdout } = await execFileAsync(
-        BIN.openclaw,
-        ["agent", "--message", message, "--session-id", "agent:main:main", "--json"],
-        { timeout: 30000 }
-      )
-      interface CLIReply { reply?: string; response?: string; text?: string; content?: string; output?: string }
-      const parsed = JSON.parse(stdout) as CLIReply
+      // Prefer structured payloads (gateway response format)
+      const payloadText = parsed.result?.payloads?.[0]?.text
+      if (payloadText) return payloadText
+
       return parsed.reply ?? parsed.response ?? parsed.text ?? parsed.content ?? parsed.output ?? stdout.trim()
-    } catch {
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      console.error("[OpenClaw chat]", msg)
       return "Unable to reach agent runtime. Make sure the gateway is running."
     }
   }
 
+  private async resolveMainSessionId(): Promise<string | undefined> {
+    try {
+      const { stdout } = await ocExec(["sessions", "--json"], 10000)
+      const data = JSON.parse(stdout) as { sessions?: Array<{ key?: string; sessionId?: string }> } | Array<{ key?: string; sessionId?: string }>
+      const sessions = Array.isArray(data) ? data : (data.sessions ?? [])
+      const main = sessions.find((s) => s.key === "agent:main:main")
+      return main?.sessionId
+    } catch {
+      return undefined
+    }
+  }
+
   async activate({ message }: ActivateParams & { message: string }): Promise<void> {
-    await execFileAsync(BIN.openclaw, ["agent", "--to", AGENT_DELIVERY_TARGET, "--message", message], {
-      timeout: 30000,
-      env: { ...process.env, PATH: `${BIN.openclaw.replace(/\/[^/]+$/, "")}:/usr/local/bin:/usr/bin:/bin` },
-    }).catch(() => null)
+    await ocExec(["agent", "--to", AGENT_DELIVERY_TARGET, "--message", message], 30000).catch(() => null)
   }
 
   async testDelivery(channel: string, target: string, message: string): Promise<void> {
-    await execFileAsync(
-      BIN.openclaw,
-      ["message", "send", "--channel", channel.toLowerCase(), "--target", target, "--message", message],
-      { timeout: 10000 }
-    )
+    await ocExec(["message", "send", "--channel", channel.toLowerCase(), "--target", target, "--message", message], 10000)
   }
 }
