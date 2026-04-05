@@ -285,6 +285,7 @@ export default function DashboardPage() {
     detail: `${task.title} • ${task.priority} • ${task.column}`,
     severity: index === 0 ? "high" : "medium",
   }))
+  const livePulse = recentActivity[0]?.timestamp ?? intel?.generatedAt ?? new Date().toISOString()
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 px-4 lg:px-6">
@@ -351,23 +352,36 @@ export default function DashboardPage() {
             </div>
           </section>
 
-          <section className="rounded-xl border border-zinc-800 bg-[#111118] p-5">
+          <section className="rounded-xl border border-zinc-800 bg-[#111118] p-5 shadow-[0_0_30px_rgba(124,58,237,0.05)]">
             <div className="flex items-center justify-between">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">Now / Next / Risk</p>
-              <Link href="/tasks" className="text-[10px] font-medium text-cyan-300">Open board →</Link>
+              <span className="flex items-center gap-2 rounded-full border border-cyan-500/20 bg-cyan-500/10 px-3 py-1 text-[10px] uppercase tracking-[0.22em] text-cyan-300">
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-cyan-300 opacity-75" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-cyan-300" />
+                </span>
+                Live {relativeTime(livePulse)}
+              </span>
             </div>
-            <div className="mt-4 grid gap-3 md:grid-cols-3">
-              <div className="rounded-xl border border-zinc-800 bg-black/20 p-3">
+            <div className="mt-4 flex items-center justify-between">
+              <Link href="/tasks" className="text-[10px] font-medium text-cyan-300">Open board →</Link>
+              <span className="text-[10px] text-zinc-600">auto-updated</span>
+            </div>
+            <div className="mt-3 grid gap-3 md:grid-cols-3">
+              <div className="rounded-xl border border-zinc-800 bg-black/20 p-3 transition-transform duration-300 hover:-translate-y-0.5">
                 <p className="text-[10px] uppercase tracking-widest text-zinc-500">Now</p>
                 <p className="mt-1 text-sm text-white">{urgentTasks[0]?.title ?? "Nothing urgent"}</p>
+                <p className="mt-1 text-[10px] text-zinc-600">Next action</p>
               </div>
-              <div className="rounded-xl border border-zinc-800 bg-black/20 p-3">
+              <div className="rounded-xl border border-zinc-800 bg-black/20 p-3 transition-transform duration-300 hover:-translate-y-0.5">
                 <p className="text-[10px] uppercase tracking-widest text-zinc-500">Next</p>
                 <p className="mt-1 text-sm text-white">{urgentTasks[1]?.title ?? "All caught up"}</p>
+                <p className="mt-1 text-[10px] text-zinc-600">Queued follow-up</p>
               </div>
-              <div className="rounded-xl border border-zinc-800 bg-black/20 p-3">
+              <div className="rounded-xl border border-zinc-800 bg-black/20 p-3 transition-transform duration-300 hover:-translate-y-0.5">
                 <p className="text-[10px] uppercase tracking-widest text-zinc-500">Risk</p>
                 <p className="mt-1 text-sm text-white">{hotRiskLabel(repos)}</p>
+                <p className="mt-1 text-[10px] text-zinc-600">Needs attention</p>
               </div>
             </div>
           </section>

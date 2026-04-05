@@ -213,7 +213,7 @@ export function CopilotSidebar({ activeGoals, urgentTasks, repos, recentActivity
   }
 
   return (
-    <aside className="space-y-4 lg:sticky lg:top-6 self-start">
+    <aside className="space-y-3 lg:sticky lg:top-6 self-start lg:max-w-[288px]">
       <div className="rounded-2xl border border-cyan-500/20 bg-[#101018] p-4 shadow-[0_0_30px_rgba(34,211,238,0.06)]">
         <div className="flex items-center justify-between gap-2">
           <div>
