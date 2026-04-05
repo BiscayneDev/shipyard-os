@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { MessageSquarePlus, Search, Loader2, PlayCircle, CheckCircle2, AlertTriangle } from "lucide-react"
 
@@ -92,7 +92,7 @@ function statusColor(status: ConversationSummary["status"] | ConversationRun["st
   return "#71717a"
 }
 
-export default function ConversationsPage() {
+function ConversationsPageInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const requestedId = searchParams.get("id") ?? ""
@@ -553,5 +553,13 @@ export default function ConversationsPage() {
         </div>
       </section>
     </div>
+  )
+}
+
+export default function ConversationsPage() {
+  return (
+    <Suspense fallback={<div className="flex h-screen items-center justify-center text-zinc-500">Loading…</div>}>
+      <ConversationsPageInner />
+    </Suspense>
   )
 }
