@@ -11,7 +11,7 @@ export class OpenClawRuntime implements AgentRuntime {
 
   async healthCheck() {
     try {
-      const res = await fetch(`${GATEWAY_URL}/api/health`, {
+      const res = await fetch(`${GATEWAY_URL}/health`, {
         headers: { Authorization: `Bearer ${GATEWAY_TOKEN}` },
         signal: AbortSignal.timeout(5000),
       })
@@ -29,7 +29,7 @@ export class OpenClawRuntime implements AgentRuntime {
   async listSessions(): Promise<RuntimeSession[]> {
     if (!GATEWAY_TOKEN) return []
     try {
-      const res = await fetch(`${GATEWAY_URL}/api/sessions`, {
+      const res = await fetch(`${GATEWAY_URL}/sessions`, {
         headers: { Authorization: `Bearer ${GATEWAY_TOKEN}` },
         signal: AbortSignal.timeout(5000),
       })
@@ -48,7 +48,7 @@ export class OpenClawRuntime implements AgentRuntime {
   async chat({ message }: ChatParams): Promise<string> {
     // Try HTTP gateway first
     try {
-      const res = await fetch(`${GATEWAY_URL}/api/agent/turn`, {
+      const res = await fetch(`${GATEWAY_URL}/turn`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
