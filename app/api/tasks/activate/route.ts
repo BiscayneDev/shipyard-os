@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { MC_URL } from "@/lib/config"
 import { runtime } from "@/lib/runtime"
 import { appendEvent, ensureTaskConversation, updateConversation } from "@/lib/conversations"
+import { enrichTaskBrief } from "@/lib/task-enrichment"
 
 interface BudgetCheckResult {
   allowed: boolean
@@ -50,9 +51,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "taskId and title required" }, { status: 400 })
     }
 
+    const enrichment = await enrichTaskBrief({
+      title,
+      description,
+      priority: priority || "medium",
+      assignee: (assignee || "unassigned") as any,
+      tags: [],
+    })
+
     const conversation = await ensureTaskConversation({
       taskId,
-      title,
+      title: enrichment.enrichedTitle,
       agent: assignee || "vic",
     })
 
@@ -69,7 +78,7 @@ export async function POST(request: Request) {
       data: { taskId, title, priority, assignee },
     })
 
-    const message = buildBrief(taskId, title, description, assignee || "unassigned", priority)
+    const message = buildBrief(taskId, enrichment.enrichedTitle, enrichment.enrichedDescription, assignee || "unassigned", priority)
     let budgetWarning: { warning: string; percentUsed: number } | null = null
 
     if (assignee && assignee !== "unassigned") {

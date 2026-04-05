@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { readFile, writeFile } from "fs/promises"
 import { join } from "path"
 import type { Task } from "@/lib/tasks"
+import { enrichTaskBrief } from "@/lib/task-enrichment"
 
 const DATA_PATH = join(process.cwd(), "data", "tasks.json")
 
@@ -68,6 +69,15 @@ export async function POST(request: Request) {
       tags: body.tags || [],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
+    }
+
+    if (newTask.column === "backlog") {
+      const enrichment = await enrichTaskBrief(newTask)
+      newTask.enrichedTitle = enrichment.enrichedTitle
+      newTask.enrichedDescription = enrichment.enrichedDescription
+      newTask.acceptanceCriteria = enrichment.acceptanceCriteria
+      newTask.implementationPlan = enrichment.implementationPlan
+      newTask.risks = enrichment.risks
     }
 
     const updated = [...tasks, newTask]

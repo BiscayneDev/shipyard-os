@@ -6,6 +6,11 @@ export interface Task {
   id: string
   title: string
   description?: string
+  enrichedTitle?: string
+  enrichedDescription?: string
+  acceptanceCriteria?: string[]
+  implementationPlan?: string[]
+  risks?: string[]
   column: Column
   priority: Priority
   assignee: Agent
@@ -19,6 +24,11 @@ export interface Task {
 export interface UpdateTaskInput {
   title?: string
   description?: string
+  enrichedTitle?: string
+  enrichedDescription?: string
+  acceptanceCriteria?: string[]
+  implementationPlan?: string[]
+  risks?: string[]
   column?: Column
   priority?: Priority
   assignee?: Agent

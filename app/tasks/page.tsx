@@ -49,6 +49,13 @@ interface PendingActivation {
     warning: string | null
   } | null
   loading: boolean
+  enrichment?: {
+    enrichedTitle: string
+    enrichedDescription: string
+    acceptanceCriteria: string[]
+    implementationPlan: string[]
+    risks: string[]
+  }
 }
 
 interface GoalOption {
@@ -499,6 +506,13 @@ export default function TasksPage() {
         newColumn,
         budgetInfo: null,
         loading: true,
+        enrichment: {
+          enrichedTitle: task.enrichedTitle ?? task.title,
+          enrichedDescription: task.enrichedDescription ?? task.description ?? "",
+          acceptanceCriteria: task.acceptanceCriteria ?? [],
+          implementationPlan: task.implementationPlan ?? [],
+          risks: task.risks ?? [],
+        },
       }
       setPendingActivation(pending)
 
@@ -561,8 +575,8 @@ export default function TasksPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           taskId: task.id,
-          title: task.title,
-          description: task.description,
+          title: pendingActivation.enrichment?.enrichedTitle ?? task.title,
+          description: pendingActivation.enrichment?.enrichedDescription ?? task.description,
           assignee: task.assignee,
           priority: task.priority,
         }),
@@ -869,13 +883,40 @@ export default function TasksPage() {
 
             {/* Task info */}
             <div className="space-y-2">
-              <p className="text-base font-semibold text-white">{pendingActivation.task.title}</p>
-              {pendingActivation.task.description && (
-                <p className="text-xs text-zinc-400 leading-relaxed line-clamp-3">
-                  {pendingActivation.task.description}
+              <p className="text-base font-semibold text-white">{pendingActivation.enrichment?.enrichedTitle ?? pendingActivation.task.title}</p>
+              {(pendingActivation.enrichment?.enrichedDescription || pendingActivation.task.description) && (
+                <p className="text-xs text-zinc-400 leading-relaxed line-clamp-4 whitespace-pre-line">
+                  {pendingActivation.enrichment?.enrichedDescription ?? pendingActivation.task.description}
                 </p>
               )}
             </div>
+
+            {pendingActivation.enrichment && (
+              <div className="space-y-3 rounded-lg border border-zinc-800 bg-black/20 p-3">
+                <div>
+                  <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Acceptance criteria</p>
+                  <ul className="mt-2 space-y-1 text-xs text-zinc-300 list-disc pl-4">
+                    {pendingActivation.enrichment.acceptanceCriteria.slice(0, 3).map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Implementation plan</p>
+                  <ol className="mt-2 space-y-1 text-xs text-zinc-300 list-decimal pl-4">
+                    {pendingActivation.enrichment.implementationPlan.slice(0, 3).map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ol>
+                </div>
+                {pendingActivation.enrichment.risks.length > 0 && (
+                  <div>
+                    <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Risks</p>
+                    <p className="mt-2 text-xs text-zinc-400">{pendingActivation.enrichment.risks.join(" • ")}</p>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Agent + Priority row */}
             <div className="flex items-center gap-3">
