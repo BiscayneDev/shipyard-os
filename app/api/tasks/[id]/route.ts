@@ -173,10 +173,10 @@ async function emitTaskNotification(task: Task, action: ActivityAction): Promise
     agent: task.assignee || "unassigned",
     message:
       action === "completed"
-        ? `Task completed: ${task.title}`
+        ? `${task.assignee || "An agent"} completed ${task.title}`
         : action === "reviewed"
-        ? `Task moved to review: ${task.title}`
-        : `Task started: ${task.title}`,
+        ? `${task.assignee || "An agent"} moved ${task.title} to review`
+        : `${task.assignee || "An agent"} started working on ${task.title}`,
     type: action === "completed" ? "finish" : action === "reviewed" ? "info" : "start",
     timestamp: Date.now(),
   }

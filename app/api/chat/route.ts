@@ -57,7 +57,7 @@ export async function POST(request: Request) {
       summary: `${agent} started a run via ${runtime.name}`,
       data: { runtime: runtime.name, taskId },
     })
-    emitRunNotification(agent, `${agent} started a run`, "start")
+    emitRunNotification(agent, `${agent} started working on a task`, "start")
 
     await appendMessage(conversationId, {
       role: "user",
@@ -98,7 +98,7 @@ export async function POST(request: Request) {
       agent,
       summary: `${agent} completed the run`,
     })
-    emitRunNotification(agent, `${agent} finished the run`, "finish")
+    emitRunNotification(agent, `${agent} finished the task`, "finish")
 
     return NextResponse.json({ reply, conversationId, runId: run.id })
   } catch (error) {
@@ -112,7 +112,7 @@ export async function POST(request: Request) {
         summary: `${agent} failed the run`,
         data: { error: message },
       }).catch(() => null)
-      emitRunNotification(agent, `${agent} run failed`, "info")
+      emitRunNotification(agent, `${agent} task run failed`, "info")
     }
     return NextResponse.json({ error: message }, { status: 500 })
   }
