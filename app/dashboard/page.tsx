@@ -371,7 +371,7 @@ export default function DashboardPage() {
             </div>
           )}
 
-          <section className="rounded-xl border border-zinc-800 bg-[#111118] p-5">
+          <section className="rounded-xl border border-zinc-800 bg-[#111118] p-5 shadow-[0_0_30px_rgba(124,58,237,0.05)]">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">What matters now</p>
