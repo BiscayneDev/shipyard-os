@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { useState } from "react"
 
 interface Task {
   id: string
@@ -48,6 +49,11 @@ interface ApprovalItem {
   label: string
   detail: string
   severity: "high" | "medium" | "low"
+  taskId?: string
+  taskTitle?: string
+  taskDescription?: string
+  assignee?: string
+  priority?: string
 }
 
 interface CopilotSidebarProps {
@@ -70,43 +76,133 @@ function relativeTime(dateStr: string): string {
   return `${Math.floor(hrs / 24)}d`
 }
 
+async function postJson(url: string, body: unknown) {
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  })
+  return res.json().catch(() => ({})) as Promise<Record<string, unknown>>
+}
+
 export function CopilotSidebar({ activeGoals, urgentTasks, repos, recentActivity, inboxItems, intelSummary, demoMode }: CopilotSidebarProps) {
+  const [busyId, setBusyId] = useState<string | null>(null)
+  const [statusMessage, setStatusMessage] = useState<string>("")
+
   const topPriority = urgentTasks.slice(0, 3)
   const hotRepo = repos.find((r) => r.latestRun?.status === "in_progress" || r.latestRun?.conclusion !== "success") ?? repos[0]
   const lastAction = recentActivity[0]
 
-  const approvalQueue: ApprovalItem[] = [
-    hotRepo
-      ? {
-          id: `repo-${hotRepo.name}`,
-          label: "Approve repo attention",
-          detail: `${hotRepo.name} is the highest-risk project right now.`,
-          severity: "high",
-        }
-      : null,
+  const approvalQueue = [
     topPriority[0]
       ? {
-          id: `task-${topPriority[0].id}`,
+          id: `approve-${topPriority[0].id}`,
           label: "Approve top task",
           detail: `${topPriority[0].title} is the most urgent task.`,
+          severity: "high",
+          taskId: topPriority[0].id,
+          taskTitle: topPriority[0].title,
+          taskDescription: topPriority[0].description,
+          assignee: topPriority[0].assignee,
+          priority: topPriority[0].priority,
+        }
+      : null,
+    topPriority[1]
+      ? {
+          id: `hold-${topPriority[1].id}`,
+          label: "Hold secondary task",
+          detail: `${topPriority[1].title} is a good candidate to pause or re-scope.`,
           severity: "medium",
+          taskId: topPriority[1].id,
+          taskTitle: topPriority[1].title,
+          taskDescription: topPriority[1].description,
+          assignee: topPriority[1].assignee,
+          priority: topPriority[1].priority,
         }
       : null,
     inboxItems[0]
       ? {
-          id: `inbox-${inboxItems[0].id}`,
-          label: "Review inbound message",
+          id: `delegate-${inboxItems[0].id}`,
+          label: "Delegate inbound response",
           detail: `${inboxItems[0].fromName}: ${inboxItems[0].subject}`,
           severity: "low",
         }
       : null,
-  ].filter((item): item is ApprovalItem => item !== null)
+  ].filter(Boolean) as ApprovalItem[]
 
   const briefLines = [
     `You have ${urgentTasks.length} open tasks, ${activeGoals.length} active goals, and ${inboxItems.length} inbox item${inboxItems.length === 1 ? "" : "s"}.`,
     hotRepo ? `${hotRepo.name} is the biggest risk signal.` : "No current project risk signal.",
     lastAction ? `${lastAction.agent} last ${lastAction.action} “${lastAction.taskTitle}”.` : "No recent agent activity.",
   ]
+
+  async function approve(item: ApprovalItem) {
+    if (!item.taskId) return
+    setBusyId(item.id)
+    setStatusMessage("")
+    try {
+      await postJson(`/api/tasks/${item.taskId}`, {
+        column: "in-progress",
+        assignee: item.assignee,
+      })
+      await postJson("/api/activity", {
+        taskId: item.taskId,
+        taskTitle: item.taskTitle ?? item.label,
+        agent: item.assignee ?? "vic",
+        action: "started",
+        summary: `Approved: ${item.taskTitle ?? item.label}`,
+      })
+      setStatusMessage(`Approved ${item.taskTitle ?? item.label}`)
+    } catch {
+      setStatusMessage(`Could not approve ${item.taskTitle ?? item.label}`)
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  async function hold(item: ApprovalItem) {
+    if (!item.taskId) return
+    setBusyId(item.id)
+    setStatusMessage("")
+    try {
+      await postJson(`/api/tasks/${item.taskId}`, {
+        column: "backlog",
+        description: `${item.taskDescription ?? ""}\n\n[HOLD] Paused from copilot approval queue.`.trim(),
+      })
+      await postJson("/api/activity", {
+        taskId: item.taskId,
+        taskTitle: item.taskTitle ?? item.label,
+        agent: item.assignee ?? "vic",
+        action: "reviewed",
+        summary: `Held: ${item.taskTitle ?? item.label}`,
+      })
+      setStatusMessage(`Held ${item.taskTitle ?? item.label}`)
+    } catch {
+      setStatusMessage(`Could not hold ${item.taskTitle ?? item.label}`)
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  async function delegate(item: ApprovalItem) {
+    if (!item.taskId) return
+    setBusyId(item.id)
+    setStatusMessage("")
+    try {
+      await postJson("/api/tasks/activate", {
+        taskId: item.taskId,
+        title: item.taskTitle ?? item.label,
+        description: item.taskDescription,
+        assignee: item.assignee ?? "vic",
+        priority: item.priority ?? "medium",
+      })
+      setStatusMessage(`Delegated ${item.taskTitle ?? item.label}`)
+    } catch {
+      setStatusMessage(`Could not delegate ${item.taskTitle ?? item.label}`)
+    } finally {
+      setBusyId(null)
+    }
+  }
 
   return (
     <aside className="space-y-4 lg:sticky lg:top-6 self-start">
@@ -131,6 +227,7 @@ export function CopilotSidebar({ activeGoals, urgentTasks, repos, recentActivity
             ))}
           </div>
           <p className="text-sm leading-6 text-zinc-300">{intelSummary}</p>
+          {statusMessage ? <p className="text-xs text-cyan-300">{statusMessage}</p> : null}
         </div>
 
         <div className="mt-4 grid grid-cols-2 gap-2">
@@ -193,13 +290,25 @@ export function CopilotSidebar({ activeGoals, urgentTasks, repos, recentActivity
                   </span>
                 </div>
                 <div className="mt-3 grid grid-cols-3 gap-2 text-[11px]">
-                  <button className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-2 py-1 text-emerald-200 hover:bg-emerald-500/15">
+                  <button
+                    disabled={busyId === item.id}
+                    onClick={() => void approve(item)}
+                    className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-2 py-1 text-emerald-200 hover:bg-emerald-500/15 disabled:opacity-50"
+                  >
                     Approve
                   </button>
-                  <button className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-2 py-1 text-amber-200 hover:bg-amber-500/15">
+                  <button
+                    disabled={busyId === item.id}
+                    onClick={() => void hold(item)}
+                    className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-2 py-1 text-amber-200 hover:bg-amber-500/15 disabled:opacity-50"
+                  >
                     Hold
                   </button>
-                  <button className="rounded-lg border border-cyan-500/20 bg-cyan-500/10 px-2 py-1 text-cyan-200 hover:bg-cyan-500/15">
+                  <button
+                    disabled={busyId === item.id}
+                    onClick={() => void delegate(item)}
+                    className="rounded-lg border border-cyan-500/20 bg-cyan-500/10 px-2 py-1 text-cyan-200 hover:bg-cyan-500/15 disabled:opacity-50"
+                  >
                     Delegate
                   </button>
                 </div>
