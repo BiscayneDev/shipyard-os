@@ -1033,6 +1033,18 @@ export default function TasksPage() {
               </div>
             )}
             <div className="space-y-2">
+              {pendingActivation.enrichment && (
+                <div className="rounded-lg border border-zinc-800 bg-black/20 p-3 space-y-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Vic summary</p>
+                    <span className="text-[10px] text-zinc-600">Generated brief</span>
+                  </div>
+                  <p className="text-sm text-white leading-5">{pendingActivation.enrichment.enrichedDescription}</p>
+                  <p className="text-[11px] text-zinc-500">
+                    {pendingActivation.enrichment.acceptanceCriteria.slice(0, 2).join(" • ")}
+                  </p>
+                </div>
+              )}
               <label className="block space-y-1">
                 <span className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Plan title</span>
                 <input
@@ -1113,33 +1125,6 @@ export default function TasksPage() {
                 </label>
               </div>
             </div>
-
-            {pendingActivation.enrichment && (
-              <div className="space-y-3 rounded-lg border border-zinc-800 bg-black/20 p-3">
-                <div>
-                  <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Acceptance criteria</p>
-                  <ul className="mt-2 space-y-1 text-xs text-zinc-300 list-disc pl-4">
-                    {pendingActivation.enrichment.acceptanceCriteria.slice(0, 3).map((item) => (
-                      <li key={item}>{item}</li>
-                    ))}
-                  </ul>
-                </div>
-                <div>
-                  <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Implementation plan</p>
-                  <ol className="mt-2 space-y-1 text-xs text-zinc-300 list-decimal pl-4">
-                    {pendingActivation.enrichment.implementationPlan.slice(0, 3).map((item) => (
-                      <li key={item}>{item}</li>
-                    ))}
-                  </ol>
-                </div>
-                {pendingActivation.enrichment.risks.length > 0 && (
-                  <div>
-                    <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Risks</p>
-                    <p className="mt-2 text-xs text-zinc-400">{pendingActivation.enrichment.risks.join(" • ")}</p>
-                  </div>
-                )}
-              </div>
-            )}
 
             {/* Agent + Priority row */}
             <div className="flex items-center gap-3">
