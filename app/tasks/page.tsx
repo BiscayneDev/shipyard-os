@@ -438,6 +438,8 @@ export default function TasksPage() {
   const [loading, setLoading] = useState(true)
   const [addingTo, setAddingTo] = useState<Column | null>(null)
   const [form, setForm] = useState<AddTaskFormState>(INITIAL_FORM)
+  const [quickIdea, setQuickIdea] = useState("")
+  const [draftingIdea, setDraftingIdea] = useState(false)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [pendingActivation, setPendingActivation] = useState<PendingActivation | null>(null)
   const [planningDraft, setPlanningDraft] = useState<PlanningDraft | null>(null)
@@ -700,6 +702,51 @@ export default function TasksPage() {
     setBudgetError(null)
   }
 
+  const handleQuickIdea = async () => {
+    if (!quickIdea.trim()) return
+    setDraftingIdea(true)
+    try {
+      const res = await fetch("/api/tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: quickIdea.trim(),
+          description: quickIdea.trim(),
+          column: "planning",
+          priority: "medium",
+          assignee: "vic",
+          tags: ["chat-first"],
+        }),
+      })
+      const newTask: Task = await res.json()
+      setTasks((prev) => [...prev, newTask])
+      setLastUpdated(new Date())
+      setQuickIdea("")
+      setPendingActivation({
+        task: newTask,
+        newColumn: "planning",
+        budgetInfo: null,
+        loading: false,
+        enrichment: {
+          enrichedTitle: newTask.enrichedTitle ?? newTask.title,
+          enrichedDescription: newTask.enrichedDescription ?? newTask.description ?? "",
+          acceptanceCriteria: newTask.acceptanceCriteria ?? [],
+          implementationPlan: newTask.implementationPlan ?? [],
+          risks: newTask.risks ?? [],
+        },
+      })
+      setPlanningDraft({
+        title: newTask.enrichedTitle ?? newTask.title,
+        description: newTask.enrichedDescription ?? newTask.description ?? "",
+        acceptanceCriteria: (newTask.acceptanceCriteria ?? []).join("\n"),
+        implementationPlan: (newTask.implementationPlan ?? []).join("\n"),
+        risks: (newTask.risks ?? []).join("\n"),
+      })
+    } finally {
+      setDraftingIdea(false)
+    }
+  }
+
   const handleAddTask = async (column: Column) => {
     if (!form.title.trim()) return
 
@@ -739,7 +786,7 @@ export default function TasksPage() {
   return (
     <div className="max-w-7xl mx-auto space-y-6">
       {/* Header */}
-      <div className="flex items-end justify-between">
+      <div className="flex items-end justify-between gap-4">
         <div className="space-y-1">
           <h1 className="text-3xl font-bold text-white">Tasks</h1>
           <p className="text-sm text-zinc-600">
@@ -752,6 +799,33 @@ export default function TasksPage() {
           </p>
         )}
       </div>
+
+      <section className="rounded-xl border border-zinc-800 bg-[#111118] p-4 space-y-3">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Chat first</p>
+            <p className="mt-1 text-sm text-zinc-300">Drop a rough idea and Vic will turn it into a Planning draft.</p>
+          </div>
+          <span className="rounded-full border border-fuchsia-500/20 bg-fuchsia-500/10 px-2 py-1 text-[10px] text-fuchsia-300">Backlog → Planning</span>
+        </div>
+        <div className="flex gap-2">
+          <textarea
+            value={quickIdea}
+            onChange={(e) => setQuickIdea(e.target.value)}
+            placeholder="e.g. add a lightweight Telegram onboarding check for each user"
+            rows={2}
+            className="flex-1 rounded-lg border border-zinc-800 bg-black/20 px-3 py-2 text-sm text-white outline-none focus:border-fuchsia-500/50"
+          />
+          <button
+            onClick={handleQuickIdea}
+            disabled={draftingIdea || !quickIdea.trim()}
+            className="rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50"
+            style={{ backgroundColor: "#7c3aed", color: "white" }}
+          >
+            {draftingIdea ? "Drafting..." : "Draft with Vic"}
+          </button>
+        </div>
+      </section>
 
       <DragDropContext onDragEnd={onDragEnd}>
         <div

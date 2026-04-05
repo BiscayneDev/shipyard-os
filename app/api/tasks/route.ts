@@ -71,7 +71,7 @@ export async function POST(request: Request) {
       updatedAt: new Date().toISOString(),
     }
 
-    if (newTask.column === "backlog") {
+    if (newTask.column === "backlog" || newTask.column === "planning") {
       const enrichment = await enrichTaskBrief(newTask)
       newTask.enrichedTitle = enrichment.enrichedTitle
       newTask.enrichedDescription = enrichment.enrichedDescription
