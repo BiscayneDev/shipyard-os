@@ -372,21 +372,21 @@ export default function DashboardPage() {
               <span className="text-[10px] text-zinc-600">auto-updated</span>
             </div>
             <div className="mt-3 grid gap-3 md:grid-cols-3">
-              <div className="rounded-xl border border-zinc-800 bg-black/20 p-3 transition-transform duration-300 hover:-translate-y-0.5">
+              <div className="rounded-xl border border-zinc-800 bg-black/20 p-3 transition-transform duration-300 hover:-translate-y-0.5 min-h-[104px]">
                 <p className="text-[10px] uppercase tracking-widest text-zinc-500">Now</p>
-                <p className="mt-1 text-sm text-white">{urgentTasks[0]?.title ?? "Nothing urgent"}</p>
-                <p className="mt-1 text-[10px] text-zinc-600">Next action</p>
+                <p className="mt-1 text-sm text-white leading-5">{urgentTasks[0]?.title ?? "Nothing urgent"}</p>
+                <p className="mt-2 text-[10px] text-zinc-600">Next action</p>
               </div>
-              <div className="rounded-xl border border-zinc-800 bg-black/20 p-3 transition-transform duration-300 hover:-translate-y-0.5">
+              <div className="rounded-xl border border-zinc-800 bg-black/20 p-3 transition-transform duration-300 hover:-translate-y-0.5 min-h-[104px]">
                 <p className="text-[10px] uppercase tracking-widest text-zinc-500">Next</p>
-                <p className="mt-1 text-sm text-white">{urgentTasks[1]?.title ?? "All caught up"}</p>
-                <p className="mt-1 text-[10px] text-zinc-600">Queued follow-up</p>
+                <p className="mt-1 text-sm text-white leading-5">{urgentTasks[1]?.title ?? "All caught up"}</p>
+                <p className="mt-2 text-[10px] text-zinc-600">Queued follow-up</p>
               </div>
               {hotRiskRepo(repos) ? (
-                <Link href={`/projects/${encodeURIComponent(hotRiskRepo(repos)!.name)}`} className="rounded-xl border border-zinc-800 bg-black/20 p-3 transition-transform duration-300 hover:-translate-y-0.5 hover:border-amber-500/30 hover:bg-amber-500/5">
+                <Link href={`/projects/${encodeURIComponent(hotRiskRepo(repos)!.name)}`} className="rounded-xl border border-zinc-800 bg-black/20 p-3 transition-transform duration-300 hover:-translate-y-0.5 hover:border-amber-500/30 hover:bg-amber-500/5 min-h-[104px]">
                   <p className="text-[10px] uppercase tracking-widest text-zinc-500">Risk</p>
-                  <p className="mt-1 text-sm text-white">{hotRiskLabel(repos)}</p>
-                  <p className="mt-1 text-[10px] text-zinc-600">Open war room →</p>
+                  <p className="mt-1 text-sm text-white leading-5">{hotRiskLabel(repos)}</p>
+                  <p className="mt-2 text-[10px] text-zinc-600">Open war room →</p>
                 </Link>
               ) : (
                 <Link href="/alerts" className="rounded-xl border border-zinc-800 bg-black/20 p-3 transition-transform duration-300 hover:-translate-y-0.5 hover:border-amber-500/30 hover:bg-amber-500/5">

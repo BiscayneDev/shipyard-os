@@ -103,7 +103,7 @@ export function ProjectActions({ projectName, taskTitle, taskDescription, taskPr
 
       {reviewOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: "rgba(0,0,0,0.72)" }} onClick={() => setReviewOpen(false)}>
-          <div className="w-full max-w-xl rounded-2xl border border-zinc-800 bg-[#111118] p-5 shadow-[0_0_30px_rgba(8,145,178,0.08)]" onClick={(e) => e.stopPropagation()}>
+          <div className="w-full max-w-xl rounded-2xl border border-zinc-800 bg-[#111118] p-6 shadow-[0_0_30px_rgba(8,145,178,0.08)]" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">Review</p>
@@ -115,13 +115,13 @@ export function ProjectActions({ projectName, taskTitle, taskDescription, taskPr
             </div>
             <p className="mt-3 text-sm leading-6 text-zinc-300 whitespace-pre-wrap">{enrichedBrief.summary}</p>
             <div className="mt-4 grid gap-3 md:grid-cols-2">
-              <div className="rounded-xl border border-zinc-800 bg-black/20 p-3">
+              <div className="rounded-xl border border-zinc-800 bg-black/20 p-4">
                 <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Acceptance criteria</p>
                 <ul className="mt-2 space-y-1 text-xs leading-5 text-zinc-300 list-disc pl-4">
                   {enrichedBrief.acceptanceCriteria.map((item) => <li key={item}>{item}</li>)}
                 </ul>
               </div>
-              <div className="rounded-xl border border-zinc-800 bg-black/20 p-3">
+              <div className="rounded-xl border border-zinc-800 bg-black/20 p-4">
                 <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Plan</p>
                 <ol className="mt-2 space-y-1 text-xs leading-5 text-zinc-300 list-decimal pl-4">
                   {enrichedBrief.plan.map((item) => <li key={item}>{item}</li>)}
@@ -129,7 +129,7 @@ export function ProjectActions({ projectName, taskTitle, taskDescription, taskPr
               </div>
             </div>
             <div className="mt-4 rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 text-xs leading-5 text-amber-200">{enrichedBrief.risk}</div>
-            <div className="mt-5 flex flex-wrap justify-end gap-2">
+            <div className="mt-6 flex flex-wrap justify-end gap-2">
               <button onClick={() => setReviewOpen(false)} className="rounded-lg border border-zinc-700 bg-black/20 px-3 py-2 text-xs font-semibold text-zinc-300 hover:bg-white/5">Close</button>
               <button
                 onClick={() => { setReviewOpen(false); void createFixTask(true, true) }}
