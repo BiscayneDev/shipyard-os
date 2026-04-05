@@ -118,7 +118,7 @@ export default async function ProjectWarRoomPage({ params }: { params: Promise<{
                       taskTitle={topAlert ? `Fix ${topAlert.title}` : `Stabilize ${project.name}`}
                       taskDescription={topAlert ? topAlert.summary : summary}
                       taskPriority={topAlert?.severity === "critical" ? "high" : topAlert?.severity === "warning" ? "medium" : "low"}
-                      taskAssignee="unassigned"
+                      taskAssignee={activeTask?.assignee ?? "builder"}
                     />
                   </div>
                 </div>
