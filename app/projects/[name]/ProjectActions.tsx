@@ -106,7 +106,7 @@ export function ProjectActions({ projectName, taskTitle, taskDescription, taskPr
           <div className="w-full max-w-xl rounded-2xl border border-zinc-800 bg-[#111118] p-6 shadow-[0_0_30px_rgba(8,145,178,0.08)]" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">Review</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">Review</p>
                 <h3 className="mt-1 text-lg font-semibold text-white">{enrichedBrief.title}</h3>
               </div>
               <span className="rounded-full border border-amber-500/20 bg-amber-500/10 px-2 py-1 text-[10px] uppercase tracking-[0.2em] text-amber-200">

@@ -106,20 +106,22 @@ export default async function ProjectWarRoomPage({ params }: { params: Promise<{
                   <p className="mt-2 text-sm text-white">{openAlerts.length > 0 ? `${openAlerts.length} open alert${openAlerts.length === 1 ? "" : "s"}` : "No open alerts"}</p>
                   <p className="mt-1 text-[11px] text-zinc-500">{project.latestRun ? `Latest CI: ${project.latestRun.name} • ${project.latestRun.status}${project.latestRun.conclusion ? ` • ${project.latestRun.conclusion}` : ""}` : "No recent CI run"}</p>
                 </div>
-                <div className="rounded-xl border border-zinc-800 bg-[#0a0a0f] p-4 md:col-span-3">
-                  <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Action</p>
-                  <div className="mt-2 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                    <div>
+                <div className="rounded-xl border border-zinc-800 bg-[#0a0a0f] p-5 md:col-span-3">
+                  <p className="text-[10px] uppercase tracking-[0.16em] text-zinc-500">Action</p>
+                  <div className="mt-3 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="max-w-xl">
                       <p className="text-sm text-white">Turn the top risk into a task</p>
-                      <p className="mt-1 text-[11px] text-zinc-500">Creates an AI-enriched backlog task with the project context attached.</p>
+                      <p className="mt-1 text-[11px] leading-5 text-zinc-500">Creates an AI-enriched backlog task with the project context attached.</p>
                     </div>
-                    <ProjectActions
-                      projectName={project.name}
-                      taskTitle={topAlert ? `Fix ${topAlert.title}` : `Stabilize ${project.name}`}
-                      taskDescription={topAlert ? topAlert.summary : summary}
-                      taskPriority={topAlert?.severity === "critical" ? "high" : topAlert?.severity === "warning" ? "medium" : "low"}
-                      taskAssignee={activeTask?.assignee ?? "builder"}
-                    />
+                    <div className="shrink-0">
+                      <ProjectActions
+                        projectName={project.name}
+                        taskTitle={topAlert ? `Fix ${topAlert.title}` : `Stabilize ${project.name}`}
+                        taskDescription={topAlert ? topAlert.summary : summary}
+                        taskPriority={topAlert?.severity === "critical" ? "high" : topAlert?.severity === "warning" ? "medium" : "low"}
+                        taskAssignee={activeTask?.assignee ?? "builder"}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>

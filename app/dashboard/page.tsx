@@ -358,7 +358,7 @@ export default function DashboardPage() {
 
           <section className="rounded-xl border border-zinc-800 bg-[#111118] p-5 shadow-[0_0_30px_rgba(124,58,237,0.05)]">
             <div className="flex items-center justify-between">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">Now / Next / Risk</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">Now / Next / Risk</p>
               <span className="flex items-center gap-2 rounded-full border border-cyan-500/20 bg-cyan-500/10 px-3 py-1 text-[10px] uppercase tracking-[0.22em] text-cyan-300">
                 <span className="relative flex h-2 w-2">
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-cyan-300 opacity-75" />
