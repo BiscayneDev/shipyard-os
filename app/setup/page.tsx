@@ -694,7 +694,9 @@ function SailboatScene() {
             <div>
               <h2 style={{ fontSize: 28, fontWeight: 700, marginBottom: 8 }}>Connect OpenClaw</h2>
               <p style={{ color: "#a1a1aa", marginBottom: 32, lineHeight: 1.6 }}>
-                Shipyard OS runs on OpenClaw — your local AI agent runtime.
+                Shipyard OS runs on OpenClaw — your personal chief-of-staff agent runtime.
+                Each user connects their own Vic and keeps their own task threads, delivery target,
+                and workspace in sync.
               </p>
 
               <label style={labelStyle}>Gateway URL</label>
@@ -888,8 +890,8 @@ function SailboatScene() {
                 Connect your channel
               </h2>
               <p style={{ color: "#a1a1aa", marginBottom: 32, lineHeight: 1.6 }}>
-                When you activate a task, Shipyard OS sends it to your agent as a live turn.
-                Where should it reach you?
+                When Vic activates a task, Shipyard OS sends it to your personal delivery target
+                as a live turn. Connect the Telegram inbox you want Vic to use for this workspace.
               </p>
 
               <label style={labelStyle}>Channel</label>
