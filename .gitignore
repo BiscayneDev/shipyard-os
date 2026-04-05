@@ -17,6 +17,9 @@
 /.next/
 /out/
 
+# runtime data (user-specific)
+/data/
+
 # production
 /build
 
