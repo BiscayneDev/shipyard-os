@@ -2,6 +2,8 @@ import { NextResponse } from "next/server"
 import { readFile, writeFile } from "fs/promises"
 import { join } from "path"
 import { randomUUID } from "crypto"
+import { notificationEmitter, addRecentNotification } from "@/lib/notificationEmitter"
+import type { NotificationPayload } from "@/lib/notificationEmitter"
 import type { Task, Column } from "@/lib/tasks"
 
 const DATA_PATH = join(process.cwd(), "data", "tasks.json")
@@ -165,6 +167,24 @@ async function appendActivity(task: Task, action: ActivityAction): Promise<void>
   }
 }
 
+async function emitTaskNotification(task: Task, action: ActivityAction): Promise<void> {
+  const payload: NotificationPayload = {
+    id: randomUUID(),
+    agent: task.assignee || "unassigned",
+    message:
+      action === "completed"
+        ? `Task completed: ${task.title}`
+        : action === "reviewed"
+        ? `Task moved to review: ${task.title}`
+        : `Task started: ${task.title}`,
+    type: action === "completed" ? "finish" : action === "reviewed" ? "info" : "start",
+    timestamp: Date.now(),
+  }
+
+  addRecentNotification(payload)
+  notificationEmitter.emit("notification", payload)
+}
+
 // ── Route handlers ───────────────────────────────────────────────────────────
 
 export async function PATCH(
@@ -226,6 +246,7 @@ export async function PATCH(
       const action = COLUMN_TO_ACTION[body.column as Column]
       if (action) {
         await appendActivity(updatedTask, action)
+        await emitTaskNotification(updatedTask, action)
       }
     }
 
