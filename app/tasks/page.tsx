@@ -61,6 +61,14 @@ interface PendingActivation {
   }
 }
 
+interface PlanningDraft {
+  title: string
+  description: string
+  acceptanceCriteria: string
+  implementationPlan: string
+  risks: string
+}
+
 interface GoalOption {
   id: string
   title: string
@@ -432,6 +440,7 @@ export default function TasksPage() {
   const [form, setForm] = useState<AddTaskFormState>(INITIAL_FORM)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [pendingActivation, setPendingActivation] = useState<PendingActivation | null>(null)
+  const [planningDraft, setPlanningDraft] = useState<PlanningDraft | null>(null)
   const [activating, setActivating] = useState(false)
   const [budgetError, setBudgetError] = useState<string | null>(null)
   const [demoMode, setDemoMode] = useState(false)
@@ -520,20 +529,28 @@ export default function TasksPage() {
       setLastUpdated(new Date())
 
       // Fetch budget info and show modal
-      const pending: PendingActivation = {
+      const enrichment = {
+        enrichedTitle: task.enrichedTitle ?? task.title,
+        enrichedDescription: task.enrichedDescription ?? task.description ?? "",
+        acceptanceCriteria: task.acceptanceCriteria ?? [],
+        implementationPlan: task.implementationPlan ?? [],
+        risks: task.risks ?? [],
+      }
+      setPendingActivation({
         task,
         newColumn,
         budgetInfo: null,
-        loading: true,
-        enrichment: {
-          enrichedTitle: task.enrichedTitle ?? task.title,
-          enrichedDescription: task.enrichedDescription ?? task.description ?? "",
-          acceptanceCriteria: task.acceptanceCriteria ?? [],
-          implementationPlan: task.implementationPlan ?? [],
-          risks: task.risks ?? [],
-        },
-      }
-      setPendingActivation(pending)
+        loading: !demoMode && newColumn === "in-progress" && task.assignee !== "unassigned",
+        enrichment,
+      })
+      setPlanningDraft({
+        title: enrichment.enrichedTitle,
+        description: enrichment.enrichedDescription,
+        acceptanceCriteria: enrichment.acceptanceCriteria.join("\n"),
+        implementationPlan: enrichment.implementationPlan.join("\n"),
+        risks: enrichment.risks.join("\n"),
+      })
+
 
       // Fetch budget check in background
       if (task.assignee !== "unassigned") {
@@ -573,19 +590,43 @@ export default function TasksPage() {
     }
   }
 
+  const planningReady = Boolean(
+    planningDraft?.title.trim() &&
+    planningDraft?.description.trim() &&
+    planningDraft?.implementationPlan.split(/\n+/).map((s) => s.trim()).filter(Boolean).length > 0
+  )
+
   const confirmActivation = async () => {
     if (!pendingActivation) return
     setActivating(true)
     setBudgetError(null)
 
     const { task, newColumn } = pendingActivation
+    const draft = planningDraft ?? {
+      title: task.enrichedTitle ?? task.title,
+      description: task.enrichedDescription ?? task.description ?? "",
+      acceptanceCriteria: (task.acceptanceCriteria ?? []).join("\n"),
+      implementationPlan: (task.implementationPlan ?? []).join("\n"),
+      risks: (task.risks ?? []).join("\n"),
+    }
+
+    const parsedAcceptanceCriteria = draft.acceptanceCriteria.split(/\n+/).map((s) => s.trim()).filter(Boolean)
+    const parsedImplementationPlan = draft.implementationPlan.split(/\n+/).map((s) => s.trim()).filter(Boolean)
+    const parsedRisks = draft.risks.split(/\n+/).map((s) => s.trim()).filter(Boolean)
 
     try {
-      // Persist column move
+      // Persist planning draft and column move
       await fetch(`/api/tasks/${task.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ column: newColumn }),
+        body: JSON.stringify({
+          column: newColumn,
+          enrichedTitle: draft.title,
+          enrichedDescription: draft.description,
+          acceptanceCriteria: parsedAcceptanceCriteria,
+          implementationPlan: parsedImplementationPlan,
+          risks: parsedRisks,
+        }),
       })
 
       // Fire agent activation
@@ -642,6 +683,7 @@ export default function TasksPage() {
     }
 
     setPendingActivation(null)
+    setPlanningDraft(null)
     setBudgetError(null)
   }
 
@@ -654,6 +696,7 @@ export default function TasksPage() {
       prev.map((t) => (t.id === task.id ? { ...t, column: task.column } : t))
     )
     setPendingActivation(null)
+    setPlanningDraft(null)
     setBudgetError(null)
   }
 
@@ -902,17 +945,91 @@ export default function TasksPage() {
 
             {/* Task info */}
             {pendingActivation.task.column === "planning" && (
-              <div className="rounded-lg border border-zinc-800 bg-black/20 p-3 text-xs text-zinc-400">
-                Refine the idea here. When the plan looks right, hit Go to move this into In Progress and spin up the agent.
+              <div className="rounded-lg border border-zinc-800 bg-black/20 p-3 text-xs text-zinc-400 space-y-2">
+                <p>Refine the idea here. When the plan looks right, hit Go to move this into In Progress and spin up the agent.</p>
+                <p className="text-[11px] text-zinc-500">Ready to Go when title, description, and at least one implementation step are filled.</p>
               </div>
             )}
             <div className="space-y-2">
-              <p className="text-base font-semibold text-white">{pendingActivation.enrichment?.enrichedTitle ?? pendingActivation.task.title}</p>
-              {(pendingActivation.enrichment?.enrichedDescription || pendingActivation.task.description) && (
-                <p className="text-xs text-zinc-400 leading-relaxed line-clamp-4 whitespace-pre-line">
-                  {pendingActivation.enrichment?.enrichedDescription ?? pendingActivation.task.description}
-                </p>
-              )}
+              <label className="block space-y-1">
+                <span className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Plan title</span>
+                <input
+                  value={planningDraft?.title ?? pendingActivation.enrichment?.enrichedTitle ?? pendingActivation.task.title}
+                  onChange={(e) => setPlanningDraft((prev) => ({
+                    title: e.target.value,
+                    description: prev?.description ?? pendingActivation.enrichment?.enrichedDescription ?? pendingActivation.task.description ?? "",
+                    acceptanceCriteria: prev?.acceptanceCriteria ?? (pendingActivation.enrichment?.acceptanceCriteria ?? []).join("\n"),
+                    implementationPlan: prev?.implementationPlan ?? (pendingActivation.enrichment?.implementationPlan ?? []).join("\n"),
+                    risks: prev?.risks ?? (pendingActivation.enrichment?.risks ?? []).join("\n"),
+                  }))}
+                  className="w-full rounded-lg border border-zinc-800 bg-black/20 px-3 py-2 text-sm text-white outline-none focus:border-fuchsia-500/50"
+                />
+              </label>
+              <label className="block space-y-1">
+                <span className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Problem statement</span>
+                <textarea
+                  rows={3}
+                  value={planningDraft?.description ?? pendingActivation.enrichment?.enrichedDescription ?? pendingActivation.task.description ?? ""}
+                  onChange={(e) => setPlanningDraft((prev) => ({
+                    title: prev?.title ?? pendingActivation.enrichment?.enrichedTitle ?? pendingActivation.task.title,
+                    description: e.target.value,
+                    acceptanceCriteria: prev?.acceptanceCriteria ?? (pendingActivation.enrichment?.acceptanceCriteria ?? []).join("\n"),
+                    implementationPlan: prev?.implementationPlan ?? (pendingActivation.enrichment?.implementationPlan ?? []).join("\n"),
+                    risks: prev?.risks ?? (pendingActivation.enrichment?.risks ?? []).join("\n"),
+                  }))}
+                  className="w-full rounded-lg border border-zinc-800 bg-black/20 px-3 py-2 text-sm text-white outline-none focus:border-fuchsia-500/50"
+                />
+              </label>
+              <label className="block space-y-1">
+                <span className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">First steps</span>
+                <textarea
+                  rows={3}
+                  placeholder="One step per line"
+                  value={planningDraft?.implementationPlan ?? (pendingActivation.enrichment?.implementationPlan ?? []).join("\n")}
+                  onChange={(e) => setPlanningDraft((prev) => ({
+                    title: prev?.title ?? pendingActivation.enrichment?.enrichedTitle ?? pendingActivation.task.title,
+                    description: prev?.description ?? pendingActivation.enrichment?.enrichedDescription ?? pendingActivation.task.description ?? "",
+                    acceptanceCriteria: prev?.acceptanceCriteria ?? (pendingActivation.enrichment?.acceptanceCriteria ?? []).join("\n"),
+                    implementationPlan: e.target.value,
+                    risks: prev?.risks ?? (pendingActivation.enrichment?.risks ?? []).join("\n"),
+                  }))}
+                  className="w-full rounded-lg border border-zinc-800 bg-black/20 px-3 py-2 text-sm text-white outline-none focus:border-fuchsia-500/50"
+                />
+              </label>
+              <div className="grid gap-3 md:grid-cols-2">
+                <label className="block space-y-1">
+                  <span className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Acceptance criteria</span>
+                  <textarea
+                    rows={4}
+                    placeholder="One criterion per line"
+                    value={planningDraft?.acceptanceCriteria ?? (pendingActivation.enrichment?.acceptanceCriteria ?? []).join("\n")}
+                    onChange={(e) => setPlanningDraft((prev) => ({
+                      title: prev?.title ?? pendingActivation.enrichment?.enrichedTitle ?? pendingActivation.task.title,
+                      description: prev?.description ?? pendingActivation.enrichment?.enrichedDescription ?? pendingActivation.task.description ?? "",
+                      acceptanceCriteria: e.target.value,
+                      implementationPlan: prev?.implementationPlan ?? (pendingActivation.enrichment?.implementationPlan ?? []).join("\n"),
+                      risks: prev?.risks ?? (pendingActivation.enrichment?.risks ?? []).join("\n"),
+                    }))}
+                    className="w-full rounded-lg border border-zinc-800 bg-black/20 px-3 py-2 text-sm text-white outline-none focus:border-fuchsia-500/50"
+                  />
+                </label>
+                <label className="block space-y-1">
+                  <span className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Risks / unknowns</span>
+                  <textarea
+                    rows={4}
+                    placeholder="One risk per line"
+                    value={planningDraft?.risks ?? (pendingActivation.enrichment?.risks ?? []).join("\n")}
+                    onChange={(e) => setPlanningDraft((prev) => ({
+                      title: prev?.title ?? pendingActivation.enrichment?.enrichedTitle ?? pendingActivation.task.title,
+                      description: prev?.description ?? pendingActivation.enrichment?.enrichedDescription ?? pendingActivation.task.description ?? "",
+                      acceptanceCriteria: prev?.acceptanceCriteria ?? (pendingActivation.enrichment?.acceptanceCriteria ?? []).join("\n"),
+                      implementationPlan: prev?.implementationPlan ?? (pendingActivation.enrichment?.implementationPlan ?? []).join("\n"),
+                      risks: e.target.value,
+                    }))}
+                    className="w-full rounded-lg border border-zinc-800 bg-black/20 px-3 py-2 text-sm text-white outline-none focus:border-fuchsia-500/50"
+                  />
+                </label>
+              </div>
             </div>
 
             {pendingActivation.enrichment && (
@@ -1033,7 +1150,11 @@ export default function TasksPage() {
               {!demoMode && (
                 <button
                   onClick={confirmActivation}
-                  disabled={activating || (pendingActivation.budgetInfo !== null && !pendingActivation.budgetInfo.allowed)}
+                  disabled={
+                    activating ||
+                    (pendingActivation.task.column === "planning" && !planningReady) ||
+                    (pendingActivation.budgetInfo !== null && !pendingActivation.budgetInfo.allowed)
+                  }
                   className="flex-1 py-2.5 rounded-lg text-sm font-medium transition-all"
                   style={{
                     backgroundColor:
@@ -1051,7 +1172,7 @@ export default function TasksPage() {
                         : "pointer",
                   }}
                 >
-                  {activating ? "Going..." : pendingActivation.task.column === "planning" ? "Go" : "Activate Agent"}
+                  {activating ? "Going..." : pendingActivation.task.column === "planning" ? (planningReady ? "Go" : "Fill Plan to Go") : "Activate Agent"}
                 </button>
               )}
               <button
