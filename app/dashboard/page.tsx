@@ -386,7 +386,7 @@ export default function DashboardPage() {
                 <Link href={`/projects/${encodeURIComponent(hotRiskRepo(repos)!.name)}`} className="rounded-xl border border-zinc-800 bg-black/20 p-3 transition-transform duration-300 hover:-translate-y-0.5 hover:border-amber-500/30 hover:bg-amber-500/5">
                   <p className="text-[10px] uppercase tracking-widest text-zinc-500">Risk</p>
                   <p className="mt-1 text-sm text-white">{hotRiskLabel(repos)}</p>
-                  <p className="mt-1 text-[10px] text-zinc-600">Open project war room →</p>
+                  <p className="mt-1 text-[10px] text-zinc-600">Open war room →</p>
                 </Link>
               ) : (
                 <Link href="/alerts" className="rounded-xl border border-zinc-800 bg-black/20 p-3 transition-transform duration-300 hover:-translate-y-0.5 hover:border-amber-500/30 hover:bg-amber-500/5">

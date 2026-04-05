@@ -22,16 +22,16 @@ export function ProjectActions({ projectName, taskTitle, taskDescription, taskPr
     title: taskTitle,
     summary: taskDescription,
     acceptanceCriteria: [
-      `Fix ${projectName} risk without regressing the existing flow`,
-      "Keep the user-facing behavior simple and clearly documented",
-      "Leave the task in a state that the agent can execute without clarification",
+      `No regression in the ${projectName} flow`,
+      "User-facing behavior stays simple and clearly documented",
+      "The agent can execute without needing clarification",
     ],
     plan: [
-      "Inspect the project context and identify the highest-risk change",
-      "Create or update the task with clear instructions and owner",
-      "Activate only after the brief has been reviewed for critical risks",
+      "Inspect the project context and isolate the highest-risk change",
+      "Create or update the task with a crisp owner and instructions",
+      "Approve only after the brief is reviewed for critical risks",
     ],
-    risk: taskPriority === "high" ? "Critical risk: review before activation." : "Standard risk: safe to activate directly.",
+    risk: taskPriority === "high" ? "Critical risk — review before activation." : "Standard risk — safe to activate directly.",
   }
 
   async function createFixTask(shouldActivate: boolean, bypassReview = false) {
@@ -90,45 +90,45 @@ export function ProjectActions({ projectName, taskTitle, taskDescription, taskPr
         disabled={busy}
         className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs font-semibold text-amber-200 transition-colors hover:bg-amber-500/15 disabled:opacity-50"
       >
-        Create fix task
+        Draft fix task
       </button>
       <button
         onClick={() => void createFixTask(true)}
         disabled={busy}
         className="rounded-lg border border-cyan-500/30 bg-cyan-500/10 px-3 py-2 text-xs font-semibold text-cyan-200 transition-colors hover:bg-cyan-500/15 disabled:opacity-50"
       >
-        Create + activate
+        Draft + activate
       </button>
-      <p className="text-xs text-zinc-500">{message || "Turns the top risk into a backlog task with AI enrichment."}</p>
+      <p className="text-xs text-zinc-500">{message || "Turns the top risk into an AI-enriched task."}</p>
 
       {reviewOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: "rgba(0,0,0,0.72)" }} onClick={() => setReviewOpen(false)}>
-          <div className="w-full max-w-xl rounded-2xl border border-zinc-800 bg-[#111118] p-5" onClick={(e) => e.stopPropagation()}>
+          <div className="w-full max-w-xl rounded-2xl border border-zinc-800 bg-[#111118] p-5 shadow-[0_0_30px_rgba(8,145,178,0.08)]" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">Review before activation</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">Review</p>
                 <h3 className="mt-1 text-lg font-semibold text-white">{enrichedBrief.title}</h3>
               </div>
               <span className="rounded-full border border-amber-500/20 bg-amber-500/10 px-2 py-1 text-[10px] uppercase tracking-[0.2em] text-amber-200">
                 High risk
               </span>
             </div>
-            <p className="mt-3 text-sm text-zinc-300 whitespace-pre-wrap">{enrichedBrief.summary}</p>
+            <p className="mt-3 text-sm leading-6 text-zinc-300 whitespace-pre-wrap">{enrichedBrief.summary}</p>
             <div className="mt-4 grid gap-3 md:grid-cols-2">
               <div className="rounded-xl border border-zinc-800 bg-black/20 p-3">
                 <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Acceptance criteria</p>
-                <ul className="mt-2 space-y-1 text-xs text-zinc-300 list-disc pl-4">
+                <ul className="mt-2 space-y-1 text-xs leading-5 text-zinc-300 list-disc pl-4">
                   {enrichedBrief.acceptanceCriteria.map((item) => <li key={item}>{item}</li>)}
                 </ul>
               </div>
               <div className="rounded-xl border border-zinc-800 bg-black/20 p-3">
                 <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Plan</p>
-                <ol className="mt-2 space-y-1 text-xs text-zinc-300 list-decimal pl-4">
+                <ol className="mt-2 space-y-1 text-xs leading-5 text-zinc-300 list-decimal pl-4">
                   {enrichedBrief.plan.map((item) => <li key={item}>{item}</li>)}
                 </ol>
               </div>
             </div>
-            <div className="mt-4 rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 text-xs text-amber-200">{enrichedBrief.risk}</div>
+            <div className="mt-4 rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 text-xs leading-5 text-amber-200">{enrichedBrief.risk}</div>
             <div className="mt-5 flex flex-wrap justify-end gap-2">
               <button onClick={() => setReviewOpen(false)} className="rounded-lg border border-zinc-700 bg-black/20 px-3 py-2 text-xs font-semibold text-zinc-300 hover:bg-white/5">Close</button>
               <button
