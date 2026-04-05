@@ -18,6 +18,7 @@ export function ProjectActions({ projectName, taskTitle, taskDescription, taskPr
   const [message, setMessage] = useState("")
 
   async function createFixTask(shouldActivate: boolean) {
+    const requireReview = shouldActivate && taskPriority === "high"
     setBusy(true)
     setMessage("")
     try {
@@ -27,7 +28,7 @@ export function ProjectActions({ projectName, taskTitle, taskDescription, taskPr
         body: JSON.stringify({
           title: taskTitle,
           description: taskDescription,
-          column: shouldActivate ? "in-progress" : "backlog",
+          column: requireReview ? "backlog" : shouldActivate ? "in-progress" : "backlog",
           priority: taskPriority,
           assignee: taskAssignee,
           tags: [projectName, "risk", "war-room"],
@@ -36,7 +37,7 @@ export function ProjectActions({ projectName, taskTitle, taskDescription, taskPr
       if (!createRes.ok) throw new Error("Failed to create task")
       const task = await createRes.json() as { id: string; title: string; description?: string; assignee?: string; priority?: string }
 
-      if (shouldActivate) {
+      if (shouldActivate && !requireReview) {
         const activateRes = await fetch("/api/tasks/activate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -50,6 +51,8 @@ export function ProjectActions({ projectName, taskTitle, taskDescription, taskPr
         })
         if (!activateRes.ok) throw new Error("Failed to activate task")
         setMessage("Created and activated fix task")
+      } else if (requireReview) {
+        setMessage("Created fix task in backlog for review")
       } else {
         setMessage("Created fix task in backlog")
       }
