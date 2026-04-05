@@ -3,6 +3,7 @@ import { readFile, writeFile } from "fs/promises"
 import { join } from "path"
 import type { Task } from "@/lib/tasks"
 import { enrichTaskBrief } from "@/lib/task-enrichment"
+import { appendEvent, ensureTaskConversation } from "@/lib/conversations"
 
 const DATA_PATH = join(process.cwd(), "data", "tasks.json")
 
@@ -82,6 +83,24 @@ export async function POST(request: Request) {
 
     const updated = [...tasks, newTask]
     await writeTasks(updated)
+
+    if (newTask.column === "planning") {
+      const conversation = await ensureTaskConversation({
+        taskId: newTask.id,
+        title: newTask.enrichedTitle ?? newTask.title,
+        agent: newTask.assignee === "unassigned" ? "vic" : newTask.assignee,
+      })
+      await appendEvent(conversation.id, {
+        type: "task.linked",
+        agent: newTask.assignee === "unassigned" ? "vic" : newTask.assignee,
+        summary: `Linked task ${newTask.title} to planning conversation`,
+        data: {
+          taskId: newTask.id,
+          taskTitle: newTask.title,
+          column: newTask.column,
+        },
+      })
+    }
 
     return NextResponse.json(newTask, { status: 201 })
   } catch {

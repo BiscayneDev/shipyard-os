@@ -67,6 +67,7 @@ interface PlanningDraft {
   acceptanceCriteria: string
   implementationPlan: string
   risks: string
+  conversationId?: string
 }
 
 interface GoalOption {
@@ -719,6 +720,7 @@ export default function TasksPage() {
         }),
       })
       const newTask: Task = await res.json()
+      const conversationId = newTask.column === "planning" ? `task-${newTask.id}` : undefined
       setTasks((prev) => [...prev, newTask])
       setLastUpdated(new Date())
       setQuickIdea("")
@@ -741,6 +743,7 @@ export default function TasksPage() {
         acceptanceCriteria: (newTask.acceptanceCriteria ?? []).join("\n"),
         implementationPlan: (newTask.implementationPlan ?? []).join("\n"),
         risks: (newTask.risks ?? []).join("\n"),
+        conversationId,
       })
     } finally {
       setDraftingIdea(false)
@@ -1022,6 +1025,11 @@ export default function TasksPage() {
               <div className="rounded-lg border border-zinc-800 bg-black/20 p-3 text-xs text-zinc-400 space-y-2">
                 <p>Refine the idea here. When the plan looks right, hit Go to move this into In Progress and spin up the agent.</p>
                 <p className="text-[11px] text-zinc-500">Ready to Go when title, description, and at least one implementation step are filled.</p>
+                {planningDraft?.conversationId && (
+                  <Link href={`/conversations?id=${planningDraft.conversationId}`} className="inline-flex rounded-full border border-fuchsia-500/20 bg-fuchsia-500/10 px-2 py-1 text-[11px] text-fuchsia-300 hover:bg-fuchsia-500/15">
+                    Open Vic thread
+                  </Link>
+                )}
               </div>
             )}
             <div className="space-y-2">
