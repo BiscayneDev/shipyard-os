@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 
 import { execSync, spawn } from "node:child_process"
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs"
+import { existsSync, readFileSync, writeFileSync, mkdirSync, rmSync } from "node:fs"
 import { resolve, join, dirname } from "node:path"
 import { createInterface } from "node:readline"
 import { homedir } from "node:os"
+import { callTool } from "./mcp-client.js"
 
 // ── Colors (no dependencies) ────────────────────────────────────────────────
 
@@ -320,6 +321,11 @@ async function cmdHelp() {
     `${bold("shipyard agent remove")} ${dim("<id> Remove an agent")}`,
     `${bold("shipyard env list")}      ${dim("Show env vars (secrets redacted)")}`,
     `${bold("shipyard env set")}       ${dim("<KEY> <VALUE> Set an env var")}`,
+    `${bold("shipyard skill search")} ${dim("<query> Search marketplace skills")}`,
+    `${bold("shipyard skill list")}   ${dim("List all available skills")}`,
+    `${bold("shipyard skill add")}    ${dim("<slug> Install a skill")}`,
+    `${bold("shipyard skill info")}   ${dim("<slug> Show installed skill details")}`,
+    `${bold("shipyard skill remove")} ${dim("<slug> Remove an installed skill")}`,
     `${bold("shipyard dev")}           ${dim("Start the dev server")}`,
     "",
     dim("Flags: --json, --runtime <val>, --open, --yes"),
@@ -729,6 +735,292 @@ async function cmdDev(flags) {
   process.on("SIGTERM", () => child.kill("SIGTERM"))
 }
 
+// ── Skills Utilities ────────────────────────────────────────────────────────
+
+const SKILLS_DIR = join(homedir(), ".shipyard", "skills")
+const INSTALLED_REGISTRY = join(SKILLS_DIR, "installed.json")
+
+function ensureSkillsDir() {
+  if (!existsSync(SKILLS_DIR)) mkdirSync(SKILLS_DIR, { recursive: true })
+}
+
+function readInstalledRegistry() {
+  ensureSkillsDir()
+  if (!existsSync(INSTALLED_REGISTRY)) return []
+  try {
+    return JSON.parse(readFileSync(INSTALLED_REGISTRY, "utf8"))
+  } catch {
+    return []
+  }
+}
+
+function writeInstalledRegistry(skills) {
+  ensureSkillsDir()
+  writeFileSync(INSTALLED_REGISTRY, JSON.stringify(skills, null, 2) + "\n")
+}
+
+// ── Skill Commands ──────────────────────────────────────────────────────────
+
+async function cmdSkillSearch(args, flags) {
+  const query = args.join(" ")
+  if (!query) {
+    console.log(red("  Usage: shipyard skill search <query>"))
+    process.exit(1)
+  }
+
+  const s = spinner(`Searching for "${query}"...`)
+  try {
+    const result = await callTool("search_skills", { search: query })
+    s.stop(`Found ${result.skills?.length ?? 0} skill(s)`)
+
+    const skills = result.skills || []
+    if (flags.json) {
+      console.log(JSON.stringify(skills, null, 2))
+      return
+    }
+
+    if (skills.length === 0) {
+      console.log(dim("  No skills found."))
+      console.log()
+      return
+    }
+
+    printSkillTable(skills)
+  } catch (err) {
+    s.fail("Search failed")
+    console.log(red(`  ${err.message}`))
+    process.exit(1)
+  }
+}
+
+async function cmdSkillList(flags) {
+  const s = spinner("Fetching skill registry...")
+  try {
+    const result = await callTool("get_skill_registry", {})
+    const skills = result.skills || []
+    s.stop(`${skills.length} skill(s) available`)
+
+    if (flags.json) {
+      console.log(JSON.stringify(skills, null, 2))
+      return
+    }
+
+    if (skills.length === 0) {
+      console.log(dim("  No skills in registry."))
+      console.log()
+      return
+    }
+
+    printSkillTable(skills)
+  } catch (err) {
+    s.fail("Failed to fetch registry")
+    console.log(red(`  ${err.message}`))
+    process.exit(1)
+  }
+}
+
+function printSkillTable(skills) {
+  console.log()
+  const header = `  ${padRight("Name", 24)}${padRight("Version", 10)}${padRight("Installs", 10)}${padRight("Tags", 20)}${"Description"}`
+  console.log(header)
+  console.log(dim(`  ${"─".repeat(90)}`))
+
+  for (const sk of skills) {
+    const name = sk.emoji ? `${sk.emoji} ${sk.name || sk.slug}` : (sk.name || sk.slug)
+    const version = sk.version || "-"
+    const installs = sk.install_count != null ? String(sk.install_count) : "-"
+    const tags = (sk.tags || []).slice(0, 3).join(", ")
+    const desc = (sk.description || "").slice(0, 40)
+    console.log(`  ${padRight(name, 24)}${padRight(version, 10)}${padRight(installs, 10)}${padRight(tags, 20)}${dim(desc)}`)
+  }
+  console.log()
+}
+
+async function cmdSkillAdd(args, flags) {
+  const slug = args[0]
+  if (!slug) {
+    console.log(red("  Usage: shipyard skill add <slug>"))
+    process.exit(1)
+  }
+
+  const s = spinner(`Installing ${slug}...`)
+  try {
+    const result = await callTool("install_skill", { slug })
+    s.stop(`Installed ${result.skill?.name || slug}`)
+
+    const skill = result.skill || {}
+    const skillDir = join(SKILLS_DIR, slug)
+    if (!existsSync(skillDir)) mkdirSync(skillDir, { recursive: true })
+
+    // Save manifest
+    if (result.manifest) {
+      writeFileSync(join(skillDir, "manifest.json"), JSON.stringify(result.manifest, null, 2) + "\n")
+    }
+
+    // Save instructions
+    if (result.instructions) {
+      writeFileSync(join(skillDir, "skill.md"), result.instructions)
+    }
+
+    // Save tool definitions
+    if (skill.tool_definitions && skill.tool_definitions.length > 0) {
+      writeFileSync(join(skillDir, "tools.json"), JSON.stringify(skill.tool_definitions, null, 2) + "\n")
+    }
+
+    // Update installed registry
+    const installed = readInstalledRegistry()
+    const existing = installed.findIndex((s) => s.slug === slug)
+    const entry = {
+      slug,
+      name: skill.name || slug,
+      version: skill.version || "unknown",
+      emoji: skill.emoji || "",
+      description: skill.description || "",
+      installedAt: new Date().toISOString(),
+    }
+    if (existing >= 0) {
+      installed[existing] = entry
+    } else {
+      installed.push(entry)
+    }
+    writeInstalledRegistry(installed)
+
+    // Print summary
+    if (flags.json) {
+      console.log(JSON.stringify(result, null, 2))
+      return
+    }
+
+    console.log()
+    if (skill.requires_env && skill.requires_env.length > 0) {
+      console.log(yellow("  Required environment variables:"))
+      for (const env of skill.requires_env) {
+        console.log(`    ${bold(env)}`)
+      }
+      console.log()
+    }
+
+    if (skill.requires_bins && skill.requires_bins.length > 0) {
+      console.log(yellow("  Required binaries:"))
+      for (const bin of skill.requires_bins) {
+        console.log(`    ${bold(bin)}`)
+      }
+      console.log()
+    }
+
+    if (result.api_references && result.api_references.length > 0) {
+      console.log(cyan("  API references:"))
+      for (const ref of result.api_references) {
+        console.log(`    ${bold(ref.name)} ${dim(ref.base_url || "")} ${dim(`(${ref.relationship || "related"})`)}`)
+      }
+      console.log()
+    }
+
+    console.log(dim(`  Saved to ~/.shipyard/skills/${slug}/`))
+    console.log()
+  } catch (err) {
+    s.fail(`Failed to install ${slug}`)
+    console.log(red(`  ${err.message}`))
+    process.exit(1)
+  }
+}
+
+async function cmdSkillInfo(args, flags) {
+  const slug = args[0]
+  if (!slug) {
+    console.log(red("  Usage: shipyard skill info <slug>"))
+    process.exit(1)
+  }
+
+  const skillDir = join(SKILLS_DIR, slug)
+  if (!existsSync(skillDir)) {
+    console.log(red(`  Skill "${slug}" is not installed.`))
+    console.log(dim(`  Run: shipyard skill add ${slug}`))
+    process.exit(1)
+  }
+
+  const manifestPath = join(skillDir, "manifest.json")
+  const toolsPath = join(skillDir, "tools.json")
+  const instructionsPath = join(skillDir, "skill.md")
+
+  const manifest = existsSync(manifestPath) ? JSON.parse(readFileSync(manifestPath, "utf8")) : null
+  const tools = existsSync(toolsPath) ? JSON.parse(readFileSync(toolsPath, "utf8")) : []
+  const hasInstructions = existsSync(instructionsPath)
+
+  // Also check installed registry for metadata
+  const installed = readInstalledRegistry()
+  const entry = installed.find((s) => s.slug === slug)
+
+  if (flags.json) {
+    console.log(JSON.stringify({ slug, manifest, tools, entry }, null, 2))
+    return
+  }
+
+  console.log()
+  const name = entry?.emoji ? `${entry.emoji} ${entry?.name || slug}` : (entry?.name || slug)
+  console.log(bold(`  ${name}`))
+  if (entry?.description) console.log(dim(`  ${entry.description}`))
+  console.log()
+  console.log(`  ${dim("Version")}      ${entry?.version || "unknown"}`)
+  console.log(`  ${dim("Installed")}    ${entry?.installedAt ? new Date(entry.installedAt).toLocaleDateString() : "unknown"}`)
+  console.log(`  ${dim("Path")}         ~/.shipyard/skills/${slug}/`)
+  console.log(`  ${dim("Instructions")} ${hasInstructions ? green("yes") : dim("none")}`)
+  console.log(`  ${dim("Tools")}        ${tools.length > 0 ? `${tools.length} tool(s)` : dim("none")}`)
+
+  if (tools.length > 0) {
+    console.log()
+    console.log(bold("  Tool definitions:"))
+    for (const tool of tools) {
+      console.log(`    ${cyan(tool.name || tool.function?.name || "unnamed")} ${dim(tool.description || tool.function?.description || "")}`)
+    }
+  }
+
+  if (manifest && manifest.requires_env && manifest.requires_env.length > 0) {
+    console.log()
+    console.log(yellow("  Required env vars:"))
+    for (const env of manifest.requires_env) {
+      console.log(`    ${bold(env)}`)
+    }
+  }
+
+  console.log()
+}
+
+async function cmdSkillRemove(args, flags) {
+  const slug = args[0]
+  if (!slug) {
+    console.log(red("  Usage: shipyard skill remove <slug>"))
+    process.exit(1)
+  }
+
+  const skillDir = join(SKILLS_DIR, slug)
+  if (!existsSync(skillDir)) {
+    console.log(red(`  Skill "${slug}" is not installed.`))
+    process.exit(1)
+  }
+
+  if (!flags.yes) {
+    const yes = await confirm(`Remove skill "${slug}"?`)
+    if (!yes) {
+      console.log(dim("  Cancelled."))
+      return
+    }
+  }
+
+  // Remove directory
+  rmSync(skillDir, { recursive: true, force: true })
+
+  // Update installed registry
+  const installed = readInstalledRegistry()
+  const updated = installed.filter((s) => s.slug !== slug)
+  writeInstalledRegistry(updated)
+
+  console.log()
+  console.log(`  ${green("\u2713")} Removed skill "${slug}"`)
+  console.log(dim(`  Deleted ~/.shipyard/skills/${slug}/`))
+  console.log()
+}
+
 // ── Command Router ───────────────────────────────────────────────────────────
 
 async function main() {
@@ -784,6 +1076,30 @@ async function main() {
         default:
           console.log(red(`  Unknown env command: ${subcommand || "(none)"}`))
           console.log(dim("  Available: env list, env set <KEY> <VALUE>"))
+          process.exit(1)
+      }
+      break
+
+    case "skill":
+      switch (subcommand) {
+        case "search":
+          await cmdSkillSearch(restArgs, flags)
+          break
+        case "list":
+          await cmdSkillList(flags)
+          break
+        case "add":
+          await cmdSkillAdd(restArgs, flags)
+          break
+        case "info":
+          await cmdSkillInfo(restArgs, flags)
+          break
+        case "remove":
+          await cmdSkillRemove(restArgs, flags)
+          break
+        default:
+          console.log(red(`  Unknown skill command: ${subcommand || "(none)"}`))
+          console.log(dim("  Available: skill search, skill list, skill add, skill info, skill remove"))
           process.exit(1)
       }
       break
