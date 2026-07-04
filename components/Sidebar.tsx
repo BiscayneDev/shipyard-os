@@ -21,6 +21,7 @@ import {
   Clock,
   Wallet,
   PanelRightOpen,
+  Code2,
 } from "lucide-react";
 
 const navSections = [
@@ -42,6 +43,7 @@ const navSections = [
     label: "Work",
     items: [
       { href: "/projects", label: "Projects", icon: Folder },
+      { href: "/shipwright", label: "Shipwright", icon: Code2 },
       { href: "/calendar", label: "Calendar", icon: Calendar },
       { href: "/intel", label: "Intel", icon: Zap },
     ],

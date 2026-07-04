@@ -394,6 +394,17 @@ export default function DashboardPage() {
             </div>
           )}
 
+          <Link href="/shipwright" className="block rounded-xl border border-cyan-500/20 bg-cyan-500/10 p-5 shadow-[0_0_30px_rgba(6,182,212,0.05)] transition hover:border-cyan-400/30 hover:bg-cyan-500/15">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">Shipwright</p>
+                <h2 className="mt-2 text-lg font-semibold text-white">From API spec to agent-ready tooling</h2>
+                <p className="mt-2 text-sm text-zinc-400">Generate CLIs and MCP servers from any API spec inside the main Shipyard stack.</p>
+              </div>
+              <span className="rounded-full border border-cyan-500/20 bg-cyan-500/10 px-2 py-1 text-[10px] uppercase tracking-widest text-cyan-300">New</span>
+            </div>
+          </Link>
+
           <section className="rounded-xl border border-zinc-800 bg-[#111118] p-5 shadow-[0_0_30px_rgba(124,58,237,0.05)]">
             <div className="flex items-center justify-between">
               <div>
