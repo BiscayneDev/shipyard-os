@@ -4,10 +4,10 @@ import { ArrowRight, CheckCircle2, Code2, Layers3, Sparkles, Wallet, Zap } from 
 
 export const metadata: Metadata = {
   title: "Shipwright | Shipyard",
-  description: "Turn any API spec into agent-ready CLI and MCP tooling.",
+  description: "Turn an API service into a working CLI + MCP server.",
   openGraph: {
     title: "Shipwright | Shipyard",
-    description: "Turn any API spec into agent-ready CLI and MCP tooling.",
+    description: "Turn an API service into a working CLI + MCP server.",
     url: "/shipwright",
     siteName: "Shipyard OS",
     type: "website",
@@ -15,7 +15,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "Shipwright | Shipyard",
-    description: "Turn any API spec into agent-ready CLI and MCP tooling.",
+    description: "Turn an API service into a working CLI + MCP server.",
   },
 }
 
@@ -23,46 +23,46 @@ const capabilities = [
   {
     icon: Code2,
     title: "Generate a CLI",
-    description: "Shipwright turns OpenAPI-backed services into a usable Go-based command-line tool.",
+    description: "Shipwright turns your API service into a usable Go command-line tool.",
   },
   {
     icon: Layers3,
     title: "Generate an MCP server",
-    description: "Expose the same API as agent-ready tooling your models can call directly.",
+    description: "Shipwright exposes the same service as agent-ready MCP tools.",
   },
   {
     icon: Wallet,
-    title: "Wire in Buoy later",
-    description: "Add x402 payment gating when the API needs metered, agent-paid access.",
+    title: "Add Buoy when needed",
+    description: "Wrap the service with x402 payment gating when you want paid access.",
   },
   {
     icon: Zap,
-    title: "Stay local and fast",
-    description: "Use a SQLite mirror for offline search, compact state, and token-efficient workflows.",
+    title: "Keep a local mirror",
+    description: "Mirror API state in SQLite for fast, compact, token-efficient workflows.",
   },
 ]
 
 const steps = [
   {
-    title: "Point Shipwright at an API",
-    body: "Give it an OpenAPI spec or a documented service and let the builder inspect the surface area.",
+    title: "Connect your API service",
+    body: "Point Shipwright at an OpenAPI spec or documented service and let it inspect the endpoints.",
   },
   {
-    title: "Generate the tooling",
-    body: "Shipwright creates the CLI and MCP entrypoints so agents can operate the API without bespoke glue code.",
+    title: "Generate the working CLI + MCP server",
+    body: "Shipwright ships a real repo with the command-line tool, MCP server, README, and install instructions.",
   },
   {
-    title: "Ship it inside Shipyard",
-    body: "Use the result in the broader stack — pair it with Shipyard OS, Buoy, Dock, and Fleet as needed.",
+    title: "Ship it from GitHub",
+    body: "Push the generated repo, link it from Shipyard, and use it in your agent workflow right away.",
   },
 ]
 
 const benefits = [
-  "No hand-written wrappers for every API",
-  "One command from spec to useful tooling",
-  "MCP-ready by default for agent workflows",
+  "Working CLI and MCP repo, not just a stub",
+  "One command from API spec to usable tooling",
+  "Built for agents and humans to use the same surface",
   "SQLite mirror for local state and recall",
-  "Buoy-compatible if you want payment gating",
+  "Buoy-compatible when you want payment gating",
 ]
 
 export default function ShipwrightPage() {
@@ -72,15 +72,15 @@ export default function ShipwrightPage() {
         <div className="space-y-6">
           <div className="inline-flex items-center gap-2 rounded-full border border-cyan-500/20 bg-cyan-500/10 px-3 py-1 text-[10px] uppercase tracking-[0.22em] text-cyan-300">
             <Sparkles size={12} />
-            CLI + MCP generation
+            API → working CLI + MCP repo
           </div>
 
           <div className="space-y-4">
             <h1 className="text-4xl font-bold tracking-tight text-white sm:text-5xl">
-              From API spec to agent-ready tooling
+              Turn an API service into a working CLI + MCP server
             </h1>
             <p className="max-w-2xl text-lg leading-8 text-zinc-400">
-              Turn any OpenAPI-backed service into a CLI and MCP server your agents can actually use — with Shipwright inside the main Shipyard stack.
+              Shipwright detects your endpoints, generates the tooling, and ships a ready-to-use repo — so your API becomes something agents can actually call.
             </p>
           </div>
 
@@ -114,7 +114,7 @@ export default function ShipwrightPage() {
           <div className="flex items-center justify-between gap-3 border-b border-zinc-800 pb-4">
             <div>
               <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">What Shipwright does</p>
-              <p className="mt-2 text-sm text-zinc-300">A builder layer for the Shipyard ecosystem</p>
+              <p className="mt-2 text-sm text-zinc-300">A builder layer inside the main Shipyard site</p>
             </div>
             <div className="rounded-full border border-cyan-500/20 bg-cyan-500/10 px-3 py-1 text-[10px] uppercase tracking-[0.2em] text-cyan-300">
               Live under Shipyard
@@ -123,10 +123,10 @@ export default function ShipwrightPage() {
 
           <div className="mt-5 space-y-4">
             {[
-              "Detect the API surface",
-              "Generate CLI and MCP tooling",
-              "Mirror state locally in SQLite",
-              "Plug into Buoy when you want payments",
+              "Inspect the API endpoints",
+              "Generate a working CLI + MCP repo",
+              "Include README and install instructions",
+              "Push the repo to GitHub and ship it",
             ].map((line) => (
               <div key={line} className="flex items-center gap-3 rounded-2xl border border-zinc-800 bg-black/20 px-4 py-3 text-sm text-zinc-300">
                 <div className="h-2.5 w-2.5 rounded-full bg-cyan-400" />
@@ -136,9 +136,15 @@ export default function ShipwrightPage() {
           </div>
 
           <div className="mt-6 rounded-2xl border border-zinc-800 bg-black/30 p-4">
-            <p className="text-[11px] uppercase tracking-[0.22em] text-zinc-500">Example flow</p>
+            <p className="text-[11px] uppercase tracking-[0.22em] text-zinc-500">Example output</p>
             <pre className="mt-3 overflow-x-auto text-xs leading-6 text-zinc-300">
-              {"# 1. List an API\n# 2. Trigger Shipwright\n# 3. Use the generated CLI + MCP server\n\ncurl -X POST https://openshipyard.xyz/api/v1/buoy/generate-cli \\\n  -H Authorization: Bearer *** \\\n  -H Content-Type: application/json \\\n  -d '{ \"listing_id\": \"your-listing-uuid\" }'"}
+{`shipwright generate --spec ./openapi.yaml
+
+✅ CLI created
+✅ MCP server created
+✅ README created
+✅ Install instructions added
+✅ GitHub repo ready to ship`}
             </pre>
           </div>
         </div>
@@ -148,7 +154,7 @@ export default function ShipwrightPage() {
         <div className="flex items-center justify-between gap-4">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">How it works</p>
-            <h2 className="mt-2 text-2xl font-bold text-white">Three steps from spec to ship</h2>
+            <h2 className="mt-2 text-2xl font-bold text-white">Three steps from API service to ship</h2>
           </div>
           <Link href="/dashboard" className="text-sm font-medium text-cyan-300 hover:text-cyan-200">
             Back to Shipyard OS →
@@ -169,7 +175,7 @@ export default function ShipwrightPage() {
       <section className="grid gap-4 lg:grid-cols-[0.95fr_1.05fr] lg:items-start">
         <div className="rounded-3xl border border-zinc-800 bg-[#111118] p-6">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">Capabilities</p>
-          <h2 className="mt-2 text-2xl font-bold text-white">Built for agent-native use</h2>
+          <h2 className="mt-2 text-2xl font-bold text-white">Built for real usage</h2>
           <div className="mt-6 grid gap-4 sm:grid-cols-2">
             {capabilities.map(({ icon: Icon, title, description }) => (
               <div key={title} className="rounded-2xl border border-zinc-800 bg-black/20 p-4">
@@ -183,16 +189,16 @@ export default function ShipwrightPage() {
 
         <div id="generate" className="rounded-3xl border border-violet-500/20 bg-[linear-gradient(180deg,rgba(124,58,237,0.12),rgba(17,17,24,1))] p-6">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-violet-300">Why it matters</p>
-          <h2 className="mt-2 text-2xl font-bold text-white">Less glue, more capability</h2>
+          <h2 className="mt-2 text-2xl font-bold text-white">Less glue, more working software</h2>
           <p className="mt-3 max-w-2xl text-sm leading-7 text-zinc-300">
-            Shipwright makes the wrapper layer disappear. The point is not to add another abstraction; it’s to turn a raw API into something agents can discover, call, and keep using without bespoke work every time.
+            Shipwright is not another wrapper layer. It takes a raw API service and ships a working CLI + MCP version of it — something agents and humans can both use immediately.
           </p>
 
           <ul className="mt-6 space-y-3">
             {[
-              "Faster path from API spec to usable tooling",
-              "A shared surface for humans and agents",
-              "A natural bridge into Buoy, Dock, Fleet, and Shipyard OS",
+              "Working repo, not a concept",
+              "CLI and MCP generated from the same source",
+              "Easy to ship, install, and link from Shipyard",
             ].map((item) => (
               <li key={item} className="flex items-start gap-3 text-sm text-zinc-200">
                 <CheckCircle2 className="mt-0.5 shrink-0 text-emerald-400" size={18} />
