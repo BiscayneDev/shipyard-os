@@ -1,6 +1,7 @@
 import { createUIMessageStream, createUIMessageStreamResponse } from "ai"
 import { randomUUID } from "crypto"
 import { runtime } from "@/lib/runtime"
+import { inferenceStream, resolveModel } from "@/lib/inference"
 import { appendEvent, appendMessage, ensureConversation, finishRun, startRun } from "@/lib/conversations"
 
 interface IncomingMessage {
@@ -49,9 +50,11 @@ export async function POST(request: Request) {
     taskId,
   })
 
+  const resolvedModel = resolveModel(agent)
+
   const run = await startRun(conversationId, {
     agent,
-    runtime: runtime.name,
+    runtime: resolvedModel ? `inference:${resolvedModel.label}` : runtime.name,
     taskId,
   })
 
@@ -59,8 +62,8 @@ export async function POST(request: Request) {
     type: "run.started",
     runId: run.id,
     agent,
-    summary: `${agent} started a streamed run via ${runtime.name}`,
-    data: { runtime: runtime.name, taskId },
+    summary: `${agent} started a streamed run via ${resolvedModel ? resolvedModel.label : runtime.name}`,
+    data: { runtime: resolvedModel ? `inference:${resolvedModel.label}` : runtime.name, taskId },
   })
 
   await appendMessage(conversationId, {
@@ -85,11 +88,23 @@ export async function POST(request: Request) {
       writer.write({ type: "text-start", id: textId })
 
       try {
-        const reply = await runtime.chat({ message: prompt, sessionId })
-        const chunks = reply.match(/.{1,24}(\s|$)/g) ?? [reply]
+        let reply = ""
 
-        for (const chunk of chunks) {
-          writer.write({ type: "text-delta", id: textId, delta: chunk })
+        const textStream = await inferenceStream({ message: prompt, agent })
+        if (textStream) {
+          // Real token streaming through the inference layer
+          for await (const delta of textStream) {
+            reply += delta
+            writer.write({ type: "text-delta", id: textId, delta })
+          }
+        } else {
+          // Fall back to the AgentRuntime pipeline (chunked fake streaming)
+          reply = await runtime.chat({ message: prompt, sessionId })
+          const chunks = reply.match(/.{1,24}(\s|$)/g) ?? [reply]
+
+          for (const chunk of chunks) {
+            writer.write({ type: "text-delta", id: textId, delta: chunk })
+          }
         }
 
         writer.write({ type: "text-end", id: textId })

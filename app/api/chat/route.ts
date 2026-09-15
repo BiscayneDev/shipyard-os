@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { runtime } from "@/lib/runtime"
+import { inferenceChat, resolveModel } from "@/lib/inference"
 import { appendEvent, appendMessage, ensureConversation, finishRun, startRun } from "@/lib/conversations"
 import { addRecentNotification, notificationEmitter } from "@/lib/notificationEmitter"
 import type { NotificationPayload } from "@/lib/notificationEmitter"
@@ -43,9 +44,11 @@ export async function POST(request: Request) {
       taskId,
     })
 
+    const resolvedModel = resolveModel(agent)
+
     const run = await startRun(conversationId, {
       agent,
-      runtime: runtime.name,
+      runtime: resolvedModel ? `inference:${resolvedModel.label}` : runtime.name,
       taskId,
     })
     runId = run.id
@@ -54,8 +57,8 @@ export async function POST(request: Request) {
       type: "run.started",
       runId: run.id,
       agent,
-      summary: `${agent} started a run via ${runtime.name}`,
-      data: { runtime: runtime.name, taskId },
+      summary: `${agent} started a run via ${resolvedModel ? resolvedModel.label : runtime.name}`,
+      data: { runtime: resolvedModel ? `inference:${resolvedModel.label}` : runtime.name, taskId },
     })
     emitRunNotification(agent, `${agent} started working on a task`, "start")
 
@@ -74,7 +77,9 @@ export async function POST(request: Request) {
       summary: `User sent a message to ${agent}`,
     })
 
-    const reply = await runtime.chat({ message, sessionId })
+    // Inference layer first (per-agent model); fall back to the runtime pipeline
+    const reply =
+      (await inferenceChat({ message, agent })) ?? (await runtime.chat({ message, sessionId }))
 
     await appendMessage(conversationId, {
       role: "assistant",

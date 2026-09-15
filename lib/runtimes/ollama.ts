@@ -1,3 +1,5 @@
+import { generateText } from "ai"
+import { createOllama } from "ai-sdk-ollama"
 import { OLLAMA_BASE_URL, OLLAMA_MODEL } from "../config"
 import type { AgentRuntime, RuntimeSession, ActivateParams, ChatParams } from "./types"
 
@@ -9,22 +11,14 @@ interface OllamaModel {
   modified_at: string
 }
 
-interface OllamaChatMessage {
-  role: "system" | "user" | "assistant"
-  content: string
-}
-
-interface OllamaChatResponse {
-  message: OllamaChatMessage
-  done: boolean
-  total_duration?: number
-  eval_count?: number
-  prompt_eval_count?: number
-}
-
 export class OllamaRuntime implements AgentRuntime {
   readonly name = "Ollama"
   readonly id = "ollama"
+
+  /** Lazy Ollama AI SDK provider, bound to OLLAMA_BASE_URL. */
+  private provider() {
+    return createOllama({ baseURL: OLLAMA_BASE_URL })
+  }
 
   async healthCheck() {
     try {
@@ -35,7 +29,7 @@ export class OllamaRuntime implements AgentRuntime {
 
       const data = (await res.json()) as { models?: OllamaModel[] }
       const modelCount = data.models?.length ?? 0
-      return { ok: true, version: `${modelCount} model${modelCount !== 1 ? "s" : ""} available` }
+      return { ok: true, version: `${modelCount} model${modelCount !== 1 ? "" : "s"} available` }
     } catch (err) {
       return { ok: false, error: err instanceof Error ? err.message : "Unreachable" }
     }
@@ -56,26 +50,15 @@ export class OllamaRuntime implements AgentRuntime {
 
   async chat({ message }: ChatParams): Promise<string> {
     try {
-      const res = await fetch(`${OLLAMA_BASE_URL}/api/chat`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: OLLAMA_MODEL,
-          messages: [{ role: "user", content: message }] as OllamaChatMessage[],
-          stream: false,
-        }),
-        signal: AbortSignal.timeout(120000),
+      const result = await generateText({
+        model: this.provider()(OLLAMA_MODEL),
+        prompt: message,
+        abortSignal: AbortSignal.timeout(120_000),
       })
-
-      if (!res.ok) {
-        const text = await res.text().catch(() => "")
-        return `Ollama error (${res.status}): ${text || "Unknown error"}. Is the model '${OLLAMA_MODEL}' pulled?`
-      }
-
-      const data = (await res.json()) as OllamaChatResponse
-      return data.message?.content ?? "No response from model."
+      return result.text || "No response from model."
     } catch (err) {
-      return `Unable to reach Ollama at ${OLLAMA_BASE_URL}. ${err instanceof Error ? err.message : ""}`
+      const reason = err instanceof Error ? err.message : "unknown error"
+      return `Unable to reach Ollama at ${OLLAMA_BASE_URL} with model '${OLLAMA_MODEL}'. ${reason}`
     }
   }
 

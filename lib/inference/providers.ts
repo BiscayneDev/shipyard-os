@@ -1,0 +1,116 @@
+/**
+ * Inference Providers
+ *
+ * Provider-agnostic model access for Shipyard OS. Each provider is a thin
+ * factory over the Vercel AI SDK, configured from environment variables.
+ *
+ * Model references use the form `<provider>/<model-id>`, split on the FIRST
+ * slash so provider model IDs may themselves contain slashes (e.g.
+ * `nous/xiaomi/mimo-v2-pro`).
+ *
+ * Supported providers:
+ *   anthropic  — ANTHROPIC_API_KEY
+ *   nous       — NOUS_API_KEY (OpenAI-compatible; any NOUS_BASE_URL override)
+ *   ollama     — local OLLAMA_BASE_URL, no key needed
+ */
+
+import type { LanguageModel } from "ai"
+import { createAnthropic } from "@ai-sdk/anthropic"
+import { createOpenAI } from "@ai-sdk/openai"
+import { createOllama } from "ai-sdk-ollama"
+import { OLLAMA_BASE_URL } from "../config"
+
+export type ProviderKey = "anthropic" | "nous" | "ollama"
+
+export interface ResolvedModel {
+  /** The AI SDK language model instance */
+  model: LanguageModel
+  /** Human-readable label, e.g. "anthropic/claude-sonnet-4-5" */
+  label: string
+  /** Provider key */
+  provider: ProviderKey
+  /** Provider model ID (may contain slashes) */
+  modelId: string
+}
+
+/** Parse `provider/model-id` into its parts. Returns null when malformed. */
+export function parseModelRef(ref: string): { provider: string; modelId: string } | null {
+  const trimmed = ref.trim()
+  const slash = trimmed.indexOf("/")
+  if (slash <= 0 || slash === trimmed.length - 1) return null
+  return { provider: trimmed.slice(0, slash).toLowerCase(), modelId: trimmed.slice(slash + 1) }
+}
+
+// ── Provider factories (lazy — no API keys touched until used) ──────────────
+
+function anthropicModel(modelId: string): LanguageModel {
+  const anthropic = createAnthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+  return anthropic(modelId)
+}
+
+function nousModel(modelId: string): LanguageModel {
+  const nous = createOpenAI({
+    apiKey: process.env.NOUS_API_KEY,
+    baseURL: process.env.NOUS_BASE_URL ?? "https://inference-api.nousresearch.com/v1",
+  })
+  // .chat() pins /chat/completions — most OpenAI-compatible providers do not
+  // implement /responses.
+  return nous.chat(modelId)
+}
+
+function ollamaModel(modelId: string): LanguageModel {
+  const ollama = createOllama({ baseURL: OLLAMA_BASE_URL })
+  return ollama(modelId)
+}
+
+const factories: Record<ProviderKey, (modelId: string) => LanguageModel> = {
+  anthropic: anthropicModel,
+  nous: nousModel,
+  ollama: ollamaModel,
+}
+
+/** Environment variable that gates each provider. */
+function providerConfigured(provider: ProviderKey): boolean {
+  switch (provider) {
+    case "anthropic":
+      return Boolean(process.env.ANTHROPIC_API_KEY)
+    case "nous":
+      return Boolean(process.env.NOUS_API_KEY)
+    case "ollama":
+      return true // local, no key
+  }
+}
+
+export function isProviderKey(value: string): value is ProviderKey {
+  return value in factories
+}
+
+/** Build a resolved model from a `provider/model-id` reference. */
+export function buildModel(ref: string): ResolvedModel | null {
+  const parsed = parseModelRef(ref)
+  if (!parsed || !isProviderKey(parsed.provider)) return null
+  return {
+    model: factories[parsed.provider](parsed.modelId),
+    label: ref,
+    provider: parsed.provider,
+    modelId: parsed.modelId,
+  }
+}
+
+/** List configured providers (for status endpoints / UI). */
+export function listConfiguredProviders(): Array<{
+  provider: ProviderKey
+  configured: boolean
+  note?: string
+}> {
+  return (Object.keys(factories) as ProviderKey[]).map((provider) => {
+    const configured = providerConfigured(provider)
+    if (provider === "nous" && !configured) {
+      return { provider, configured, note: "Set NOUS_API_KEY to enable" }
+    }
+    if (provider === "anthropic" && !configured) {
+      return { provider, configured, note: "Set ANTHROPIC_API_KEY to enable" }
+    }
+    return { provider, configured }
+  })
+}
