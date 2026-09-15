@@ -11,7 +11,9 @@
  * Supported providers:
  *   anthropic  — ANTHROPIC_API_KEY
  *   nous       — NOUS_API_KEY (OpenAI-compatible; any NOUS_BASE_URL override)
- *   ollama     — local OLLAMA_BASE_URL, no key needed
+ *   ollama     — local OLLAMA_BASE_URL, no key
+ *   shipyard   — your own Shipyard Inference gateway (OpenAI-compatible:
+ *                cost-routing, failover, telemetry). Set SHIPYARD_INFERENCE_URL.
  */
 
 import type { LanguageModel } from "ai"
@@ -20,7 +22,7 @@ import { createOpenAI } from "@ai-sdk/openai"
 import { createOllama } from "ai-sdk-ollama"
 import { OLLAMA_BASE_URL } from "../config"
 
-export type ProviderKey = "anthropic" | "nous" | "ollama"
+export type ProviderKey = "anthropic" | "nous" | "ollama" | "shipyard"
 
 export interface ResolvedModel {
   /** The AI SDK language model instance */
@@ -63,10 +65,21 @@ function ollamaModel(modelId: string): LanguageModel {
   return ollama(modelId)
 }
 
+function shipyardModel(modelId: string): LanguageModel {
+  // Shipyard Inference gateway — OpenAI-compatible front door to the Router
+  // (cost-routing, failover, x402 payments, telemetry).
+  const shipyard = createOpenAI({
+    apiKey: process.env.SHIPYARD_INFERENCE_API_KEY ?? "dev-key",
+    baseURL: process.env.SHIPYARD_INFERENCE_URL ?? "http://127.0.0.1:8787/v1",
+  })
+  return shipyard.chat(modelId)
+}
+
 const factories: Record<ProviderKey, (modelId: string) => LanguageModel> = {
   anthropic: anthropicModel,
   nous: nousModel,
   ollama: ollamaModel,
+  shipyard: shipyardModel,
 }
 
 /** Environment variable that gates each provider. */
@@ -78,6 +91,9 @@ function providerConfigured(provider: ProviderKey): boolean {
       return Boolean(process.env.NOUS_API_KEY)
     case "ollama":
       return true // local, no key
+    case "shipyard":
+      // Opt-in: only treat the gateway as configured when pointed at one.
+      return Boolean(process.env.SHIPYARD_INFERENCE_URL || process.env.SHIPYARD_INFERENCE_API_KEY)
   }
 }
 
@@ -110,6 +126,9 @@ export function listConfiguredProviders(): Array<{
     }
     if (provider === "anthropic" && !configured) {
       return { provider, configured, note: "Set ANTHROPIC_API_KEY to enable" }
+    }
+    if (provider === "shipyard" && !configured) {
+      return { provider, configured, note: "Set SHIPYARD_INFERENCE_URL to enable (your Shipyard Inference gateway)" }
     }
     return { provider, configured }
   })
