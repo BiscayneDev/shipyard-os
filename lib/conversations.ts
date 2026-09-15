@@ -96,6 +96,19 @@ function defaultStore(): ConversationStore {
   return { conversations: [] }
 }
 
+// ── Serverless fallback ──────────────────────────────────────────
+// Vercel functions get a read-only filesystem, so file writes throw EROFS.
+// Without a KV store configured, keep conversation state in memory for the
+// lifetime of the instance (seeded from any bundled data file).
+let memoryStore: ConversationStore | null = null
+
+function useMemoryStore(): boolean {
+  return (
+    (Boolean(process.env.VERCEL) || Boolean(process.env.VERCEL_ENV)) &&
+    !process.env.KV_REST_API_URL
+  )
+}
+
 async function readStoreFromFile(): Promise<ConversationStore> {
   try {
     const raw = await readFile(DATA_PATH, "utf-8")
@@ -122,6 +135,13 @@ async function readStore(): Promise<ConversationStore> {
       // fall through
     }
   }
+  if (useMemoryStore()) {
+    // Serverless: read-only filesystem. Keep state in memory for this
+    // instance, seeded from any bundled data file. Cold starts lose
+    // history — set KV_REST_API_URL for durable persistence.
+    if (!memoryStore) memoryStore = await readStoreFromFile()
+    return memoryStore
+  }
   return readStoreFromFile()
 }
 
@@ -135,7 +155,11 @@ async function writeStore(store: ConversationStore): Promise<void> {
       // fall through
     }
   }
-  await writeStoreToFile(store)
+  if (useMemoryStore()) {
+    memoryStore = store
+    return
+  }
+  return writeStoreToFile(store)
 }
 
 function summarize(conversation: ConversationRecord): ConversationSummary {
