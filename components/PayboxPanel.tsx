@@ -16,6 +16,7 @@ interface PayboxStatus {
   credentials: PayboxCredential[]
   wallet: string | null
   network: string
+  balances?: { usdc: number; sol: number } | null
 }
 
 interface PaymentRecord {
@@ -37,7 +38,7 @@ interface PayResult {
 
 function shortAddress(addr: string | undefined): string {
   if (!addr) return ""
-  return addr.length <= 12 ? addr : `${addr.slice(0, 6)}...${addr.slice(-4)}`
+  return addr.length <= 12 ? addr : `${addr.slice(0, 6)}…${addr.slice(-4)}`
 }
 
 function atomicToUsdc(atomic: string): string {
@@ -54,10 +55,18 @@ function relativeTime(ms: number): string {
   return `${Math.floor(hrs / 24)}d ago`
 }
 
-// ── Component ────────────────────────────────────────────────────────────────
+function prettyResult(data: PayResult): string {
+  if (data.contentType?.includes("json")) {
+    try {
+      return JSON.stringify(JSON.parse(data.text), null, 2).slice(0, 1200)
+    } catch {
+      // fall through to raw text
+    }
+  }
+  return data.text.slice(0, 1200)
+}
 
-const CARD = { backgroundColor: "#111118", border: "1px solid #1a1a2e" }
-const TEAL = { backgroundColor: "rgba(6,182,212,0.12)", border: "1px solid rgba(6,182,212,0.3)", color: "#22d3ee" }
+// ── Component ────────────────────────────────────────────────────────────────
 
 export default function PayboxPanel() {
   const [status, setStatus] = useState<PayboxStatus | null>(null)
@@ -117,11 +126,10 @@ export default function PayboxPanel() {
         setResult(`✗ ${data.error}`)
       } else {
         const paid = data.payments.length > 0
-        setResult(
-          `${paid ? "✓ Paid" : "✓ No payment needed"} · HTTP ${data.status}\n` +
-            (paid ? `Settled ${data.payments.map((p) => `${atomicToUsdc(p.amountAtomic)} USDC`).join(", ")}\n` : "") +
-            (data.text ? data.text.slice(0, 1200) : ""),
-        )
+        const header = paid
+          ? `✓ Paid ${data.payments.map((p) => `${atomicToUsdc(p.amountAtomic)} USDC`).join(", ")} · HTTP ${data.status}`
+          : `✓ No payment required · HTTP ${data.status}`
+        setResult(`${header}\n\n${prettyResult(data)}`)
         await refresh()
       }
     } catch (err) {
@@ -131,62 +139,127 @@ export default function PayboxPanel() {
     }
   }
 
+  const connected = status?.configured ?? false
+  const totalSpent = history.reduce((acc, p) => acc + Number(p.amountAtomic) / 1e6, 0)
+
   return (
-    <div className="rounded-xl p-5 space-y-4" style={CARD}>
-      {/* Header */}
+    <section
+      className="space-y-5 rounded-[17px] p-6"
+      style={{
+        border: "1px solid var(--line)",
+        background: "linear-gradient(180deg, var(--surface-1), #08080b)",
+      }}
+    >
+      {/* Kicker + network */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold text-white">Paybox</span>
-          <span className="text-[11px] text-zinc-500">non-custodial x402 wallet</span>
-        </div>
-        {status?.configured ? (
+        <p
+          className="flex items-center gap-2.5 font-mono text-[9.5px] uppercase tracking-[0.16em]"
+          style={{ color: "var(--ink-3)" }}
+        >
           <span
-            className="text-[11px] px-2 py-1 rounded-full font-medium"
-            style={{ backgroundColor: "rgba(16,185,129,0.12)", color: "#10b981" }}
+            className="inline-block h-[6px] w-[6px] rounded-full"
+            style={{
+              backgroundColor: connected ? "var(--gold)" : "var(--ink-3)",
+              boxShadow: connected ? "0 0 8px var(--gold)" : undefined,
+              opacity: connected ? undefined : 0.5,
+            }}
+          />
+          x402 payments · non-custodial
+        </p>
+        {connected && (
+          <span
+            className="rounded-full border px-3 py-1 font-mono text-[9.5px] uppercase tracking-[0.12em]"
+            style={{ borderColor: "var(--line)", color: "var(--ink-3)" }}
           >
-            connected · {status.network}
-          </span>
-        ) : (
-          <span className="text-[11px] px-2 py-1 rounded-full font-medium text-zinc-500" style={{ border: "1px solid #1a1a2e" }}>
-            not connected
+            {status?.network ?? "mainnet"}
           </span>
         )}
       </div>
 
+      {/* Title + live balances */}
+      <div className="flex items-baseline justify-between gap-4">
+        <h3 className="font-serif text-[27px] leading-none tracking-[-0.01em]" style={{ color: "var(--ink)" }}>
+          Paybox
+        </h3>
+        {connected && status?.balances && (
+          <div className="flex items-baseline gap-5 font-serif text-[19px] tabular-nums">
+            <span style={{ color: "var(--gold)" }}>
+              {status.balances.usdc < 0.01 ? status.balances.usdc.toFixed(6) : status.balances.usdc.toFixed(2)}
+              <span
+                className="ml-1.5 font-mono text-[9.5px] uppercase tracking-[0.1em]"
+                style={{ color: "var(--ink-3)" }}
+              >
+                usdc
+              </span>
+            </span>
+            <span style={{ color: "var(--ink-2)" }}>
+              {status.balances.sol.toFixed(3)}
+              <span
+                className="ml-1.5 font-mono text-[9.5px] uppercase tracking-[0.1em]"
+                style={{ color: "var(--ink-3)" }}
+              >
+                sol
+              </span>
+            </span>
+          </div>
+        )}
+      </div>
+
       {loading ? (
-        <p className="text-xs text-zinc-500">Loading…</p>
-      ) : !status?.configured ? (
-        <div className="text-xs text-zinc-500 space-y-2">
-          <p>
-            Connect your Paybox vault to pay for x402 services — marketplace APIs, inference, pay.sh skills —
-            straight from your own wallet. Your keys never leave Paybox.
+        <p className="font-mono text-[11px]" style={{ color: "var(--ink-3)" }}>
+          Loading…
+        </p>
+      ) : !connected ? (
+        <div className="space-y-3">
+          <p className="text-[13px] leading-relaxed" style={{ color: "var(--ink-2)" }}>
+            Connect your Paybox vault to pay for x402 services — marketplace APIs, inference,
+            pay.sh skills — straight from your own wallet. Keys never leave Paybox.
           </p>
-          <code className="block text-[11px] px-3 py-2 rounded-lg" style={{ backgroundColor: "#0a0a0f", border: "1px solid #1a1a2e" }}>
+          <code
+            className="block rounded-[10px] px-4 py-2.5 font-mono text-[11px]"
+            style={{ backgroundColor: "var(--surface-2)", border: "1px solid var(--line)", color: "var(--ink-2)" }}
+          >
             npx @paybox-sh/sdk login
           </code>
-          <p className="text-[11px] text-zinc-600">
-            Then set PAYBOX_API_KEY (and PAYBOX_SIGNING_KEY for wallet signing) in .env.local, or on Vercel for prod.
+          <p className="font-mono text-[10.5px]" style={{ color: "var(--ink-3)" }}>
+            Then set PAYBOX_API_KEY (and PAYBOX_SIGNING_KEY for wallet signing) in .env.local.
           </p>
         </div>
       ) : (
         <>
           {/* Wallet picker */}
           <div className="space-y-2">
-            <p className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">Paying wallet</p>
+            <p
+              className="font-mono text-[9.5px] uppercase tracking-[0.16em]"
+              style={{ color: "var(--ink-3)" }}
+            >
+              Paying wallet
+            </p>
             <div className="flex flex-wrap gap-2">
-              {status.credentials.length === 0 ? (
-                <p className="text-xs text-zinc-500">No credentials in this vault.</p>
+              {status?.credentials.length === 0 ? (
+                <p className="text-[12px]" style={{ color: "var(--ink-2)" }}>
+                  No credentials in this vault.
+                </p>
               ) : (
-                status.credentials.map((c) => {
+                status?.credentials.map((c) => {
                   const active = status.wallet === c.id
                   return (
                     <button
                       key={c.id}
                       onClick={() => selectWallet(c.id)}
-                      className="px-3 py-2 rounded-lg text-xs font-medium transition-all"
-                      style={active ? TEAL : { border: "1px solid #1a1a2e", color: "#71717a" }}
+                      className="rounded-full border px-4 py-1.5 font-mono text-[11px] transition-colors"
+                      style={
+                        active
+                          ? {
+                              borderColor: "var(--gold)",
+                              backgroundColor: "rgba(231,201,121,0.08)",
+                              color: "var(--gold)",
+                            }
+                          : { borderColor: "var(--line)", color: "var(--ink-2)" }
+                      }
                     >
-                      {c.label || c.kind || "wallet"}{c.address ? ` · ${shortAddress(c.address)}` : ""}
+                      {c.label || c.kind || "wallet"}
+                      {c.address ? ` · ${shortAddress(c.address)}` : ""}
                     </button>
                   )
                 })
@@ -196,13 +269,22 @@ export default function PayboxPanel() {
 
           {/* Pay form */}
           <div className="space-y-2">
-            <p className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">Pay an x402 endpoint</p>
+            <p
+              className="font-mono text-[9.5px] uppercase tracking-[0.16em]"
+              style={{ color: "var(--ink-3)" }}
+            >
+              Pay an x402 endpoint
+            </p>
             <div className="flex gap-2">
               <select
                 value={payMethod}
                 onChange={(e) => setPayMethod(e.target.value)}
-                className="px-2 py-2 rounded-lg text-xs text-zinc-300"
-                style={{ backgroundColor: "#0a0a0f", border: "1px solid #1a1a2e" }}
+                className="rounded-[10px] px-2.5 py-2.5 font-mono text-[11px]"
+                style={{
+                  backgroundColor: "var(--surface-2)",
+                  border: "1px solid var(--line)",
+                  color: "var(--ink-2)",
+                }}
               >
                 <option>GET</option>
                 <option>POST</option>
@@ -211,14 +293,18 @@ export default function PayboxPanel() {
                 value={payUrl}
                 onChange={(e) => setPayUrl(e.target.value)}
                 placeholder="https://api.shipyard.market/v1/x402/…"
-                className="flex-1 px-3 py-2 rounded-lg text-xs font-mono text-zinc-200 placeholder:text-zinc-600"
-                style={{ backgroundColor: "#0a0a0f", border: "1px solid #1a1a2e" }}
+                className="flex-1 rounded-[10px] px-3.5 py-2.5 font-mono text-[11px] placeholder:text-[var(--ink-3)] focus:outline-none"
+                style={{
+                  backgroundColor: "var(--surface-2)",
+                  border: "1px solid var(--line)",
+                  color: "var(--ink)",
+                }}
               />
               <button
                 onClick={pay}
-                disabled={paying || !payUrl.trim() || !status.wallet}
-                className="px-4 py-2 rounded-lg text-xs font-semibold transition-all hover:opacity-80 disabled:opacity-40"
-                style={TEAL}
+                disabled={paying || !payUrl.trim() || !status?.wallet}
+                className="rounded-[10px] px-5 py-2.5 font-mono text-[11px] font-semibold uppercase tracking-[0.08em] transition-opacity hover:opacity-85 disabled:opacity-30"
+                style={{ backgroundColor: "var(--gold)", color: "#1a1508" }}
               >
                 {paying ? "Paying…" : "Pay"}
               </button>
@@ -229,8 +315,12 @@ export default function PayboxPanel() {
                 onChange={(e) => setPayBody(e.target.value)}
                 placeholder='{"model": "claude-haiku-4-5", "messages": [...]}'
                 rows={3}
-                className="w-full px-3 py-2 rounded-lg text-xs font-mono text-zinc-200 placeholder:text-zinc-600"
-                style={{ backgroundColor: "#0a0a0f", border: "1px solid #1a1a2e" }}
+                className="w-full rounded-[10px] px-3.5 py-2.5 font-mono text-[11px] placeholder:text-[var(--ink-3)] focus:outline-none"
+                style={{
+                  backgroundColor: "var(--surface-2)",
+                  border: "1px solid var(--line)",
+                  color: "var(--ink)",
+                }}
               />
             )}
           </div>
@@ -238,8 +328,12 @@ export default function PayboxPanel() {
           {/* Result */}
           {result && (
             <pre
-              className="text-[11px] font-mono whitespace-pre-wrap max-h-48 overflow-auto px-3 py-2 rounded-lg text-zinc-300"
-              style={{ backgroundColor: "#0a0a0f", border: "1px solid #1a1a2e" }}
+              className="max-h-52 overflow-auto whitespace-pre-wrap rounded-[10px] px-4 py-3 font-mono text-[10.5px] leading-relaxed"
+              style={{
+                backgroundColor: "var(--surface-2)",
+                border: "1px solid var(--line)",
+                color: "var(--ink-2)",
+              }}
             >
               {result}
             </pre>
@@ -247,13 +341,36 @@ export default function PayboxPanel() {
 
           {/* History */}
           {history.length > 0 && (
-            <div className="space-y-1">
-              <p className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">Payments</p>
-              {history.slice(0, 8).map((p, i) => (
-                <div key={i} className="flex items-center justify-between text-xs">
-                  <span className="font-mono text-zinc-400 truncate max-w-[60%]">{p.url}</span>
-                  <span className="text-zinc-500">
-                    <span className="text-cyan-300 font-semibold">{atomicToUsdc(p.amountAtomic)} USDC</span> · {relativeTime(p.at)}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <p
+                  className="font-mono text-[9.5px] uppercase tracking-[0.16em]"
+                  style={{ color: "var(--ink-3)" }}
+                >
+                  Payments · {history.length}
+                </p>
+                <p className="font-serif text-[15px] tabular-nums" style={{ color: "var(--ink-2)" }}>
+                  {totalSpent < 0.01 ? totalSpent.toFixed(6) : totalSpent.toFixed(4)}
+                  <span className="ml-1 font-mono text-[9px] uppercase" style={{ color: "var(--ink-3)" }}>
+                    usdc total
+                  </span>
+                </p>
+              </div>
+              {history.slice(0, 6).map((p, i) => (
+                <div key={i} className="flex items-center justify-between gap-4">
+                  <span
+                    className="truncate font-mono text-[10.5px]"
+                    style={{ color: "var(--ink-3)", maxWidth: "55%" }}
+                  >
+                    {p.url.replace(/^https?:\/\//, "")}
+                  </span>
+                  <span className="flex shrink-0 items-baseline gap-3">
+                    <span className="font-serif text-[14px] tabular-nums" style={{ color: "var(--gold)" }}>
+                      {atomicToUsdc(p.amountAtomic)}
+                    </span>
+                    <span className="font-mono text-[10px]" style={{ color: "var(--ink-3)" }}>
+                      {relativeTime(p.at)}
+                    </span>
                   </span>
                 </div>
               ))}
@@ -261,6 +378,6 @@ export default function PayboxPanel() {
           )}
         </>
       )}
-    </div>
+    </section>
   )
 }
