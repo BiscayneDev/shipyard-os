@@ -1,0 +1,549 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shipyard OS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;450;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #08080b; --bg-deep: #050507;
+    --surface-1: #0d0d12; --surface-2: #121218; --surface-3: #17171f;
+    --line: #1c1c25; --line-strong: #2a2a37;
+    --ink: #e9eaf0; --ink-2: #a2a5b8; --ink-3: #62657a;
+    --accent: #8b5cf6; --accent-dim: rgba(139,92,246,.13);
+    --cyan: #67e8f9; --emerald: #6ee7b7; --gold: #e7c979; --rose: #f0a6c8;
+    --serif: "Instrument Serif", Georgia, serif;
+    --sans: "Inter", -apple-system, sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, monospace;
+    --ease: cubic-bezier(.32,.72,0,1);
+  }
+  html { scrollbar-color: #26262f transparent; }
+  body { font-family: var(--sans); background: var(--bg); color: var(--ink); -webkit-font-smoothing: antialiased; line-height: 1.5; overflow: hidden; }
+
+  /* grain */
+  body::after { content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 100; opacity: .5; mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 0.04 0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E"); }
+
+  .app { display: grid; grid-template-columns: 232px 1fr 408px; height: 100vh; }
+
+  @keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+  .rise { animation: rise .7s var(--ease) both; }
+  .d1 { animation-delay: .05s } .d2 { animation-delay: .12s } .d3 { animation-delay: .19s } .d4 { animation-delay: .26s } .d5 { animation-delay: .33s } .d6 { animation-delay: .4s }
+  @keyframes breathe { 50% { opacity: .35; } }
+
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+
+  /* ── Rail ─────────────────────────────── */
+  .rail { border-right: 1px solid var(--line); background: var(--bg-deep); padding: 22px 14px; display: flex; flex-direction: column; gap: 2px; }
+  .brand { display: flex; align-items: center; gap: 11px; padding: 2px 8px 24px; }
+  .brand-glyph { width: 30px; height: 30px; border-radius: 9px; background: linear-gradient(145deg, #a78bfa 0%, #6366f1 55%, #22d3ee 130%); display: grid; place-items: center; box-shadow: 0 0 24px rgba(139,92,246,.35), inset 0 1px 0 rgba(255,255,255,.25); }
+  .brand-glyph svg { width: 15px; height: 15px; }
+  .brand-name { font-family: var(--serif); font-size: 16.5px; letter-spacing: .01em; }
+  .brand-name span { color: var(--ink-3); font-style: italic; }
+
+  .launch { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 10px; border: none; border-radius: 10px; cursor: pointer; font-family: var(--sans); font-size: 12.5px; font-weight: 550; letter-spacing: .02em;
+    color: #0b0b10; background: linear-gradient(135deg, #d8ccf9, #a78bfa 60%, #8b5cf6); box-shadow: 0 1px 0 rgba(255,255,255,.35) inset, 0 6px 24px rgba(139,92,246,.28); transition: transform .25s var(--ease), box-shadow .25s; }
+  .launch:hover { transform: translateY(-1px); box-shadow: 0 1px 0 rgba(255,255,255,.35) inset, 0 10px 32px rgba(139,92,246,.4); }
+  .launch:active { transform: translateY(0); }
+
+  .rail-label { font-size: 9.5px; text-transform: uppercase; letter-spacing: .18em; color: var(--ink-3); padding: 20px 10px 7px; }
+  .rail-item { display: flex; align-items: center; gap: 11px; padding: 7.5px 10px; border-radius: 8px; color: var(--ink-2); font-size: 13px; cursor: pointer; transition: color .15s, background .15s; position: relative; }
+  .rail-item:hover { color: var(--ink); background: rgba(255,255,255,.025); }
+  .rail-item.on { color: var(--ink); background: var(--accent-dim); }
+  .rail-item.on::before { content: ""; position: absolute; left: -14px; top: 20%; height: 60%; width: 1.5px; background: linear-gradient(180deg, #a78bfa, transparent); }
+  .rail-item svg { width: 15px; height: 15px; opacity: .8; }
+  .rail-live { width: 5px; height: 5px; border-radius: 50%; margin-left: auto; background: var(--emerald); box-shadow: 0 0 8px var(--emerald); animation: breathe 2.4s infinite; }
+
+  .rail-foot { margin-top: auto; border-top: 1px solid var(--line); padding: 14px 8px 2px; }
+  .rail-foot .vault { font-family: var(--mono); font-size: 10.5px; color: var(--ink-2); display: flex; align-items: center; gap: 7px; }
+  .vault .vdot { width: 5px; height: 5px; border-radius: 50%; background: var(--emerald); box-shadow: 0 0 7px var(--emerald); animation: breathe 2.4s infinite; }
+  .rail-foot .balance { font-family: var(--mono); font-size: 11.5px; color: var(--ink); margin-top: 5px; padding-left: 12px; }
+  .rail-foot .balance span { color: var(--ink-3); }
+
+  /* ── Deck ─────────────────────────────── */
+  .deck { overflow-y: auto; position: relative; }
+  .deck::before { content: ""; position: fixed; width: 560px; height: 560px; border-radius: 50%; top: -220px; left: 24%; pointer-events: none;
+    background: radial-gradient(circle, rgba(139,92,246,.13), transparent 65%); filter: blur(30px); }
+  .deck-inner { max-width: 720px; margin: 0 auto; padding: 44px 48px 80px; }
+  .deck::-webkit-scrollbar { width: 8px; } .deck::-webkit-scrollbar-thumb { background: #1e1e28; border-radius: 4px; }
+
+  .meta-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 44px; font-family: var(--mono); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); }
+  .kicker { display: inline-flex; gap: 7px; align-items: center; padding: 4px 11px 4px 8px; border: 1px solid var(--line); border-radius: 99px; background: var(--surface-1); font-family: var(--mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); }
+  .kicker .cdot { width: 5px; height: 5px; border-radius: 50%; background: var(--emerald); box-shadow: 0 0 7px var(--emerald); animation: breathe 2.4s infinite; }
+  .who { width: 30px; height: 30px; border-radius: 50%; background: conic-gradient(from 210deg, #f0a6c8, #e7c979, #a78bfa, #f0a6c8); padding: 1.5px; }
+  .who i { display: grid; place-items: center; width: 100%; height: 100%; border-radius: 50%; background: var(--bg); font-style: normal; font-size: 10.5px; font-weight: 600; letter-spacing: .03em; }
+
+  .greeting { font-family: var(--serif); font-size: 40px; font-weight: 400; letter-spacing: -.01em; line-height: 1.1; }
+  .greeting em { color: var(--ink-2); }
+  .greeting-sub { color: var(--ink-2); font-size: 14px; margin: 10px 0 36px; font-weight: 400; }
+  .greeting-sub b { color: var(--ink); font-weight: 550; }
+  .greeting-sub .up { color: var(--emerald); }
+
+  /* Brief */
+  .brief { position: relative; border: 1px solid var(--line); border-radius: 16px; padding: 26px 28px 24px; background: linear-gradient(180deg, var(--surface-1), var(--bg)); margin-bottom: 40px; }
+  .brief::before { content: ""; position: absolute; inset: -1px; border-radius: 17px; padding: 1px; pointer-events: none;
+    background: linear-gradient(120deg, rgba(167,139,250,.5), transparent 30%, transparent 65%, rgba(103,232,249,.25));
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; }
+  .brief-tag { display: flex; align-items: center; gap: 9px; font-family: var(--mono); font-size: 9.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 15px; }
+  .brief-tag .gem { width: 7px; height: 7px; transform: rotate(45deg); background: linear-gradient(135deg, #a78bfa, #22d3ee); box-shadow: 0 0 10px rgba(139,92,246,.6); }
+  .brief p { font-size: 15px; line-height: 1.72; color: #c3c6d4; max-width: 62ch; text-wrap: pretty; }
+  .brief p b { color: var(--ink); font-weight: 550; }
+  .brief p .hl { color: var(--cyan); font-weight: 450; }
+  .brief p .up { color: var(--emerald); }
+  .brief-foot { display: flex; gap: 10px; margin-top: 22px; align-items: center; }
+
+  .btn { font-family: var(--sans); font-size: 12.5px; font-weight: 550; letter-spacing: .01em; padding: 9px 16px; border-radius: 10px; cursor: pointer; border: 1px solid var(--line-strong); background: var(--surface-2); color: var(--ink); transition: all .2s var(--ease); }
+  .btn:hover { border-color: #3b3b4d; background: var(--surface-3); transform: translateY(-1px); }
+  .btn.gold { color: #0b0b10; background: linear-gradient(135deg, #f2e3b3, #e7c979 60%, #cfa94e); border: none; box-shadow: 0 1px 0 rgba(255,255,255,.4) inset, 0 6px 22px rgba(231,201,121,.22); }
+  .btn.gold:hover { filter: brightness(1.06); box-shadow: 0 1px 0 rgba(255,255,255,.4) inset, 0 10px 28px rgba(231,201,121,.3); }
+  .btn.ghost { background: none; border: none; color: var(--ink-3); font-weight: 450; padding: 9px 10px; }
+  .btn.ghost:hover { color: var(--ink); transform: none; }
+
+  .sec-head { display: flex; align-items: baseline; justify-content: space-between; margin: 40px 0 16px; }
+  .sec-head h2 { font-size: 12px; font-weight: 550; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-2); }
+  .sec-head .act { font-size: 12px; color: var(--ink-3); cursor: pointer; transition: color .15s; }
+  .sec-head .act:hover { color: var(--accent); }
+
+  /* Ventures */
+  .ventures { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .venture { position: relative; border: 1px solid var(--line); border-radius: 15px; padding: 18px 19px 16px; background: var(--surface-1); cursor: pointer; transition: border-color .3s, transform .35s var(--ease); overflow: hidden; }
+  .venture::after { content: ""; position: absolute; inset: 0; opacity: 0; transition: opacity .35s; pointer-events: none;
+    background: radial-gradient(340px 200px at var(--mx,50%) var(--my,0%), rgba(139,92,246,.09), transparent 70%); }
+  .venture:hover { border-color: var(--line-strong); transform: translateY(-2px); }
+  .venture:hover::after { opacity: 1; }
+  .v-head { display: flex; align-items: center; gap: 11px; margin-bottom: 14px; }
+  .v-glyph { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; font-family: var(--serif); font-size: 17px; background: var(--surface-3); border: 1px solid var(--line); }
+  .v-name { font-size: 14px; font-weight: 600; letter-spacing: -.005em; }
+  .v-kind { font-size: 11px; color: var(--ink-3); margin-top: 1px; letter-spacing: .01em; }
+  .v-status { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 9px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); }
+  .v-status .sdot { width: 5px; height: 5px; border-radius: 50%; background: var(--emerald); box-shadow: 0 0 8px var(--emerald); animation: breathe 2.4s infinite; }
+  .v-rev { display: flex; align-items: baseline; gap: 8px; margin-bottom: 12px; }
+  .v-rev .num { font-family: var(--serif); font-size: 27px; letter-spacing: .01em; font-feature-settings: "tnum"; }
+  .v-rev .unit { font-size: 10.5px; color: var(--ink-3); font-family: var(--mono); letter-spacing: .08em; text-transform: uppercase; }
+  .v-rev .delta { margin-left: auto; font-family: var(--mono); font-size: 11px; color: var(--emerald); }
+  .v-rev .delta.soon { color: var(--ink-3); }
+  .spark { display: flex; align-items: flex-end; gap: 3px; height: 30px; margin-bottom: 13px; }
+  .spark i { flex: 1; border-radius: 1.5px; background: var(--surface-3); transition: background .3s; }
+  .venture:hover .spark i { background: #23232e; }
+  .venture:hover .spark i.hi { background: linear-gradient(180deg, var(--vc, #a78bfa), rgba(167,139,250,.15)); }
+  .spark i.hi { background: linear-gradient(180deg, var(--vc, #a78bfa), rgba(167,139,250,.25)); }
+  .v-foot { display: flex; gap: 5px; }
+  .tag { font-family: var(--mono); font-size: 9.5px; color: var(--ink-3); border: 1px solid var(--line); border-radius: 5px; padding: 2px 7px; letter-spacing: .02em; }
+  .tag.gd { color: var(--gold); border-color: rgba(231,201,121,.28); }
+
+  .venture.new { border-style: dashed; border-color: var(--line-strong); background: transparent; display: grid; place-items: center; min-height: 168px; }
+  .venture.new .inner { text-align: center; color: var(--ink-3); }
+  .venture.new .plus { font-family: var(--serif); font-size: 26px; color: var(--ink-3); line-height: 1; margin-bottom: 7px; transition: color .2s, transform .3s var(--ease); }
+  .venture.new:hover .plus { color: var(--accent); transform: scale(1.15); }
+  .venture.new .lbl { font-size: 12px; }
+  .venture.new .sub { font-size: 11px; color: var(--ink-3); margin-top: 3px; font-style: italic; font-family: var(--serif); }
+
+  /* Decisions */
+  .decisions { border: 1px solid var(--line); border-radius: 15px; overflow: hidden; background: var(--surface-1); }
+  .dec { display: grid; grid-template-columns: 26px 1fr auto 18px; gap: 14px; align-items: center; padding: 15px 20px; border-bottom: 1px solid var(--line); cursor: pointer; transition: background .15s; }
+  .dec:last-child { border-bottom: 0; }
+  .dec:hover { background: var(--surface-2); }
+  .dec .mark { width: 20px; height: 20px; border-radius: 7px; border: 1.5px solid var(--line-strong); display: grid; place-items: center; font-size: 9px; color: var(--amber); border-color: rgba(231,201,121,.45); }
+  .dec .mark.ok { color: var(--emerald); border-color: rgba(110,231,183,.3); }
+  .dec-t { font-size: 13.5px; font-weight: 550; letter-spacing: -.003em; }
+  .dec-m { font-size: 11.5px; color: var(--ink-3); margin-top: 2px; }
+  .dec-m b { color: var(--ink-2); font-weight: 500; }
+  .pill { font-family: var(--mono); font-size: 10px; letter-spacing: .05em; padding: 3.5px 10px; border-radius: 99px; white-space: nowrap; }
+  .pill.wait { color: var(--gold); background: rgba(231,201,121,.09); box-shadow: inset 0 0 0 1px rgba(231,201,121,.25); }
+  .pill.auto { color: var(--emerald); background: rgba(110,231,183,.07); box-shadow: inset 0 0 0 1px rgba(110,231,183,.2); }
+  .dec .arrow { color: var(--ink-3); font-size: 13px; transition: transform .2s var(--ease), color .15s; }
+  .dec:hover .arrow { color: var(--ink); transform: translateX(2px); }
+
+  /* ── Vic ──────────────────────────────── */
+  .vic { border-left: 1px solid var(--line); background: var(--bg-deep); display: flex; flex-direction: column; height: 100vh; position: relative; }
+  .vic::before { content: ""; position: absolute; top: -160px; right: -140px; width: 400px; height: 400px; border-radius: 50%; pointer-events: none;
+    background: radial-gradient(circle, rgba(139,92,246,.1), transparent 65%); filter: blur(24px); }
+  .vic-head { padding: 16px 18px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 11px; }
+  .vic-glyph { width: 32px; height: 32px; border-radius: 10px; background: linear-gradient(145deg, #a78bfa, #6366f1); display: grid; place-items: center; box-shadow: 0 0 18px rgba(139,92,246,.3), inset 0 1px 0 rgba(255,255,255,.25); font-size: 15px; }
+  .vic-id b { font-size: 13.5px; font-weight: 600; display: block; letter-spacing: -.004em; }
+  .vic-id span { font-family: var(--mono); font-size: 9.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--emerald); display: inline-flex; align-items: center; gap: 5px; }
+  .vic-id span::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: var(--emerald); box-shadow: 0 0 7px var(--emerald); animation: breathe 2.4s infinite; }
+  .vic-body { flex: 1; overflow-y: auto; padding: 22px 18px; display: flex; flex-direction: column; gap: 14px; }
+  .vic-body::-webkit-scrollbar { width: 6px; } .vic-body::-webkit-scrollbar-thumb { background: #1b1b24; border-radius: 3px; }
+
+  .you { align-self: flex-end; max-width: 85%; background: var(--surface-3); border: 1px solid var(--line-strong); border-radius: 13px 13px 4px 13px; padding: 10px 14px; font-size: 13px; color: #d4d7e3; }
+
+  .thinking { border: 1px solid var(--line); border-radius: 12px; background: var(--surface-1); overflow: hidden; }
+  .th-head { display: flex; align-items: center; gap: 8px; padding: 9px 13px; cursor: pointer; user-select: none; }
+  .th-head .chev { font-size: 8px; color: var(--ink-3); transition: transform .25s var(--ease); }
+  .thinking.open .th-head .chev { transform: rotate(90deg); }
+  .th-head .lbl { font-family: var(--mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); }
+  .th-steps { display: flex; gap: 3px; margin-left: auto; }
+  .th-steps i { font-style: normal; font-family: var(--mono); font-size: 9px; padding: 2px 7px; border-radius: 5px; color: var(--ink-3); background: var(--surface-2); }
+  .th-steps i.on { color: var(--cyan); box-shadow: inset 0 0 0 1px rgba(103,232,249,.25); }
+  .th-body { display: none; padding: 2px 13px 12px; }
+  .thinking.open .th-body { display: block; }
+  .th-line { display: flex; gap: 10px; padding: 3px 0; font-size: 11.5px; color: var(--ink-2); }
+  .th-line .k { font-family: var(--mono); font-size: 9.5px; color: var(--cyan); text-transform: uppercase; letter-spacing: .08em; min-width: 54px; padding-top: 2px; }
+
+  .tools { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tool { display: inline-flex; align-items: center; gap: 7px; font-family: var(--mono); font-size: 10.5px; color: var(--ink-2); background: var(--surface-1); border: 1px solid var(--line); border-radius: 8px; padding: 5.5px 10px; cursor: pointer; transition: all .2s; }
+  .tool:hover { border-color: var(--line-strong); color: var(--ink); transform: translateY(-1px); }
+  .tool .t { color: var(--cyan); }
+  .tool .ok { color: var(--emerald); } .tool .gd { color: var(--gold); }
+
+  .checks { display: flex; flex-direction: column; gap: 5px; }
+  .check { display: flex; align-items: center; gap: 11px; padding: 8.5px 12px; background: var(--surface-1); border: 1px solid var(--line); border-radius: 10px; cursor: pointer; transition: all .18s var(--ease); }
+  .check:hover { border-color: var(--line-strong); transform: translateX(3px); }
+  .ck { width: 15px; height: 15px; border-radius: 5px; display: grid; place-items: center; font-size: 8px; flex-shrink: 0; }
+  .ck.done { background: rgba(110,231,183,.12); color: var(--emerald); }
+  .ck.run { background: rgba(103,232,249,.1); color: var(--cyan); animation: breathe 1.6s infinite; }
+  .ck.rail { background: rgba(231,201,121,.1); color: var(--gold); }
+  .check .name { font-size: 12.5px; flex: 1; color: #d4d7e3; }
+  .check .stat { font-family: var(--mono); font-size: 10px; color: var(--ink-3); }
+  .check .stat b { color: var(--ink-2); font-weight: 500; }
+
+  .reply { font-size: 13.5px; line-height: 1.68; color: #ccd0de; text-wrap: pretty; }
+  .reply b { color: var(--ink); font-weight: 550; }
+  .reply .hl { color: var(--cyan); }
+  .cites { display: flex; gap: 6px; margin-top: 12px; }
+  .cite { display: inline-flex; align-items: center; gap: 7px; font-family: var(--mono); font-size: 9.5px; color: var(--ink-3); border: 1px solid var(--line); background: var(--surface-1); border-radius: 7px; padding: 4px 9px; cursor: pointer; transition: all .15s; }
+  .cite:hover { color: var(--ink-2); border-color: var(--line-strong); }
+  .cite .fav { width: 13px; height: 13px; border-radius: 4px; display: grid; place-items: center; font-size: 7.5px; color: #0b0b10; }
+
+  .policy { border: 1px solid rgba(231,201,121,.3); border-radius: 13px; padding: 15px 16px; background: linear-gradient(180deg, rgba(231,201,121,.05), transparent); }
+  .policy-tag { font-family: var(--mono); font-size: 9.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--gold); margin-bottom: 10px; display: flex; gap: 8px; align-items: center; }
+  .policy-q { font-size: 13.5px; font-weight: 600; margin-bottom: 11px; letter-spacing: -.004em; }
+  .opt { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 10px; margin-bottom: 6px; cursor: pointer; font-size: 12.5px; color: var(--ink-2); transition: all .18s var(--ease); background: var(--surface-1); }
+  .opt:hover { border-color: rgba(231,201,121,.4); color: var(--ink); }
+  .opt .ring { width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid var(--line-strong); flex-shrink: 0; display: grid; place-items: center; transition: border-color .15s; }
+  .opt.sel { border-color: rgba(231,201,121,.55); color: var(--ink); background: rgba(231,201,121,.06); }
+  .opt.sel .ring { border-color: var(--gold); }
+  .opt.sel .ring::after { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--gold); }
+  .opt .price { margin-left: auto; font-family: var(--mono); font-size: 10px; color: var(--ink-3); }
+  .policy-foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 11px; }
+  .btn:disabled { opacity: .35; pointer-events: none; }
+
+  .paybox-mini { border: 1px solid rgba(91,108,255,.35); border-radius: 13px; padding: 14px 15px; background: linear-gradient(160deg, rgba(91,108,255,.08), transparent 60%); }
+  .pb-tag { font-family: var(--mono); font-size: 9.5px; letter-spacing: .16em; text-transform: uppercase; color: #96a1ff; margin-bottom: 10px; display: flex; gap: 8px; align-items: center; }
+  .pb-tag .plug { width: 14px; height: 14px; border-radius: 5px; background: linear-gradient(135deg, #5b6cff, #a78bfa); display: grid; place-items: center; color: white; font-size: 8px; }
+  .pb-row { display: flex; justify-content: space-between; align-items: center; font-size: 12px; padding: 3.5px 0; color: var(--ink-2); }
+  .pb-row .k { display: flex; gap: 8px; align-items: center; }
+  .pb-row .v { font-family: var(--mono); font-size: 11px; color: var(--ink); }
+  .pb-row .v.in { color: var(--emerald); }
+  .pb-row .v.gd { color: var(--gold); }
+  .pb-sep { border: 0; border-top: 1px dashed var(--line-strong); margin: 7px 0; }
+
+  .follows { display: flex; flex-wrap: wrap; gap: 7px; }
+  .follow { font-size: 11.5px; color: var(--ink-3); background: var(--surface-1); border: 1px solid var(--line); border-radius: 99px; padding: 6px 13px; cursor: pointer; transition: all .18s; font-weight: 450; }
+  .follow:hover { color: var(--ink); border-color: rgba(167,139,250,.5); background: var(--accent-dim); }
+
+  .composer { border-top: 1px solid var(--line); padding: 14px 16px 16px; }
+  .comp-box { background: var(--surface-2); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; transition: border-color .2s, box-shadow .2s; }
+  .comp-box:focus-within { border-color: rgba(167,139,250,.5); box-shadow: 0 0 0 3px rgba(139,92,246,.1), 0 8px 30px rgba(0,0,0,.3); }
+  .comp-box input { width: 100%; background: none; border: none; outline: none; color: var(--ink); font-family: var(--sans); font-size: 13px; }
+  .comp-box input::placeholder { color: var(--ink-3); }
+  .comp-foot { display: flex; align-items: center; gap: 6px; margin-top: 10px; }
+  .cpill { font-family: var(--mono); font-size: 10px; color: var(--ink-3); border: 1px solid var(--line); border-radius: 99px; padding: 3px 10px; cursor: pointer; transition: all .15s; }
+  .cpill:hover { color: var(--ink-2); border-color: var(--line-strong); }
+  .cpill.model { color: #b9a8f7; }
+  .send { margin-left: auto; width: 29px; height: 29px; border-radius: 9px; border: none; cursor: pointer; color: #0b0b10; font-size: 13px;
+    background: linear-gradient(135deg, #d8ccf9, #a78bfa); box-shadow: 0 1px 0 rgba(255,255,255,.35) inset; transition: transform .2s var(--ease), box-shadow .2s; }
+  .send:hover { transform: translateY(-1px); box-shadow: 0 1px 0 rgba(255,255,255,.35) inset, 0 6px 18px rgba(139,92,246,.4); }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ══ RAIL ══ -->
+  <nav class="rail">
+    <div class="brand rise">
+      <div class="brand-glyph">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#0b0b10" stroke-width="2.2" stroke-linecap="round"><path d="M12 3v14M12 3c-2.5 0-4.5 2-4.5 4.5S9.5 12 12 12M12 3c2.5 0 4.5 2 4.5 4.5S14.5 12 12 12M4 21c0-4 3.6-6 8-6s8 2 8 6"/></svg>
+      </div>
+      <div class="brand-name">Shipyard<span> os</span></div>
+    </div>
+    <button class="launch rise d1">✦&ensp;Launch a venture</button>
+    <div class="rail-label rise d1">Workspace</div>
+    <div class="rail-item on rise d1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.5"/></svg>Ventures</div>
+    <div class="rail-item rise d2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M4 10h16"/></svg>Missions <span class="rail-live"></span></div>
+    <div class="rail-item rise d2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>Intel</div>
+    <div class="rail-label rise d2">Rails</div>
+    <div class="rail-item rise d3"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="6" width="18" height="12" rx="3"/><path d="M3 10h18"/></svg>Treasury</div>
+    <div class="rail-item rise d3"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M13 2 5 13h6l-1 9 8-11h-6z"/></svg>Paybox <span class="rail-live"></span></div>
+    <div class="rail-item rise d3"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 16c2-6 5-9 8-9s3 3 4 3 3-1 4 0"/><path d="M4 16c2 2 5 3 8 3s4-1 8-3"/></svg>Buoy</div>
+    <div class="rail-foot rise d4">
+      <div class="vault"><span class="vdot"></span>7gHx…kQ2f</div>
+      <div class="balance">4,213.50 <span>USDC</span></div>
+    </div>
+  </nav>
+
+  <!-- ══ DECK ══ -->
+  <main class="deck">
+    <div class="deck-inner">
+      <div class="meta-row rise">
+        <span class="kicker"><span class="cdot"></span>fleet nominal · 3 ventures</span>
+        <div class="who"><i>HH</i></div>
+      </div>
+
+      <h1 class="greeting rise d1">Good morning, <em>Captain.</em></h1>
+      <p class="greeting-sub rise d2">Your agents moved <b>14 things</b> overnight and earned <b>142.8 USDC</b> · treasury <span class="up">+18.4%</span> this month. Two decisions are waiting for you.</p>
+
+      <section class="brief rise d3">
+        <div class="brief-tag"><span class="gem"></span>Executive brief · 6 minutes ago</div>
+        <p><b>Dock</b> crossed its first $1,000 of MRR — onboarding now converts at 9.2%. <b>Buoy</b> settled <span class="hl">312 x402 micro-payments</span> yesterday with zero failed intents. <b>Scout</b> validated the Harbor Leads concept: three Miami firms match the ICP. <b>One risk:</b> Inference /connect still 500s until the Supabase migration lands — Builder has it staged.</p>
+        <div class="brief-foot">
+          <button class="btn gold">Discuss with Vic</button>
+          <button class="btn">Full brief</button>
+          <button class="btn ghost">Archive</button>
+        </div>
+      </section>
+
+      <div class="sec-head rise d3"><h2>Portfolio</h2><span class="act">＋ new venture</span></div>
+      <div class="ventures">
+        <div class="venture rise d4" style="--vc:#67e8f9">
+          <div class="v-head"><div class="v-glyph">◈</div><div><div class="v-name">Dock</div><div class="v-kind">Telegram first mate</div></div><div class="v-status"><span class="sdot"></span>live</div></div>
+          <div class="v-rev"><span class="num">$1,042</span><span class="unit">MRR</span><span class="delta">+12.4%</span></div>
+          <div class="spark"><i style="height:30%"></i><i style="height:38%"></i><i class="hi" style="height:34%"></i><i class="hi" style="height:52%"></i><i class="hi" style="height:64%"></i><i class="hi" style="height:60%"></i><i class="hi" style="height:82%"></i><i class="hi" style="height:95%"></i></div>
+          <div class="v-foot"><span class="tag">x402</span><span class="tag">3 agents</span><span class="tag">deploy 41m</span></div>
+        </div>
+        <div class="venture rise d4" style="--vc:#a78bfa">
+          <div class="v-head"><div class="v-glyph">◐</div><div><div class="v-name">Buoy</div><div class="v-kind">x402 API marketplace</div></div><div class="v-status"><span class="sdot"></span>live</div></div>
+          <div class="v-rev"><span class="num">$864</span><span class="unit">this month</span><span class="delta">+31.8%</span></div>
+          <div class="spark"><i style="height:22%"></i><i class="hi" style="height:28%"></i><i class="hi" style="height:44%"></i><i style="height:36%"></i><i class="hi" style="height:56%"></i><i class="hi" style="height:70%"></i><i class="hi" style="height:62%"></i><i class="hi" style="height:80%"></i></div>
+          <div class="v-foot"><span class="tag gd">5% flat</span><span class="tag">4 agents</span><span class="tag">312 txns/24h</span></div>
+        </div>
+        <div class="venture rise d5" style="--vc:#e7c979">
+          <div class="v-head"><div class="v-glyph">✦</div><div><div class="v-name">Harbor Leads</div><div class="v-kind">Client-sourcing agent</div></div><div class="v-status"><span class="sdot"></span>launching</div></div>
+          <div class="v-rev"><span class="num">—</span><span class="unit">in chat →</span><span class="delta soon">day 1</span></div>
+          <div class="spark"><i style="height:26%"></i><i style="height:48%"></i><i class="hi" style="height:40%"></i><i class="hi" style="height:62%"></i><i style="height:28%"></i><i class="hi" style="height:74%"></i><i style="height:18%"></i><i style="height:36%"></i></div>
+          <div class="v-foot"><span class="tag gd">5 USDC / lead</span><span class="tag">1 agent</span><span class="tag">awaiting policy</span></div>
+        </div>
+        <div class="venture new rise d5">
+          <div class="inner">
+            <div class="plus">＋</div>
+            <div class="lbl">Launch a venture</div>
+            <div class="sub">describe it to Vic — she does the rest</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sec-head rise d5"><h2>Decisions</h2><span class="act">history</span></div>
+      <div class="decisions rise d6">
+        <div class="dec">
+          <span class="mark">?</span>
+          <div><div class="dec-t">Set Harbor's spend policy</div><div class="dec-m">Vic · launch blocked on this · <b>1 answer</b></div></div>
+          <span class="pill wait">needs you</span><span class="arrow">→</span>
+        </div>
+        <div class="dec">
+          <span class="mark">?</span>
+          <div><div class="dec-t">Approve Buoy pricing copy</div><div class="dec-m">Scout · flat 5% positioning · <b>87% confidence</b></div></div>
+          <span class="pill wait">needs you</span><span class="arrow">→</span>
+        </div>
+        <div class="dec">
+          <span class="mark ok">✓</span>
+          <div><div class="dec-t">Apply Supabase api_keys migration</div><div class="dec-m">Builder · delegated · <b>reversible</b></div></div>
+          <span class="pill auto">on rails</span><span class="arrow">→</span>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- ══ VIC ══ -->
+  <aside class="vic">
+    <div class="vic-head rise">
+      <div class="vic-glyph">🦞</div>
+      <div class="vic-id"><b>Vic</b><span>chief of staff</span></div>
+    </div>
+
+    <div class="vic-body">
+      <div class="you rise">Launch Harbor Leads — source consulting clients, book calls, charge 5 USDC per qualified lead.</div>
+
+      <div class="thinking open rise d1" onclick="this.classList.toggle('open')">
+        <div class="th-head"><span class="chev">▶</span><span class="lbl">Thinking</span>
+          <span class="th-steps"><i class="on">steps</i><i>search</i><i>rails</i></span></div>
+        <div class="th-body">
+          <div class="th-line"><span class="k">plan</span>Scaffold venture → spin agent → wire x402 → deploy.</div>
+          <div class="th-line"><span class="k">search</span>Three Miami firms match the ICP from Scout's intel.</div>
+          <div class="th-line"><span class="k">rails</span>Derived venture treasury 7gHx…kQ2f via Paybox vault.</div>
+        </div>
+      </div>
+
+      <div class="tools rise d2">
+        <span class="tool"><span class="t">⚙</span> venture.create("harbor-leads") <span class="ok">✓</span></span>
+        <span class="tool"><span class="t">◈</span> wallet.derive() <span class="gd">7gHx…kQ2f</span></span>
+        <span class="tool"><span class="t">✎</span> landing.tsx <span class="ok">+148</span></span>
+      </div>
+
+      <div class="checks rise d3">
+        <div class="check"><span class="ck done">✓</span><span class="name">Venture scaffolded · agent "Harbor" live</span><span class="stat"><b>1</b> agent</span></div>
+        <div class="check"><span class="ck rail">◈</span><span class="name">x402 paywall — 5 USDC per lead</span><span class="stat">staged</span></div>
+        <div class="check"><span class="ck run">◐</span><span class="name">Building landing + booking flow</span><span class="stat"><b>68%</b></span></div>
+        <div class="check"><span class="ck run">◐</span><span class="name">Deploying to production</span><span class="stat"><b>21%</b></span></div>
+      </div>
+
+      <div class="reply rise d4">
+        Scaffold is live and the treasury is funded with <b>200 USDC</b>. Before Harbor can spend, I need one thing from you — <span class="hl">its spend policy</span>. You can change it anytime.
+        <div class="cites">
+          <span class="cite"><span class="fav" style="background:#a78bfa">S</span> scout-intel/sept.json</span>
+          <span class="cite"><span class="fav" style="background:#67e8f9">✎</span> venture/harbor-leads</span>
+        </div>
+      </div>
+
+      <div class="policy rise d5" id="policy-card">
+        <div class="policy-tag">◆ your call</div>
+        <div class="policy-q">Spend policy for Harbor?</div>
+        <div class="opt" onclick="pick(this)"><span class="ring"></span>Micro <span class="price">5 USDC / day</span></div>
+        <div class="opt" onclick="pick(this)"><span class="ring"></span>Growth <span class="price">25 USDC / day</span></div>
+        <div class="opt" onclick="pick(this)"><span class="ring"></span>Autopilot <span class="price">100 USDC / day</span></div>
+        <div class="policy-foot">
+          <button class="btn ghost" style="font-size:12px">Skip</button>
+          <button class="btn gold" id="set-policy" disabled onclick="this.textContent='Policy set ✓'">Set policy</button>
+        </div>
+      </div>
+
+      <div class="paybox-mini rise d6">
+        <div class="pb-tag"><span class="plug">▣</span>paybox · venture vault</div>
+        <div class="pb-row"><span class="k">Operating budget</span><span class="v">200.00 USDC</span></div>
+        <div class="pb-row"><span class="k">Card rail · Visa ••4821</span><span class="v">standby</span></div>
+        <hr class="pb-sep">
+        <div class="pb-row"><span class="k">Lead fees · yesterday</span><span class="v in">+35.00 USDC</span></div>
+        <div class="pb-row"><span class="k">Agent wages paid</span><span class="v gd">−6.40 USDC</span></div>
+      </div>
+
+      <div class="follows rise d6">
+        <span class="follow">Show me the landing page</span>
+        <span class="follow">Set a 10-lead goal this week</span>
+        <span class="follow">List on Buoy</span>
+      </div>
+    </div>
+
+    <div class="composer">
+      <div class="comp-box">
+        <input id="composer-input" placeholder="Message Vic — @ agent · / command · ◈ pay">
+        <div class="comp-foot">
+          <span class="cpill model">◆ shipyard/haiku-4-5</span>
+          <span class="cpill">@</span><span class="cpill">/</span><span class="cpill">◈</span>
+          <button class="send">↑</button>
+        </div>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<script>
+  function pick(el) {
+    document.querySelectorAll('.opt').forEach(o => o.classList.remove('sel'));
+    el.classList.add('sel');
+    document.getElementById('set-policy').disabled = false;
+  }
+  // spotlight follows cursor on venture cards
+  document.querySelectorAll('.venture').forEach(v => {
+    v.addEventListener('pointermove', e => {
+      const r = v.getBoundingClientRect();
+      v.style.setProperty('--mx', ((e.clientX - r.left) / r.width * 100) + '%');
+      v.style.setProperty('--my', ((e.clientY - r.top) / r.height * 100) + '%');
+    });
+  });
+
+  /* ── toast ── */
+  const toastStyle = document.createElement('style');
+  toastStyle.textContent = `
+    .toast { position: fixed; bottom: 26px; left: 50%; transform: translate(-50%, 14px); z-index: 200;
+      background: var(--surface-3); color: var(--ink); border: 1px solid var(--line-strong); border-radius: 12px;
+      padding: 11px 18px; font-size: 12.5px; font-weight: 500; box-shadow: 0 14px 44px rgba(0,0,0,.55);
+      opacity: 0; transition: all .3s cubic-bezier(.32,.72,0,1); pointer-events: none; }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }`;
+  document.head.appendChild(toastStyle);
+  const toast = msg => {
+    const t = document.createElement('div');
+    t.className = 'toast'; t.textContent = msg;
+    document.body.appendChild(t);
+    requestAnimationFrame(() => t.classList.add('show'));
+    setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 350); }, 2200);
+  };
+
+  /* ── composer helpers ── */
+  const input = document.getElementById('composer-input');
+  const focusVic = (text) => {
+    input.focus();
+    if (text) input.value = text;
+    input.closest('.comp-box').style.borderColor = 'rgba(167,139,250,.7)';
+    setTimeout(() => input.closest('.comp-box').style.borderColor = '', 900);
+  };
+  const sendToVic = text => {
+    const body = document.querySelector('.vic-body');
+    const m = document.createElement('div');
+    m.className = 'you';
+    m.style.animation = 'rise .5s cubic-bezier(.32,.72,0,1) both';
+    m.textContent = text;
+    body.insertBefore(m, body.querySelector('.thinking'));
+    body.scrollTop = body.scrollHeight;
+  };
+
+  /* ── wire buttons ── */
+  // sidebar
+  document.querySelector('.launch').onclick = () => focusVic('Launch a new venture: ');
+  document.querySelectorAll('.rail-item').forEach(item => {
+    item.onclick = () => {
+      document.querySelectorAll('.rail-item').forEach(i => i.classList.remove('on'));
+      item.classList.add('on');
+      toast(item.textContent.trim() + ' — ships in the Next.js build');
+    };
+  });
+  // brief
+  document.querySelector('.btn.gold').onclick = () => { sendToVic('Walk me through today\'s brief.'); focusVic(); };
+  const briefBtns = document.querySelectorAll('.brief-foot .btn');
+  briefBtns[1].onclick = () => toast('Full brief — 2 min read (demo)');
+  briefBtns[2].onclick = () => toast('Brief archived');
+  // new venture card
+  document.querySelector('.venture.new').onclick = () => focusVic('Launch a new venture: ');
+  document.querySelector('.sec-head .act').onclick = () => focusVic('Launch a new venture: ');
+  // decisions
+  document.querySelectorAll('.dec').forEach((row, i) => {
+    row.onclick = () => {
+      if (i === 0) {
+        const card = document.getElementById('policy-card');
+        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        card.style.borderColor = 'rgba(231,201,121,.8)';
+        setTimeout(() => card.style.borderColor = '', 1400);
+      } else if (i === 1) {
+        sendToVic('Show me the Buoy pricing copy for approval.');
+        focusVic();
+      } else {
+        toast('Migration applying — Builder will report when done');
+      }
+    };
+  });
+  // ventures
+  document.querySelectorAll('.venture:not(.new)').forEach((v, i) => {
+    v.onclick = () => toast(['Dock — war room opens here in the build', 'Buoy — war room opens here in the build', 'Harbor Leads — live in Vic\'s chat →'][i] || 'Opening venture');
+  });
+  // skip button
+  const skipBtn = document.querySelector('.policy-foot .btn.ghost');
+  skipBtn.onclick = () => {
+    document.getElementById('policy-card').style.transition = 'opacity .4s';
+    document.getElementById('policy-card').style.opacity = '.35';
+    toast('Skipped — Harbor runs read-only until set');
+  };
+  // follow chips → composer
+  document.querySelectorAll('.follow').forEach(f => {
+    f.onclick = () => focusVic(f.textContent + ' ');
+  });
+  // cites
+  document.querySelectorAll('.cite').forEach(c => {
+    c.onclick = () => toast('Source: ' + c.textContent.trim());
+  });
+  // composer send
+  const doSend = () => {
+    if (!input.value.trim()) { focusVic(); return; }
+    sendToVic(input.value.trim());
+    input.value = '';
+    toast('Vic is thinking…');
+  };
+  document.querySelector('.send').onclick = doSend;
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') doSend(); });
+  // composer pills
+  document.querySelector('.cpill.model').onclick = () => toast('shipyard/claude-haiku-4-5 · shipyard/sonnet-4-5 (demo)');
+</script>
+</body>
+</html>

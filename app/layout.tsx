@@ -1,6 +1,16 @@
 import type { Metadata } from "next"
+import { Geist, Geist_Mono, Instrument_Serif } from "next/font/google"
 import "./globals.css"
 import { ConditionalLayout } from "@/components/ConditionalLayout"
+
+const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] })
+const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] })
+const instrumentSerif = Instrument_Serif({
+  variable: "--font-serif-display",
+  weight: "400",
+  style: ["normal", "italic"],
+  subsets: ["latin"],
+})
 
 export const metadata: Metadata = {
   title: "Shipyard OS",
@@ -35,10 +45,10 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} ${instrumentSerif.variable}`}>
       <body
         className="antialiased"
-        style={{ backgroundColor: "#0a0a0f", color: "#e4e4e7" }}
+        style={{ backgroundColor: "#08080b", color: "#e9eaf0" }}
       >
         <ConditionalLayout>{children}</ConditionalLayout>
       </body>

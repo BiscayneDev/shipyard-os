@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shipyard — Paybox Rails</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #09090d; --panel: #0f0f15; --panel-2: #14141c; --panel-3: #191924;
+    --border: #1e1e29; --border-2: #2b2b3d;
+    --fg: #eceef4; --muted: #8b8fa3; --faint: #5a5e70;
+    --accent: #7c3aed; --accent-soft: rgba(124,58,237,.14);
+    --cyan: #22d3ee; --emerald: #34d399; --amber: #f59e0b; --pink: #ec4899;
+    --gold: #eab308;
+    --radius: 14px; --font: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, monospace;
+    --paybox: #5b6cff;
+  }
+  body { font-family: var(--font); background: var(--bg); color: var(--fg); -webkit-font-smoothing: antialiased; line-height: 1.5; overflow: hidden; }
+  .app { display: grid; grid-template-columns: 226px 1fr; height: 100vh; }
+
+  /* Sidebar (same as 005) */
+  .side { border-right: 1px solid var(--border); padding: 20px 14px; display: flex; flex-direction: column; gap: 4px; }
+  .brand { display: flex; align-items: center; gap: 10px; padding: 4px 8px 20px; }
+  .brand-mark { width: 28px; height: 28px; border-radius: 8px; background: linear-gradient(135deg, #7c3aed, #22d3ee); display: grid; place-items: center; font-size: 14px; }
+  .brand b { font-size: 14px; }
+  .nav-label { font-size: 10px; text-transform: uppercase; letter-spacing: .12em; color: var(--faint); padding: 14px 8px 6px; }
+  .nav-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; color: var(--muted); font-size: 13.5px; cursor: pointer; transition: all .15s; }
+  .nav-item:hover { background: var(--panel-2); color: var(--fg); }
+  .nav-item.active { background: var(--accent-soft); color: var(--fg); box-shadow: inset 0 0 0 1px rgba(124,58,237,.35); }
+  .side-foot { margin-top: auto; border-top: 1px solid var(--border); padding: 12px 8px 0; font-size: 11px; }
+  .wallet { display: flex; align-items: center; gap: 7px; color: var(--muted); }
+  .wallet .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--emerald); box-shadow: 0 0 6px var(--emerald); }
+
+  .deck { overflow-y: auto; padding: 34px 40px 70px; }
+  .deck-inner { max-width: 760px; }
+  .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 34px; }
+  .crumb { font-size: 12px; color: var(--faint); letter-spacing: .08em; text-transform: uppercase; }
+  .avatar { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg,#f59e0b,#ec4899); display: grid; place-items: center; font-size: 13px; }
+  h1 { font-size: 25px; font-weight: 650; letter-spacing: -.02em; margin-bottom: 6px; }
+  .sub { color: var(--muted); font-size: 14px; margin-bottom: 30px; max-width: 60ch; }
+
+  .section-title { font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--faint); margin: 30px 0 13px; }
+
+  .btn { border: 1px solid var(--border-2); background: var(--panel-2); color: var(--fg); font-size: 13px; padding: 9px 15px; border-radius: 9px; cursor: pointer; transition: all .15s; font-family: var(--font); }
+  .btn:hover { border-color: rgba(124,58,237,.5); transform: translateY(-1px); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: white; }
+  .btn.primary:hover { background: #8b5cf6; }
+  .btn.paybox-btn { background: var(--paybox); border-color: var(--paybox); color: white; display: inline-flex; gap: 8px; align-items: center; }
+  .btn.paybox-btn:hover { background: #6d7aff; transform: translateY(-1px); }
+  .btn.sm { font-size: 12px; padding: 6px 12px; }
+
+  /* ── CONNECT CARD (empty state) ── */
+  .connect-card { border: 1px dashed var(--border-2); border-radius: 16px; padding: 34px 34px 30px; text-align: center; background: radial-gradient(120% 100% at 50% 0%, rgba(91,108,255,.07), transparent 60%), var(--panel); }
+  .pb-logo { width: 54px; height: 54px; border-radius: 16px; background: linear-gradient(135deg, #5b6cff, #a78bfa); display: grid; place-items: center; margin: 0 auto 16px; font-size: 24px; box-shadow: 0 8px 30px rgba(91,108,255,.3); }
+  .connect-card h2 { font-size: 18px; font-weight: 650; margin-bottom: 8px; }
+  .connect-card .desc { color: var(--muted); font-size: 13.5px; max-width: 46ch; margin: 0 auto 20px; }
+  .trust-row { display: flex; gap: 8px; justify-content: center; margin-top: 20px; flex-wrap: wrap; }
+  .trust { font-size: 11px; color: var(--muted); border: 1px solid var(--border); border-radius: 99px; padding: 4px 11px; background: var(--panel-2); display: inline-flex; gap: 6px; align-items: center; }
+  .trust .ic { color: var(--emerald); }
+
+  /* ── CONNECT MODAL ── */
+  .overlay { position: fixed; inset: 0; background: rgba(5,5,9,.72); backdrop-filter: blur(4px); display: none; place-items: center; z-index: 50; }
+  .overlay.show { display: grid; }
+  .modal { width: 480px; background: var(--panel); border: 1px solid var(--border-2); border-radius: 18px; padding: 26px 26px 22px; box-shadow: 0 30px 90px rgba(0,0,0,.6); }
+  .modal-head { display: flex; gap: 12px; align-items: center; margin-bottom: 18px; }
+  .modal-head .pb-logo { width: 40px; height: 40px; font-size: 18px; margin: 0; border-radius: 12px; box-shadow: none; }
+  .modal-head b { font-size: 15px; }
+  .modal-head .x { margin-left: auto; color: var(--faint); cursor: pointer; font-size: 16px; }
+  .modal-head .x:hover { color: var(--fg); }
+  .steps { display: flex; gap: 6px; margin-bottom: 18px; }
+  .mstep { flex: 1; height: 3px; border-radius: 2px; background: var(--border); }
+  .mstep.on { background: var(--paybox); }
+  .modal p { font-size: 13.5px; color: var(--muted); line-height: 1.6; margin-bottom: 16px; }
+  .modal p b { color: var(--fg); }
+
+  .perm { display: flex; align-items: center; gap: 11px; padding: 11px 13px; border: 1px solid var(--border); border-radius: 11px; margin-bottom: 8px; background: var(--panel-2); }
+  .perm .ic { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; font-size: 14px; background: var(--panel-3); flex-shrink: 0; }
+  .perm-t { font-size: 13px; font-weight: 550; }
+  .perm-d { font-size: 11.5px; color: var(--muted); margin-top: 1px; }
+  .toggle { margin-left: auto; width: 34px; height: 20px; border-radius: 99px; background: var(--border-2); position: relative; cursor: pointer; transition: background .2s; flex-shrink: 0; }
+  .toggle::after { content: ""; position: absolute; top: 2.5px; left: 3px; width: 15px; height: 15px; border-radius: 50%; background: var(--muted); transition: all .2s; }
+  .toggle.on { background: var(--paybox); }
+  .toggle.on::after { left: 16px; background: white; }
+
+  .limit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 14px 0 4px; }
+  .limit { border: 1px solid var(--border); border-radius: 11px; padding: 10px 12px; background: var(--panel-2); cursor: pointer; }
+  .limit.picked { border-color: var(--paybox); box-shadow: 0 0 0 3px rgba(91,108,255,.15); }
+  .limit-t { font-size: 13px; font-weight: 600; }
+  .limit-d { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  .chain-row { display: flex; gap: 6px; margin: 12px 0 16px; flex-wrap: wrap; }
+  .chain { font-size: 11.5px; padding: 5px 12px; border-radius: 99px; border: 1px solid var(--border-2); color: var(--muted); cursor: pointer; }
+  .chain.on { border-color: var(--paybox); color: var(--fg); background: rgba(91,108,255,.12); }
+
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 18px; }
+  .keynote { font-size: 11px; color: var(--faint); text-align: center; margin-top: 14px; }
+
+  /* ── CONNECTED STATE ── */
+  .connected { display: none; }
+  .connected.show { display: block; }
+  .connect-card.hide { display: none; }
+
+  .pb-bar { display: flex; align-items: center; gap: 14px; border: 1px solid var(--border); border-radius: 16px; padding: 18px 20px; background: linear-gradient(120deg, rgba(91,108,255,.09), transparent 55%), var(--panel); margin-bottom: 20px; }
+  .pb-bar .pb-logo { width: 44px; height: 44px; font-size: 20px; margin: 0; border-radius: 13px; box-shadow: none; flex-shrink: 0; }
+  .pb-bar .t { font-size: 14.5px; font-weight: 650; display: flex; align-items: center; gap: 8px; }
+  .pb-badge { font-size: 10.5px; color: var(--emerald); border: 1px solid rgba(52,211,153,.35); background: rgba(52,211,153,.08); padding: 2px 8px; border-radius: 99px; display: inline-flex; gap: 5px; align-items: center; }
+  .pb-badge::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: var(--emerald); box-shadow: 0 0 6px var(--emerald); animation: pulse 2s infinite; }
+  @keyframes pulse { 50% { opacity: .4; } }
+  .pb-bar .d { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .pb-bar .btn { margin-left: auto; }
+
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .card { border: 1px solid var(--border); border-radius: 14px; padding: 17px 18px; background: var(--panel); }
+  .card h3 { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--faint); font-weight: 500; margin-bottom: 12px; display: flex; gap: 8px; align-items: center; }
+  .bal { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 3px; }
+  .bal .k { font-size: 13px; color: var(--muted); }
+  .bal .v { font-family: var(--mono); font-size: 14.5px; font-variant-numeric: tabular-nums; }
+  .bal .v.in { color: var(--emerald); }
+  .bal .v.out { color: var(--muted); }
+
+  .meter { margin-bottom: 12px; }
+  .meter-top { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-bottom: 5px; }
+  .meter-top b { color: var(--fg); font-weight: 550; }
+  .bar { height: 5px; border-radius: 3px; background: var(--border); overflow: hidden; }
+  .bar > i { display: block; height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--paybox), var(--cyan)); }
+
+  .txn { display: flex; align-items: center; gap: 11px; padding: 9px 0; border-bottom: 1px solid var(--border); }
+  .txn:last-child { border-bottom: 0; }
+  .txn .ic { width: 28px; height: 28px; border-radius: 8px; background: var(--panel-3); display: grid; place-items: center; font-size: 13px; flex-shrink: 0; }
+  .txn-t { font-size: 12.5px; }
+  .txn-d { font-size: 11px; color: var(--faint); font-family: var(--mono); margin-top: 1px; }
+  .txn .amt { margin-left: auto; font-family: var(--mono); font-size: 12.5px; }
+  .amt.in { color: var(--emerald); } .amt.out { color: var(--muted); }
+
+  .perm-list .perm { margin-bottom: 6px; }
+  .scope-tag { font-size: 10px; font-family: var(--mono); color: var(--paybox); border: 1px solid rgba(91,108,255,.35); border-radius: 5px; padding: 1px 7px; margin-left: auto; flex-shrink: 0; }
+</style>
+</head>
+<body>
+<div class="app">
+  <nav class="side">
+    <div class="brand"><div class="brand-mark">⚓</div><b>Shipyard OS</b></div>
+    <div class="nav-label">Workspace</div>
+    <div class="nav-item">◎ &nbsp;Ventures</div>
+    <div class="nav-item">🗂 &nbsp;Missions</div>
+    <div class="nav-item">🧭 &nbsp;Intel</div>
+    <div class="nav-item">🛠 &nbsp;Skills</div>
+    <div class="nav-label">Rails</div>
+    <div class="nav-item">💰 &nbsp;Treasury</div>
+    <div class="nav-item active">⚡ &nbsp;Paybox</div>
+    <div class="nav-item">⛵ &nbsp;Buoy</div>
+    <div class="side-foot">
+      <div class="wallet"><span class="dot"></span> paybox · 7gHx…kQ2f</div>
+      <div style="margin-top:5px;color:var(--muted)">USDC 4,213.50</div>
+    </div>
+  </nav>
+
+  <main class="deck">
+    <div class="deck-inner">
+      <div class="topbar">
+        <span class="crumb">Rails · Paybox</span>
+        <div class="avatar">HH</div>
+      </div>
+
+      <h1>Paybox</h1>
+      <p class="sub">Connect MoonPay's non-custodial payment vault so your agents can pay and get paid — wallets, cards, and credentials behind one key only you control.</p>
+
+      <!-- EMPTY STATE -->
+      <div class="connect-card" id="empty">
+        <div class="pb-logo">▣</div>
+        <h2>Connect your Paybox vault</h2>
+        <p class="desc">Give your agent fleet limited access to spend, trade, and settle — with per-venture spending caps and MPC-secured keys. Shipyard never sees your keys.</p>
+        <button class="btn paybox-btn" onclick="openModal()">▣ &nbsp;Connect Paybox</button>
+        <div class="trust-row">
+          <span class="trust"><span class="ic">✓</span> Non-custodial (MPC / TEE)</span>
+          <span class="trust"><span class="ic">✓</span> Per-agent spend caps</span>
+          <span class="trust"><span class="ic">✓</span> Solana + 7 EVM chains</span>
+          <span class="trust"><span class="ic">✓</span> Revoke anytime</span>
+        </div>
+      </div>
+
+      <!-- CONNECTED STATE -->
+      <div class="connected" id="connected">
+        <div class="pb-bar">
+          <div class="pb-logo">▣</div>
+          <div>
+            <div class="t">Paybox <span class="pb-badge">Connected</span></div>
+            <div class="d">Vault 7gHx…kQ2f · linked 2 ventures · last sync 41s ago</div>
+          </div>
+          <button class="btn sm" onclick="resetAll()">Manage</button>
+        </div>
+
+        <div class="grid2">
+          <div class="card">
+            <h3>◈ Balances</h3>
+            <div class="bal"><span class="k">USDC (Solana)</span><span class="v">4,213.50</span></div>
+            <div class="bal"><span class="k">SOL</span><span class="v">12.884</span></div>
+            <div class="bal"><span class="k">USDc (Base)</span><span class="v">810.20</span></div>
+            <div class="bal"><span class="k">Card · Visa ••4821</span><span class="v out">fiat rail</span></div>
+          </div>
+
+          <div class="card">
+            <h3>⏱ Agent spend limits — this cycle</h3>
+            <div class="meter"><div class="meter-top"><span><b>Harbor</b> · leads</span><span>17.5 / 25 USDC</span></div><div class="bar"><i style="width:70%"></i></div></div>
+            <div class="meter"><div class="meter-top"><span><b>Builder</b> · infra</span><span>3.2 / 50 USDC</span></div><div class="bar"><i style="width:6%"></i></div></div>
+            <div class="meter"><div class="meter-top"><span><b>Scout</b> · research APIs</span><span>41.0 / 100 USDC</span></div><div class="bar"><i style="width:41%"></i></div></div>
+          </div>
+
+          <div class="card">
+            <h3>⇄ Recent settlements</h3>
+            <div class="txn"><div class="ic">◈</div><div><div class="txn-t">Harbor lead fee — Miami dev shop</div><div class="txn-d">x402 · 2m ago · 5Znb…9fKq</div></div><span class="amt in">+5.00 USDC</span></div>
+            <div class="txn"><div class="ic">⚙</div><div><div class="txn-t">Scout — SERP API credits</div><div class="txn-d">paybox card · 26m ago</div></div><span class="amt out">−1.20 USDC</span></div>
+            <div class="txn"><div class="ic">◈</div><div><div class="txn-t">Buoy payout — Buoy API rentals</div><div class="txn-d">x402 · 3h ago · 3 payout batch</div></div><span class="amt in">+38.40 USDC</span></div>
+            <div class="txn"><div class="ic">⛽</div><div><div class="txn-t">Domain renewal — harborleads.ai</div><div class="txn-d">sol pay · yesterday</div></div><span class="amt out">−12.00 USDC</span></div>
+          </div>
+
+          <div class="card perm-list">
+            <h3>🔑 Agent permissions</h3>
+            <div class="perm"><div class="ic">⚡</div><div><div class="perm-t">x402 payment endpoints</div><div class="perm-d">Receive &amp; settle micro-payments</div></div><span class="scope-tag">x402:settle</span></div>
+            <div class="perm"><div class="ic">◈</div><div><div class="perm-t">Send within caps</div><div class="perm-d">Per-agent daily USDC limits</div></div><span class="scope-tag">pay:capped</span></div>
+            <div class="perm"><div class="ic">💱</div><div><div class="perm-t">Swap (auto)</div><div class="perm-d">USDC ⇄ SOL for gas only</div></div><span class="scope-tag">swap:gas</span></div>
+            <div class="perm" style="opacity:.55"><div class="ic">🚫</div><div><div class="perm-t">Withdraw to external</div><div class="perm-d">Requires your confirmation in chat</div></div><span class="scope-tag">off</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- CONNECT MODAL -->
+<div class="overlay" id="overlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="pb-logo">▣</div>
+      <div><b>Connect Paybox</b><div style="font-size:11.5px;color:var(--faint)">paybox.sh · step 1 of 2</div></div>
+      <span class="x" onclick="closeModal()">✕</span>
+    </div>
+    <div class="steps"><div class="mstep on" id="s1"></div><div class="mstep" id="s2"></div></div>
+
+    <!-- Step 1: link + permissions -->
+    <div id="step1">
+      <p>Open <b>paybox.sh/connect</b> and approve the request from <b>Shipyard OS</b>. Your keys stay in the vault — Shipyard receives a scoped session key.</p>
+      <div class="perm"><div class="ic">⚡</div><div><div class="perm-t">x402 settlements</div><div class="perm-d">Receive micro-payments on your ventures</div></div><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+      <div class="perm"><div class="ic">◈</div><div><div class="perm-t">Capped spending</div><div class="perm-d">Agents pay bills within limits you set</div></div><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+      <div class="perm"><div class="ic">💳</div><div><div class="perm-t">Card access</div><div class="perm-d">Fiat fallback for non-crypto vendors</div></div><div class="toggle" onclick="this.classList.toggle('on')"></div></div>
+      <div class="limit-grid" id="limits">
+        <div class="limit" onclick="pickLimit(this)"><div class="limit-t">5 USDC / day</div><div class="limit-d">Micro — per agent</div></div>
+        <div class="limit picked" onclick="pickLimit(this)"><div class="limit-t">25 USDC / day</div><div class="limit-d">Standard — per agent</div></div>
+        <div class="limit" onclick="pickLimit(this)"><div class="limit-t">100 USDC / day</div><div class="limit-d">Autopilot — per agent</div></div>
+        <div class="limit" onclick="pickLimit(this)"><div class="limit-t">Custom</div><div class="limit-d">Per-venture policies</div></div>
+      </div>
+      <div class="chain-row">
+        <span class="chain on">Solana</span><span class="chain on">Base</span><span class="chain">Ethereum</span><span class="chain">Arbitrum</span><span class="chain">Polygon</span>
+      </div>
+      <div class="modal-actions">
+        <button class="btn" onclick="closeModal()">Cancel</button>
+        <button class="btn paybox-btn" onclick="goStep2()">Authorize session key →</button>
+      </div>
+      <div class="keynote">🔒 MPC-secured · Shipyard never holds your keys · revoke in one click</div>
+    </div>
+
+    <!-- Step 2: confirming -->
+    <div id="step2" style="display:none">
+      <p style="text-align:center; margin: 26px 0">Waiting for approval in your Paybox app…</p>
+      <div style="text-align:center; margin-bottom: 26px">
+        <span style="display:inline-grid;place-items:center;width:54px;height:54px;border-radius:50%;border:2px solid var(--border-2);border-top-color:var(--paybox);animation:spin 1s linear infinite"></span>
+      </div>
+      <p style="text-align:center; font-family:var(--mono); font-size:12px; color:var(--faint)">session key: pbx_shipyard…8f2a</p>
+      <div class="modal-actions">
+        <button class="btn" onclick="showStep(1)">← Back</button>
+        <button class="btn paybox-btn" id="done-btn" onclick="finishConnect()">I approved it</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function openModal() { document.getElementById('overlay').classList.add('show'); }
+  function closeModal() { document.getElementById('overlay').classList.remove('show'); }
+  function showStep(n) {
+    document.getElementById('step1').style.display = n === 1 ? 'block' : 'none';
+    document.getElementById('step2').style.display = n === 2 ? 'block' : 'none';
+    document.getElementById('s1').classList.toggle('on', true);
+    document.getElementById('s2').classList.toggle('on', n === 2);
+    document.querySelector('.modal-head div div').textContent = n === 2 ? 'step 2 of 2' : 'step 1 of 2';
+  }
+  function goStep2() {
+    showStep(2);
+    setTimeout(() => { document.getElementById('done-btn').classList.add('paybox-btn'); }, 400);
+  }
+  function finishConnect() {
+    closeModal();
+    document.getElementById('empty').classList.add('hide');
+    document.getElementById('connected').classList.add('show');
+  }
+  function resetAll() {
+    document.getElementById('empty').classList.remove('hide');
+    document.getElementById('connected').classList.remove('show');
+    showStep(1);
+  }
+  function pickLimit(el) {
+    document.querySelectorAll('.limit').forEach(l => l.classList.remove('picked'));
+    el.classList.add('picked');
+  }
+  const style = document.createElement('style');
+  style.textContent = '@keyframes spin { to { transform: rotate(360deg); } }';
+  document.head.appendChild(style);
+</script>
+</body>
+</html>

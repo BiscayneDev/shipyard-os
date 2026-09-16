@@ -3,6 +3,7 @@ import { usePathname } from "next/navigation"
 import { Sidebar } from "@/components/Sidebar"
 import { ToastProvider } from "@/components/ToastProvider"
 import { CommandPalette } from "@/components/CommandPalette"
+import { VicPanel } from "@/components/vic/VicPanel"
 
 export function ConditionalLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -20,6 +21,7 @@ export function ConditionalLayout({ children }: { children: React.ReactNode }) {
       </div>
       <CommandPalette />
       <ToastProvider />
+      <VicPanel />
     </>
   )
 }

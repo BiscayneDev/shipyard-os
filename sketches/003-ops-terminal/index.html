@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shipyard OS — Ops Terminal</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #070709; --panel: #0c0c11; --border: #1a1a24; --border-2: #26263a;
+    --fg: #dfe2ec; --muted: #8388a0; --faint: #565b70;
+    --accent: #22d3ee; --violet: #a78bfa; --emerald: #34d399; --amber: #f59e0b; --pink: #f472b6;
+    --mono: ui-monospace, "SF Mono", Menlo, "Cascadia Code", monospace;
+  }
+  body { font-family: var(--mono); background: var(--bg); color: var(--fg); -webkit-font-smoothing: antialiased; font-size: 12.5px; line-height: 1.55; }
+  .app { display: grid; grid-template-columns: 1fr; height: 100vh; }
+
+  /* Top status bar */
+  .statusbar { display: flex; align-items: center; gap: 18px; padding: 8px 16px; border-bottom: 1px solid var(--border); font-size: 11.5px; color: var(--muted); background: var(--panel); }
+  .statusbar .brand { color: var(--fg); font-weight: 600; display: flex; gap: 8px; align-items: center; }
+  .statusbar .brand::before { content: "⚓"; color: var(--accent); }
+  .sitem { display: flex; align-items: center; gap: 6px; }
+  .sev { width: 7px; height: 7px; border-radius: 50%; }
+  .sev.g { background: var(--emerald); box-shadow: 0 0 7px var(--emerald); }
+  .sev.a { background: var(--amber); box-shadow: 0 0 7px var(--amber); animation: pulse 1.8s infinite; }
+  .sev.r { background: var(--pink); box-shadow: 0 0 7px var(--pink); }
+  @keyframes pulse { 50% { opacity: .35; } }
+  .clock { margin-left: auto; color: var(--faint); }
+
+  .body { display: grid; grid-template-columns: 1fr 340px; gap: 0; flex: 1; overflow: hidden; }
+  .col-main { overflow-y: auto; padding: 18px 22px; }
+  .col-side { border-left: 1px solid var(--border); overflow-y: auto; padding: 18px 18px; background: var(--panel); }
+
+  h4.sec { font-size: 10.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--faint); margin: 20px 0 10px; }
+  h4.sec:first-child { margin-top: 0; }
+
+  /* Command line */
+  .cmdbar { display: flex; align-items: center; gap: 10px; background: var(--panel); border: 1px solid var(--border-2); border-radius: 10px; padding: 10px 14px; margin-bottom: 6px; }
+  .cmdbar .prompt-sym { color: var(--accent); font-weight: 700; }
+  .cmdbar input { flex: 1; background: none; border: none; outline: none; color: var(--fg); font-family: var(--mono); font-size: 13px; }
+  .cmdbar input::placeholder { color: var(--faint); }
+  .cmdbar .meta { color: var(--faint); font-size: 10.5px; }
+  .hints { font-size: 11px; color: var(--faint); padding: 0 4px 8px; }
+  .hints kbd { border: 1px solid var(--border); border-radius: 4px; padding: 0 5px; font-size: 10px; }
+
+  /* Table rows */
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--faint); font-weight: 500; padding: 6px 10px; border-bottom: 1px solid var(--border); }
+  td { padding: 8px 10px; border-bottom: 1px solid var(--border); font-size: 12px; vertical-align: middle; }
+  tr { cursor: pointer; transition: background .12s; }
+  tbody tr:hover { background: rgba(34,211,238,.045); }
+  .agent-name { color: var(--fg); font-weight: 600; }
+  .agent-name .em { margin-right: 7px; }
+  .tag { font-size: 10px; padding: 2px 7px; border-radius: 4px; border: 1px solid; margin-right: 4px; }
+  .tag.run { color: var(--accent); border-color: rgba(34,211,238,.35); }
+  .tag.idle { color: var(--faint); border-color: var(--border-2); }
+  .tag.warn { color: var(--amber); border-color: rgba(245,158,11,.35); }
+  .num { color: var(--muted); font-variant-numeric: tabular-nums; }
+
+  /* Sparklines */
+  .spark { display: inline-flex; align-items: flex-end; gap: 2px; height: 18px; }
+  .spark i { width: 3px; border-radius: 1px; background: var(--border-2); }
+  .spark i.hi { background: var(--accent); }
+
+  /* Deploy log */
+  .log { background: #060608; border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; font-size: 11.5px; }
+  .log .ln { display: flex; gap: 10px; padding: 1.5px 0; color: var(--muted); }
+  .log .t { color: var(--faint); }
+  .log .ok { color: var(--emerald); }
+  .log .info { color: var(--accent); }
+  .log .warn { color: var(--amber); }
+
+  /* Risk panel */
+  .risk { border: 1px solid; border-radius: 9px; padding: 11px 13px; margin-bottom: 9px; cursor: pointer; transition: all .15s; }
+  .risk:hover { transform: translateX(3px); }
+  .risk.r { border-color: rgba(244,114,182,.4); background: rgba(244,114,182,.05); }
+  .risk.a { border-color: rgba(245,158,11,.4); background: rgba(245,158,11,.04); }
+  .risk-g { border-color: rgba(34,211,238,.4); background: rgba(34,211,238,.04); }
+  .risk-title { font-size: 12px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+  .risk-body { font-size: 11px; color: var(--muted); margin-top: 5px; line-height: 1.5; }
+  .risk-act { font-size: 10.5px; margin-top: 7px; color: var(--accent); }
+
+  /* Budget meter */
+  .meter { margin-bottom: 12px; }
+  .meter-top { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+  .bar { height: 4px; border-radius: 2px; background: var(--border); overflow: hidden; }
+  .bar > i { display: block; height: 100%; border-radius: 2px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="statusbar">
+    <span class="brand">shipyard-os</span>
+    <span class="sitem"><span class="sev g"></span> 4 agents</span>
+    <span class="sitem"><span class="sev a"></span> 1 blocked</span>
+    <span class="sitem"><span class="sev r"></span> 1 failing</span>
+    <span class="sitem">deploys: green</span>
+    <span class="sitem">$1.24 today · $38.10 /mo</span>
+    <span class="clock">Tue Sep 15 · 09:42 EDT</span>
+  </div>
+
+  <div class="body">
+    <div class="col-main">
+      <div class="cmdbar">
+        <span class="prompt-sym">›</span>
+        <input placeholder="run a command — e.g. deploy scout, brief me, spawn builder …">
+        <span class="meta">⌘K</span>
+      </div>
+      <div class="hints"><kbd>↹</kbd> autocomplete &nbsp;·&nbsp; <kbd>@</kbd> agent &nbsp;·&nbsp; <kbd>/</kbd> mission &nbsp;·&nbsp; type <b style="color:var(--accent)">brief</b> for the executive brief</div>
+
+      <h4 class="sec">Fleet</h4>
+      <table>
+        <thead><tr><th>agent</th><th>state</th><th>current work</th><th>tasks</th><th>cost</th><th>24h</th></tr></thead>
+        <tbody>
+          <tr><td class="agent-name"><span class="em">🦞</span>vic</td><td><span class="tag run">running</span></td><td>drafting Buoy launch brief</td><td class="num">2/4</td><td class="num">$0.42</td><td><span class="spark"><i style="height:40%"></i><i style="height:60%"></i><i class="hi" style="height:90%"></i><i style="height:55%"></i><i style="height:70%"></i><i class="hi" style="height:100%"></i><i style="height:45%"></i></span></td></tr>
+          <tr><td class="agent-name"><span class="em">🔭</span>scout</td><td><span class="tag run">running</span></td><td>competitive scan → complete</td><td class="num">1/1</td><td class="num">$0.31</td><td><span class="spark"><i style="height:50%"></i><i class="hi" style="height:85%"></i><i style="height:65%"></i><i style="height:40%"></i><i style="height:75%"></i><i style="height:60%"></i><i style="height:30%"></i></span></td></tr>
+          <tr><td class="agent-name"><span class="em">⚡</span>builder</td><td><span class="tag warn">blocked</span></td><td>inference /connect — needs SQL</td><td class="num">1/3</td><td class="num">$0.28</td><td><span class="spark"><i style="height:60%"></i><i style="height:45%"></i><i style="height:70%"></i><i style="height:35%"></i><i style="height:50%"></i><i style="height:55%"></i><i style="height:20%"></i></span></td></tr>
+          <tr><td class="agent-name"><span class="em">🤝</span>deal-flow</td><td><span class="tag idle">idle</span></td><td>1 lead queued for review</td><td class="num">0/1</td><td class="num">$0.12</td><td><span class="spark"><i style="height:30%"></i><i style="height:25%"></i><i style="height:40%"></i><i style="height:20%"></i><i style="height:35%"></i><i style="height:30%"></i><i style="height:15%"></i></span></td></tr>
+          <tr><td class="agent-name"><span class="em">🏦</span>baron</td><td><span class="tag idle">idle</span></td><td>watching 2 prediction markets</td><td class="num">0/0</td><td class="num">$0.11</td><td><span class="spark"><i style="height:25%"></i><i style="height:35%"></i><i style="height:20%"></i><i style="height:30%"></i><i style="height:25%"></i><i style="height:40%"></i><i style="height:20%"></i></span></td></tr>
+        </tbody>
+      </table>
+
+      <h4 class="sec">Deploy log — mission-control</h4>
+      <div class="log">
+        <div class="ln"><span class="t">09:31</span><span class="ok">✓</span> build succeeded · 41s</div>
+        <div class="ln"><span class="t">09:32</span><span class="info">→</span> deployed to production · mission-control-two-ebon.vercel.app</div>
+        <div class="ln"><span class="t">09:32</span><span class="warn">△</span> inference /connect still 500 · awaiting api_keys SQL in Supabase</div>
+        <div class="ln"><span class="t">09:38</span><span class="ok">✓</span> scout report generated · 12 sources</div>
+      </div>
+    </div>
+
+    <div class="col-side">
+      <h4 class="sec">Risks &amp; decisions</h4>
+      <div class="risk r">
+        <div class="risk-title"><span class="sev r"></span> /connect 500 in production</div>
+        <div class="risk-body">Blocks all Dock↔Inference conversations until api_keys table exists in Supabase. Builder has the migration staged.</div>
+        <div class="risk-act">→ open war room</div>
+      </div>
+      <div class="risk a">
+        <div class="risk-title"><span class="sev a"></span> Buoy pricing decision pending</div>
+        <div class="risk-body">Scout's competitive scan supports flat 5%. Launch brief held until you approve.</div>
+        <div class="risk-act">→ review brief</div>
+      </div>
+      <div class="risk-g">
+        <div class="risk-title"><span class="sev g"></span> 3 deploys green today</div>
+        <div class="risk-body">mission-control, dock, shipyard-inference all passing CI.</div>
+        <div class="risk-act">→ view pipelines</div>
+      </div>
+
+      <h4 class="sec">Budgets — September</h4>
+      <div class="meter"><div class="meter-top"><span>🦞 vic</span><span>$18.40 / $40</span></div><div class="bar"><i style="width:46%;background:var(--violet)"></i></div></div>
+      <div class="meter"><div class="meter-top"><span>🔭 scout</span><span>$11.90 / $25</span></div><div class="bar"><i style="width:48%;background:var(--accent)"></i></div></div>
+      <div class="meter"><div class="meter-top"><span>⚡ builder</span><span>$6.20 / $20</span></div><div class="bar"><i style="width:31%;background:var(--emerald)"></i></div></div>
+      <div class="meter"><div class="meter-top"><span>🤝 deal-flow + 🏦 baron</span><span>$1.60 / $15</span></div><div class="bar"><i style="width:11%;background:var(--amber)"></i></div></div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

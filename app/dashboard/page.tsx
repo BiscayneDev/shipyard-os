@@ -358,10 +358,39 @@ export default function DashboardPage() {
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_288px]">
         <div className="space-y-4">
           <div>
-            <p className="text-xs font-mono uppercase tracking-widest text-zinc-600">Executive Brief</p>
-            <h1 className="text-3xl font-bold text-white">Mission Control</h1>
-            <p className="text-sm text-zinc-400 mt-1 font-medium">{getDynamicGreeting(userName)}</p>
-            <p className="text-xs text-zinc-600 mt-0.5">{getFormattedDate()}</p>
+            <p
+              className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.16em]"
+              style={{ color: "#62657a" }}
+            >
+              <span
+                className="inline-block h-[5px] w-[5px] rounded-full"
+                style={{ backgroundColor: "#6ee7b7", boxShadow: "0 0 7px #6ee7b7" }}
+              />
+              {getFormattedDate()}
+            </p>
+            <h1
+              className="mt-3 font-serif text-[38px] font-normal leading-[1.1] tracking-[-0.01em]"
+              style={{ color: "#e9eaf0" }}
+            >
+              Mission Control
+            </h1>
+            <p className="mt-2 text-sm font-medium" style={{ color: "#a2a5b8" }}>
+              {getDynamicGreeting(userName)}{" "}
+              <span style={{ color: "#62657a" }}>
+                · {loading ? "syncing…" : "fleet nominal"}
+              </span>
+            </p>
+            <button
+              onClick={() => window.dispatchEvent(new CustomEvent("vic:open", { detail: "Walk me through today's brief." }))}
+              className="mt-5 rounded-[10px] px-4 py-2 text-[12.5px] font-semibold transition-all duration-200 hover:-translate-y-[1px]"
+              style={{
+                color: "#0b0b10",
+                background: "linear-gradient(135deg, #f2e3b3, #e7c979 60%, #cfa94e)",
+                boxShadow: "0 1px 0 rgba(255,255,255,.4) inset, 0 6px 22px rgba(231,201,121,.25)",
+              }}
+            >
+              Discuss with Vic
+            </button>
           </div>
 
           {!loading && !setupCompleted && (
@@ -501,7 +530,7 @@ export default function DashboardPage() {
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <p className="text-sm text-white">{agentName}{task ? ` • ${task.title}` : ""}</p>
-                          <p className="mt-1 text-[11px] text-zinc-500">{task ? `In progress • ${task.column.replace("-", " ")}` : `Busy now • ${session?.model ?? "runtime session"}`} • last heard {relativeTime(lastHeard)}</p>
+                          <p className="mt-1 text-[11px] text-zinc-500">{task ? (task.column === "planning" ? "Draft in progress • planning with Vic" : `In progress • ${task.column.replace("-", " ")}`) : `Busy now • ${session?.model ?? "runtime session"}`} • last heard {relativeTime(lastHeard)}</p>
                           <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
                             <Link href={conversationHref} className="rounded-full border border-zinc-700 bg-zinc-900/60 px-2 py-1 text-zinc-300 hover:border-cyan-500/30 hover:text-cyan-200">
                               Open thread

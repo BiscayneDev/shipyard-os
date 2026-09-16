@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shipyard OS — Command Deck + Vic</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #09090d; --panel: #0f0f15; --panel-2: #14141c; --panel-3: #191924;
+    --border: #1e1e29; --border-2: #2b2b3d;
+    --fg: #eceef4; --muted: #8b8fa3; --faint: #5a5e70;
+    --accent: #7c3aed; --accent-soft: rgba(124,58,237,.14);
+    --cyan: #22d3ee; --emerald: #34d399; --amber: #f59e0b; --pink: #ec4899;
+    --radius: 14px; --font: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  body { font-family: var(--font); background: var(--bg); color: var(--fg); -webkit-font-smoothing: antialiased; line-height: 1.5; overflow: hidden; }
+  .app { display: grid; grid-template-columns: 226px 1fr 400px; height: 100vh; transition: grid-template-columns .28s cubic-bezier(.4,0,.2,1); }
+  body.chat-hidden .app { grid-template-columns: 226px 1fr 0px; }
+  body.chat-hidden .chat { opacity: 0; pointer-events: none; }
+
+  /* ── Sidebar ─────────────────────────── */
+  .side { border-right: 1px solid var(--border); padding: 20px 14px; display: flex; flex-direction: column; gap: 4px; overflow-y: auto; }
+  .brand { display: flex; align-items: center; gap: 10px; padding: 4px 8px 18px; }
+  .brand-mark { width: 28px; height: 28px; border-radius: 8px; background: linear-gradient(135deg, #7c3aed, #22d3ee); display: grid; place-items: center; font-size: 14px; }
+  .brand b { font-size: 14px; }
+  .nav-label { font-size: 10px; text-transform: uppercase; letter-spacing: .12em; color: var(--faint); padding: 14px 8px 6px; }
+  .nav-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; color: var(--muted); font-size: 13.5px; cursor: pointer; transition: all .15s; }
+  .nav-item:hover { background: var(--panel-2); color: var(--fg); }
+  .nav-item.active { background: var(--accent-soft); color: var(--fg); box-shadow: inset 0 0 0 1px rgba(124,58,237,.35); }
+  .nav-item .dot { width: 6px; height: 6px; border-radius: 50%; margin-left: auto; background: var(--emerald); box-shadow: 0 0 6px var(--emerald); animation: pulse 2s infinite; }
+  @keyframes pulse { 50% { opacity: .4; } }
+
+  /* ── Command Deck ───────────────────── */
+  .deck { overflow-y: auto; padding: 34px 40px 90px; }
+  .deck-inner { max-width: 780px; }
+  .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 34px; }
+  .crumb { font-size: 12px; color: var(--faint); letter-spacing: .08em; text-transform: uppercase; }
+  .topbar-right { display: flex; gap: 10px; align-items: center; }
+  .kbd { font-size: 10px; color: var(--muted); border: 1px solid var(--border-2); border-radius: 5px; padding: 3px 7px; cursor: pointer; background: var(--panel); }
+  .kbd:hover { border-color: var(--accent); color: var(--fg); }
+  .avatar { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg,#f59e0b,#ec4899); display: grid; place-items: center; font-size: 13px; }
+  h1 { font-size: 25px; font-weight: 650; letter-spacing: -.02em; margin-bottom: 6px; }
+  .sub { color: var(--muted); font-size: 14px; margin-bottom: 28px; }
+
+  .brief { background: linear-gradient(180deg, var(--panel), var(--bg)); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px 26px; margin-bottom: 26px; position: relative; overflow: hidden; }
+  .brief::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(124,58,237,.6), transparent); }
+  .brief-head { display: flex; align-items: center; gap: 8px; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--faint); margin-bottom: 13px; }
+  .brief-head .spark { color: var(--accent); }
+  .brief p { font-size: 15.5px; line-height: 1.65; color: #d7dae6; }
+  .brief p b { color: var(--fg); }
+  .brief .hl { color: var(--cyan); }
+  .brief-actions { display: flex; gap: 10px; margin-top: 18px; }
+  .btn { border: 1px solid var(--border-2); background: var(--panel-2); color: var(--fg); font-size: 13px; padding: 8px 14px; border-radius: 9px; cursor: pointer; transition: all .15s; font-family: var(--font); }
+  .btn:hover { border-color: rgba(124,58,237,.5); transform: translateY(-1px); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: white; }
+  .btn.primary:hover { background: #8b5cf6; }
+
+  .section-title { font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--faint); margin: 30px 0 13px; }
+
+  .fleet { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+  .agent { border: 1px solid var(--border); border-radius: 12px; padding: 13px; background: var(--panel); cursor: pointer; transition: all .18s; }
+  .agent:hover { transform: translateY(-2px); border-color: var(--c, var(--border)); }
+  .agent-top { display: flex; align-items: center; gap: 7px; margin-bottom: 7px; }
+  .agent-name { font-size: 12.5px; font-weight: 600; }
+  .status { width: 6px; height: 6px; border-radius: 50%; margin-left: auto; background: var(--faint); }
+  .status.active { background: var(--emerald); box-shadow: 0 0 8px var(--emerald); animation: pulse 2s infinite; }
+  .agent-now { font-size: 11px; color: var(--muted); line-height: 1.45; min-height: 30px; }
+
+  .decisions { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .row { display: grid; grid-template-columns: 1fr auto auto; gap: 16px; align-items: center; padding: 14px 19px; border-bottom: 1px solid var(--border); background: var(--panel); cursor: pointer; transition: background .15s; }
+  .row:last-child { border-bottom: 0; }
+  .row:hover { background: var(--panel-2); }
+  .row-title { font-size: 13.5px; font-weight: 550; }
+  .row-meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .chip { font-size: 11px; padding: 3px 9px; border-radius: 99px; border: 1px solid; white-space: nowrap; }
+  .chip.needs { color: var(--amber); border-color: rgba(245,158,11,.35); background: rgba(245,158,11,.08); }
+  .chip.ok { color: var(--emerald); border-color: rgba(52,211,153,.3); background: rgba(52,211,153,.07); }
+  .go { color: var(--faint); font-size: 15px; }
+
+  /* dock prompt (when chat hidden) */
+  .dock-cta { margin-top: 40px; border: 1px dashed var(--border-2); border-radius: 12px; padding: 16px 18px; display: none; align-items: center; gap: 12px; color: var(--muted); font-size: 13px; cursor: pointer; }
+  .dock-cta:hover { border-color: var(--accent); color: var(--fg); }
+  body.chat-hidden .dock-cta { display: flex; }
+
+  /* ── Vic Chat panel ─────────────────── */
+  .chat { border-left: 1px solid var(--border); display: flex; flex-direction: column; background: var(--panel); transition: opacity .2s; }
+  .chat-head { padding: 13px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+  .vic-avatar { width: 26px; height: 26px; border-radius: 8px; background: rgba(124,58,237,.2); display: grid; place-items: center; font-size: 13px; }
+  .chat-head b { font-size: 13.5px; }
+  .chat-head .live { font-size: 11px; color: var(--emerald); display: flex; gap: 5px; align-items: center; }
+  .chat-head .live::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--emerald); box-shadow: 0 0 6px var(--emerald); animation: pulse 2s infinite; }
+  .collapse { margin-left: auto; color: var(--faint); cursor: pointer; font-size: 15px; padding: 2px 6px; }
+  .collapse:hover { color: var(--fg); }
+  .chat-body { flex: 1; overflow-y: auto; padding: 18px 16px; }
+
+  .msg-user { background: var(--panel-3); border: 1px solid var(--border-2); border-radius: 12px 12px 3px 12px; padding: 10px 13px; font-size: 13.5px; margin-left: 32px; margin-bottom: 16px; }
+
+  /* Thinking trace */
+  .trace { border: 1px solid var(--border); border-radius: 11px; margin-bottom: 12px; overflow: hidden; background: var(--panel-2); }
+  .trace-head { display: flex; align-items: center; gap: 7px; padding: 8px 12px; font-size: 12px; color: var(--muted); cursor: pointer; user-select: none; }
+  .trace-head .chev { transition: transform .2s; color: var(--faint); font-size: 9px; }
+  .trace.open .chev { transform: rotate(90deg); }
+  .trace-steps { display: flex; gap: 3px; margin-left: auto; }
+  .step-dot { font-size: 10px; padding: 1px 7px; border-radius: 5px; background: var(--panel); color: var(--faint); }
+  .step-dot.on { color: var(--cyan); box-shadow: inset 0 0 0 1px rgba(34,211,238,.3); }
+  .trace-body { display: none; padding: 0 12px 10px; font-size: 12px; color: var(--muted); }
+  .trace.open .trace-body { display: block; }
+  .tline { padding: 2.5px 0; display: flex; gap: 8px; }
+  .tline .tk { color: var(--cyan); font-family: var(--mono); font-size: 10.5px; min-width: 56px; padding-top: 1px; }
+
+  /* Tool chips */
+  .tools-row { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 12px; }
+  .tool-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-family: var(--mono); color: var(--muted); background: var(--panel-2); border: 1px solid var(--border); border-radius: 7px; padding: 4px 8px; cursor: pointer; transition: border-color .15s; }
+  .tool-chip:hover { border-color: var(--accent); color: var(--fg); }
+  .tool-chip .ic { color: var(--cyan); }
+
+  /* Answer w/ sources */
+  .answer { font-size: 13.5px; line-height: 1.6; color: #d8dbe6; margin-bottom: 12px; }
+  .answer b { color: var(--fg); }
+  .answer .hl { color: var(--cyan); }
+  .src-row { display: flex; gap: 6px; margin: 10px 0 4px; flex-wrap: wrap; }
+  .src { display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px; color: var(--muted); border: 1px solid var(--border); background: var(--panel-2); border-radius: 6px; padding: 3px 7px; }
+  .src .fav { border-radius: 4px; width: 12px; height: 12px; display: grid; place-items: center; font-size: 7px; color: white; }
+
+  /* Task rows */
+  .taskgroup { margin-bottom: 14px; }
+  .taskgroup-head { font-size: 10px; letter-spacing: .09em; text-transform: uppercase; color: var(--faint); margin-bottom: 7px; display: flex; gap: 8px; align-items: center; }
+  .task { display: flex; align-items: center; gap: 10px; padding: 8px 11px; border-radius: 9px; background: var(--panel-2); border: 1px solid var(--border); margin-bottom: 5px; cursor: pointer; transition: all .15s; }
+  .task:hover { border-color: var(--border-2); transform: translateX(2px); }
+  .st { width: 15px; height: 15px; border-radius: 5px; display: grid; place-items: center; font-size: 8.5px; flex-shrink: 0; }
+  .st.done { background: rgba(52,211,153,.15); color: var(--emerald); }
+  .st.run { background: rgba(34,211,238,.15); color: var(--cyan); animation: pulse 1.4s infinite; }
+  .t-name { font-size: 12.5px; flex: 1; }
+  .t-stat { font-size: 10.5px; color: var(--faint); font-family: var(--mono); }
+  .t-stat b { color: var(--muted); font-weight: 500; }
+
+  /* Approval card */
+  .approval { border: 1px solid rgba(124,58,237,.4); background: linear-gradient(180deg, rgba(124,58,237,.08), transparent); border-radius: 12px; padding: 14px 15px; margin-bottom: 14px; }
+  .approval-head { display: flex; gap: 8px; align-items: center; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: #b79bf5; margin-bottom: 10px; }
+  .approval-q { font-size: 13.5px; font-weight: 600; margin-bottom: 10px; }
+  .opt { display: flex; align-items: center; gap: 9px; padding: 8px 11px; border: 1px solid var(--border-2); border-radius: 9px; margin-bottom: 6px; cursor: pointer; font-size: 13px; color: var(--muted); transition: all .15s; }
+  .opt:hover { border-color: var(--accent); color: var(--fg); }
+  .opt .radio { width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid var(--border-2); flex-shrink: 0; display: grid; place-items: center; }
+  .opt.picked { border-color: var(--accent); color: var(--fg); background: var(--accent-soft); }
+  .opt.picked .radio { border-color: var(--accent); }
+  .opt.picked .radio::after { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+  .approval-foot { display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px; }
+  .btn.sm { font-size: 12px; padding: 6px 12px; }
+  .btn.ghost { background: none; border-color: transparent; color: var(--muted); }
+  .btn.ghost:hover { color: var(--fg); border-color: var(--border-2); transform: none; }
+  .btn:disabled { opacity: .4; pointer-events: none; }
+
+  /* Recommendation card */
+  .reco { border: 1px solid var(--border-2); border-radius: 12px; padding: 14px 15px; margin-bottom: 14px; background: var(--panel-2); }
+  .reco-head { display: flex; gap: 8px; align-items: center; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--cyan); margin-bottom: 9px; }
+  .reco-q { font-size: 13.5px; margin-bottom: 4px; }
+  .reco-body { font-size: 12.5px; color: var(--muted); line-height: 1.55; margin-bottom: 10px; }
+  .reco-body b { color: var(--fg); }
+  .confidence { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .cbar { height: 4px; flex: 0 0 110px; border-radius: 2px; background: var(--border); overflow: hidden; }
+  .cbar > i { display: block; height: 100%; width: 87%; border-radius: 2px; background: linear-gradient(90deg, var(--accent), var(--cyan)); }
+  .clabel { font-size: 10.5px; color: var(--muted); }
+  .reco-actions { display: flex; gap: 8px; }
+
+  /* Follow-ups */
+  .followups { display: flex; flex-wrap: wrap; gap: 7px; }
+  .follow { font-size: 12px; color: var(--muted); background: var(--panel-2); border: 1px solid var(--border); border-radius: 99px; padding: 6px 12px; cursor: pointer; transition: all .15s; }
+  .follow:hover { color: var(--fg); border-color: var(--accent); }
+
+  /* Composer */
+  .composer { padding: 12px 14px 16px; border-top: 1px solid var(--border); }
+  .comp { background: var(--panel-2); border: 1px solid var(--border-2); border-radius: 13px; padding: 11px 13px; transition: border-color .15s; }
+  .comp:focus-within { border-color: rgba(124,58,237,.55); box-shadow: 0 0 0 3px rgba(124,58,237,.12); }
+  .comp input { width: 100%; background: none; border: none; outline: none; color: var(--fg); font-size: 13.5px; font-family: var(--font); }
+  .comp input::placeholder { color: var(--faint); }
+  .comp-foot { display: flex; align-items: center; gap: 7px; margin-top: 9px; }
+  .pill { font-size: 10.5px; color: var(--muted); border: 1px solid var(--border); border-radius: 99px; padding: 3px 9px; cursor: pointer; white-space: nowrap; }
+  .pill:hover { color: var(--fg); border-color: var(--border-2); }
+  .pill.model { display: inline-flex; gap: 5px; align-items: center; color: #b79bf5; }
+  .send { margin-left: auto; width: 28px; height: 28px; border-radius: 8px; background: var(--accent); border: none; color: white; cursor: pointer; font-size: 12px; }
+  .chat-hints { text-align: center; font-size: 10.5px; color: var(--faint); margin-top: 9px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <nav class="side">
+    <div class="brand"><div class="brand-mark">⚓</div><b>Shipyard OS</b></div>
+    <div class="nav-item active">◎ &nbsp;Command Deck</div>
+    <div class="nav-item">🤖 &nbsp;Agents <span class="dot"></span></div>
+    <div class="nav-item">🗂 &nbsp;Missions</div>
+    <div class="nav-item">🧭 &nbsp;Intel</div>
+    <div class="nav-item">🛠 &nbsp;Skills</div>
+    <div class="nav-label">Products</div>
+    <div class="nav-item">⛵ &nbsp;Buoy</div>
+    <div class="nav-item">🐬 &nbsp;Dock</div>
+    <div class="nav-item">⚓ &nbsp;Fleet</div>
+  </nav>
+
+  <main class="deck">
+    <div class="deck-inner">
+      <div class="topbar">
+        <span class="crumb">Tuesday · Sept 15 · 09:42 EDT</span>
+        <div class="topbar-right">
+          <span class="kbd" onclick="toggleChat()">⌘K &nbsp;Ask Vic</span>
+          <div class="avatar">HH</div>
+        </div>
+      </div>
+
+      <h1>Morning, Captain.</h1>
+      <p class="sub">Your fleet moved 14 things overnight. Two decisions need you.</p>
+
+      <section class="brief">
+        <div class="brief-head"><span class="spark">◆</span> Executive Brief — generated 8 min ago</div>
+        <p><b>Scout</b> finished the Buoy competitive scan — <span class="hl">3 competitors launched x402 paywalls this quarter</span>, and our flat 5% positioning holds. <b>Builder</b> shipped the chat retry fix; deploys are green. <b>Deal Flow</b> found a Miami dev-shop lead asking for exactly what Dock does. <b>One risk:</b> Inference /connect is still 500ing until the Supabase SQL lands.</p>
+        <div class="brief-actions">
+          <button class="btn primary" onclick="toggleChat(true)">Discuss with Vic</button>
+          <button class="btn">Open full brief</button>
+        </div>
+      </section>
+
+      <div class="section-title">Fleet</div>
+      <div class="fleet">
+        <div class="agent" style="--c: rgba(124,58,237,.5)"><div class="agent-top"><span>🦞</span><span class="agent-name">Vic</span><span class="status active"></span></div><div class="agent-now">Drafting Buoy launch brief</div></div>
+        <div class="agent" style="--c: rgba(34,211,238,.5)"><div class="agent-top"><span>🔭</span><span class="agent-name">Scout</span><span class="status active"></span></div><div class="agent-now">Scan complete · 12 sources</div></div>
+        <div class="agent" style="--c: rgba(245,158,11,.5)"><div class="agent-top"><span>🤝</span><span class="agent-name">Deal Flow</span><span class="status"></span></div><div class="agent-now">1 lead flagged</div></div>
+        <div class="agent" style="--c: rgba(52,211,153,.5)"><div class="agent-top"><span>⚡</span><span class="agent-name">Builder</span><span class="status"></span></div><div class="agent-now">Idle · 3 deploys green</div></div>
+        <div class="agent" style="--c: rgba(236,72,153,.5)"><div class="agent-top"><span>🏦</span><span class="agent-name">Baron</span><span class="status"></span></div><div class="agent-now">Watching 2 markets</div></div>
+      </div>
+
+      <div class="section-title">Decisions</div>
+      <div class="decisions">
+        <div class="row" onclick="toggleChat(true)">
+          <div><div class="row-title">Approve Buoy pricing page copy</div><div class="row-meta">Scout · competitive scan · confidence 87%</div></div>
+          <span class="chip needs">Needs you</span><span class="go">→</span>
+        </div>
+        <div class="row" onclick="toggleChat(true)">
+          <div><div class="row-title">Reply to the Miami dev-shop lead</div><div class="row-meta">Deal Flow · draft written · 2 revisions</div></div>
+          <span class="chip needs">Needs you</span><span class="go">→</span>
+        </div>
+        <div class="row">
+          <div><div class="row-title">Apply Supabase api_keys migration</div><div class="row-meta">Builder · fixes /connect 500 · reversible</div></div>
+          <span class="chip ok">Delegated</span><span class="go">→</span>
+        </div>
+      </div>
+
+      <div class="dock-cta" onclick="toggleChat(true)">
+        <span style="color:#7c3aed">◆</span> Ask Vic about any of this — press <b>&nbsp;⌘K&nbsp;</b> from anywhere
+      </div>
+    </div>
+  </main>
+
+  <!-- ── Vic — docked chat, available everywhere ── -->
+  <aside class="chat" id="chat">
+    <div class="chat-head">
+      <div class="vic-avatar">🦞</div>
+      <div><b>Vic</b><div class="live">Chief of Staff</div></div>
+      <span class="collapse" onclick="toggleChat()">⌄</span>
+    </div>
+
+    <div class="chat-body">
+      <div class="msg-user">What should we do about the Buoy pricing page?</div>
+
+      <div class="trace open" onclick="this.classList.toggle('open')">
+        <div class="trace-head"><span class="chev">▶</span> Thinking <span class="trace-steps"><span class="step-dot on">Steps</span><span class="step-dot">Search</span><span class="step-dot">Coding</span></span></div>
+        <div class="trace-body">
+          <div class="tline"><span class="tk">plan</span>Need Scout's competitor scan first.</div>
+          <div class="tline"><span class="tk">search</span>3 x402 paywalls launched this quarter.</div>
+          <div class="tline"><span class="tk">draft</span>Flat 5% is the wedge — hold pricing.</div>
+        </div>
+      </div>
+
+      <div class="tools-row">
+        <span class="tool-chip"><span class="ic">⚙</span> scout.scan(x402) <span style="color:#34d399">1.2s</span></span>
+        <span class="tool-chip"><span class="ic">✎</span> pricing.md <span style="color:#f59e0b">+48</span></span>
+      </div>
+
+      <div class="taskgroup">
+        <div class="taskgroup-head">Live tasks</div>
+        <div class="task"><span class="st done">✓</span><span class="t-name">Verified competitor sources</span><span class="t-stat"><b>12</b>/12</span></div>
+        <div class="task"><span class="st run">◐</span><span class="t-name">Drafting positioning one-pager</span><span class="t-stat"><b>68%</b></span></div>
+      </div>
+
+      <div class="answer">
+        <b>Hold the flat-5% pricing.</b> All three new competitors charge 8–12% take plus gas fees — none can profitably go below 8% on sub-$1 agent transactions. Your copy should lead with <span class="hl">"flat 5%, no gas"</span>.
+        <div class="src-row">
+          <span class="src"><span class="fav" style="background:#1f7a5f">A</span> competitor-scan.json</span>
+          <span class="src"><span class="fav" style="background:#2f6fec">✎</span> briefs/pricing.md</span>
+        </div>
+      </div>
+
+      <div class="reco">
+        <div class="reco-head">◈ Recommendation</div>
+        <div class="reco-q">Want me to ship the pricing page copy?</div>
+        <div class="reco-body">Rewrite hero + FAQ with <b>flat 5%, no gas</b> positioning, open a PR against <b>buoy</b>, and ping you when CI passes.</div>
+        <div class="confidence"><div class="cbar"><i></i></div><span class="clabel">87% confidence</span></div>
+        <div class="reco-actions">
+          <button class="btn primary sm" onclick="this.textContent='On it ✓'">Yes, ship it</button>
+          <button class="btn sm">Show the draft first</button>
+        </div>
+      </div>
+
+      <div class="approval" id="approval">
+        <div class="approval-head">◆ Your call</div>
+        <div class="approval-q">Which lead should Deal Flow chase first?</div>
+        <div class="opt" onclick="pick(this)"><span class="radio"></span>Miami dev shop — warm inbound</div>
+        <div class="opt" onclick="pick(this)"><span class="radio"></span>Berlin AI studio — bigger deal</div>
+        <div class="approval-foot">
+          <button class="btn ghost sm" onclick="document.getElementById('approval').style.opacity=.45">Skip</button>
+          <button class="btn primary sm" id="cont-btn" disabled onclick="this.textContent='Done ✓'">Continue</button>
+        </div>
+      </div>
+
+      <div class="followups">
+        <span class="follow" onclick="toggleChat()">Turn this into a launch plan</span>
+        <span class="follow">Draft the hero copy</span>
+        <span class="follow">What's Deal Flow doing today?</span>
+      </div>
+    </div>
+
+    <div class="composer">
+      <div class="comp">
+        <input id="chat-input" placeholder="Message Vic — @ agent · / command">
+        <div class="comp-foot">
+          <span class="pill model">◆ shipyard/claude-haiku-4-5 ▾</span>
+          <span class="pill">@</span><span class="pill">/</span>
+          <button class="send">↑</button>
+        </div>
+      </div>
+      <div class="chat-hints">⌘K opens Vic anywhere · ⇧⌘K hides</div>
+    </div>
+  </aside>
+</div>
+
+<script>
+  function toggleChat(force) {
+    if (force === true) document.body.classList.remove('chat-hidden');
+    else document.body.classList.toggle('chat-hidden');
+    setTimeout(() => document.getElementById('chat-input').focus(), 250);
+  }
+  function pick(el) {
+    document.querySelectorAll('.opt').forEach(o => o.classList.remove('picked'));
+    el.classList.add('picked');
+    document.getElementById('cont-btn').disabled = false;
+  }
+  document.addEventListener('keydown', e => {
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); toggleChat(); }
+  });
+</script>
+</body>
+</html>

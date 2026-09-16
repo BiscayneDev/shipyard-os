@@ -45,3 +45,4 @@ yarn-error.log*
 next-env.d.ts
 .env.local
 # Shipyard OS — do not commit personal config
+.env*.local

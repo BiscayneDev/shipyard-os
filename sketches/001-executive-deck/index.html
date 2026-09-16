@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shipyard OS — Executive Deck</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #09090d; --panel: #0f0f15; --panel-2: #14141c;
+    --border: #1e1e29; --fg: #eceef4; --muted: #8b8fa3; --faint: #5a5e70;
+    --accent: #7c3aed; --accent-soft: rgba(124,58,237,.14);
+    --cyan: #22d3ee; --emerald: #34d399; --amber: #f59e0b; --pink: #ec4899;
+    --radius: 14px; --font: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  body { font-family: var(--font); background: var(--bg); color: var(--fg); -webkit-font-smoothing: antialiased; line-height: 1.5; }
+  .app { display: grid; grid-template-columns: 232px 1fr; min-height: 100vh; }
+
+  /* Sidebar */
+  .side { border-right: 1px solid var(--border); padding: 20px 14px; display: flex; flex-direction: column; gap: 4px; position: sticky; top: 0; height: 100vh; }
+  .brand { display: flex; align-items: center; gap: 10px; padding: 4px 8px 18px; }
+  .brand-mark { width: 28px; height: 28px; border-radius: 8px; background: linear-gradient(135deg, #7c3aed, #22d3ee); display: grid; place-items: center; font-size: 14px; }
+  .brand b { font-size: 14px; letter-spacing: .2px; }
+  .nav-label { font-size: 10px; text-transform: uppercase; letter-spacing: .12em; color: var(--faint); padding: 14px 8px 6px; }
+  .nav-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; color: var(--muted); font-size: 13.5px; cursor: pointer; transition: all .15s; }
+  .nav-item:hover { background: var(--panel-2); color: var(--fg); }
+  .nav-item.active { background: var(--accent-soft); color: var(--fg); box-shadow: inset 0 0 0 1px rgba(124,58,237,.35); }
+  .nav-item .dot { width: 6px; height: 6px; border-radius: 50%; margin-left: auto; }
+  .nav-item .dot.live { background: var(--emerald); box-shadow: 0 0 6px var(--emerald); animation: pulse 2s infinite; }
+  @keyframes pulse { 50% { opacity: .4; } }
+
+  /* Main */
+  .main { padding: 40px 48px 80px; max-width: 1060px; }
+  .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 36px; }
+  .crumb { font-size: 12px; color: var(--faint); letter-spacing: .08em; text-transform: uppercase; }
+  .avatar { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg,#f59e0b,#ec4899); display:grid; place-items:center; font-size:13px; }
+  h1 { font-size: 26px; font-weight: 650; letter-spacing: -.02em; margin-bottom: 6px; }
+  .sub { color: var(--muted); font-size: 14px; margin-bottom: 32px; }
+
+  /* Executive brief — the hero */
+  .brief { background: linear-gradient(180deg, var(--panel) 0%, var(--bg) 100%); border: 1px solid var(--border); border-radius: var(--radius); padding: 26px 28px; margin-bottom: 28px; position: relative; overflow: hidden; }
+  .brief::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(124,58,237,.6), transparent); }
+  .brief-head { display: flex; align-items: center; gap: 8px; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--faint); margin-bottom: 14px; }
+  .brief-head .spark { color: var(--accent); }
+  .brief p { font-size: 16.5px; line-height: 1.65; color: #d7dae6; max-width: 72ch; }
+  .brief p b { color: var(--fg); font-weight: 600; }
+  .brief p .hl { color: var(--cyan); }
+  .brief-actions { display: flex; gap: 10px; margin-top: 20px; }
+  .btn { border: 1px solid var(--border); background: var(--panel-2); color: var(--fg); font-size: 13px; padding: 8px 14px; border-radius: 9px; cursor: pointer; transition: all .15s; }
+  .btn:hover { border-color: rgba(124,58,237,.5); transform: translateY(-1px); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: white; }
+  .btn.primary:hover { background: #8b5cf6; }
+
+  .section-title { font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--faint); margin: 32px 0 14px; }
+
+  /* Fleet row */
+  .fleet { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+  .agent { border: 1px solid var(--border); border-radius: 12px; padding: 14px; background: var(--panel); cursor: pointer; transition: all .18s; }
+  .agent:hover { transform: translateY(-2px); border-color: var(--c, var(--border)); }
+  .agent-top { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .agent-emoji { font-size: 16px; }
+  .agent-name { font-size: 13px; font-weight: 600; }
+  .status { width: 7px; height: 7px; border-radius: 50%; margin-left: auto; background: var(--faint); }
+  .status.active { background: var(--emerald); box-shadow: 0 0 8px var(--emerald); animation: pulse 2s infinite; }
+  .agent-now { font-size: 11.5px; color: var(--muted); line-height: 1.45; min-height: 32px; }
+
+  /* Decision rows */
+  .decisions { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .row { display: grid; grid-template-columns: 1fr auto auto; gap: 16px; align-items: center; padding: 15px 20px; border-bottom: 1px solid var(--border); background: var(--panel); cursor: pointer; transition: background .15s; }
+  .row:last-child { border-bottom: 0; }
+  .row:hover { background: var(--panel-2); }
+  .row-title { font-size: 14px; font-weight: 550; }
+  .row-meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .chip { font-size: 11px; padding: 3px 9px; border-radius: 99px; border: 1px solid; }
+  .chip.needs { color: var(--amber); border-color: rgba(245,158,11,.35); background: rgba(245,158,11,.08); }
+  .chip.ok { color: var(--emerald); border-color: rgba(52,211,153,.3); background: rgba(52,211,153,.07); }
+  .go { color: var(--faint); font-size: 16px; }
+
+  /* Prompt bar */
+  .promptbar { position: sticky; bottom: 24px; margin-top: 44px; }
+  .prompt { display: flex; align-items: center; gap: 10px; background: rgba(20,20,28,.92); backdrop-filter: blur(12px); border: 1px solid #2a2a3a; border-radius: 14px; padding: 14px 16px; box-shadow: 0 12px 40px rgba(0,0,0,.5); }
+  .prompt input { flex: 1; background: none; border: none; outline: none; color: var(--fg); font-size: 14.5px; font-family: var(--font); }
+  .prompt input::placeholder { color: var(--faint); }
+  .kbd { font-size: 10px; color: var(--faint); border: 1px solid var(--border); border-radius: 5px; padding: 2px 6px; }
+  .send { width: 30px; height: 30px; border-radius: 8px; background: var(--accent); border: none; color: white; cursor: pointer; font-size: 13px; }
+  .hint-row { text-align: center; font-size: 11.5px; color: var(--faint); margin-top: 10px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <nav class="side">
+    <div class="brand"><div class="brand-mark">⚓</div><b>Shipyard OS</b></div>
+    <div class="nav-item active">◎ &nbsp;Command Deck</div>
+    <div class="nav-item">🤖 &nbsp;Agents <span class="dot live"></span></div>
+    <div class="nav-item">🗂 &nbsp;Missions</div>
+    <div class="nav-item">🧭 &nbsp;Intel</div>
+    <div class="nav-item">🛠 &nbsp;Skills</div>
+    <div class="nav-label">Products</div>
+    <div class="nav-item">⛵ &nbsp;Buoy</div>
+    <div class="nav-item">🐬 &nbsp;Dock</div>
+    <div class="nav-item">⚓ &nbsp;Fleet</div>
+  </nav>
+
+  <main class="main">
+    <div class="topbar">
+      <span class="crumb">Tuesday · Sept 15 · 09:42 EDT</span>
+      <div style="display:flex;gap:12px;align-items:center">
+        <span class="kbd">⌘K</span>
+        <div class="avatar">HH</div>
+      </div>
+    </div>
+
+    <h1>Morning, Captain.</h1>
+    <p class="sub">Your fleet moved 14 things overnight. Two decisions need you.</p>
+
+    <section class="brief">
+      <div class="brief-head"><span class="spark">◆</span> Executive Brief — generated 8 min ago</div>
+      <p><b>Scout</b> finished the Buoy competitive scan — <span class="hl">3 competitors launched x402 paywalls this quarter</span>, and our take-rate positioning holds. <b>Builder</b> shipped the mission-control chat retry fix; deploys are green. <b>Deal Flow</b> found a lead worth your eyes: a Miami dev shop asking for exactly what Dock does. <b>One risk:</b> Shipyard Inference /connect is still 500ing until the Supabase SQL lands.</p>
+      <div class="brief-actions">
+        <button class="btn primary" onclick="this.textContent='Sent to Vic ✓'">Review the 2 decisions</button>
+        <button class="btn">Open full brief</button>
+      </div>
+    </section>
+
+    <div class="section-title">Fleet</div>
+    <div class="fleet">
+      <div class="agent" style="--c: rgba(124,58,237,.5)"><div class="agent-top"><span class="agent-emoji">🦞</span><span class="agent-name">Vic</span><span class="status active"></span></div><div class="agent-now">Drafting Buoy launch brief for your review</div></div>
+      <div class="agent" style="--c: rgba(34,211,238,.5)"><div class="agent-top"><span class="agent-emoji">🔭</span><span class="agent-name">Scout</span><span class="status active"></span></div><div class="agent-now">Competitive scan complete · 12 sources</div></div>
+      <div class="agent" style="--c: rgba(245,158,11,.5)"><div class="agent-top"><span class="agent-emoji">🤝</span><span class="agent-name">Deal Flow</span><span class="status"></span></div><div class="agent-now">1 lead flagged for follow-up</div></div>
+      <div class="agent" style="--c: rgba(52,211,153,.5)"><div class="agent-top"><span class="agent-emoji">⚡</span><span class="agent-name">Builder</span><span class="status"></span></div><div class="agent-now">Idle · 3 deploys green today</div></div>
+      <div class="agent" style="--c: rgba(236,72,153,.5)"><div class="agent-top"><span class="agent-emoji">🏦</span><span class="agent-name">Baron</span><span class="status"></span></div><div class="agent-now">Watching 2 prediction markets</div></div>
+    </div>
+
+    <div class="section-title">Decisions</div>
+    <div class="decisions">
+      <div class="row">
+        <div><div class="row-title">Approve Buoy pricing page copy</div><div class="row-meta">Scout · based on the competitive scan · confidence 87%</div></div>
+        <span class="chip needs">Needs you</span><span class="go">→</span>
+      </div>
+      <div class="row">
+        <div><div class="row-title">Reply to the Miami dev-shop lead</div><div class="row-meta">Deal Flow · drafted intro email · 2 revisions</div></div>
+        <span class="chip needs">Needs you</span><span class="go">→</span>
+      </div>
+      <div class="row">
+        <div><div class="row-title">Apply Supabase api_keys migration</div><div class="row-meta">Builder · fixes /connect 500 · reversible</div></div>
+        <span class="chip ok">Delegated</span><span class="go">→</span>
+      </div>
+    </div>
+
+    <div class="promptbar">
+      <div class="prompt">
+        <span style="color:#7c3aed">◆</span>
+        <input placeholder="Ask Vic anything — or type @ to mention an agent">
+        <span class="kbd">@ sources</span><span class="kbd">/ commands</span>
+        <button class="send">↑</button>
+      </div>
+      <div class="hint-row">Vic can spawn agents, draft work, and answer from your mission memory</div>
+    </div>
+  </main>
+</div>
+</body>
+</html>

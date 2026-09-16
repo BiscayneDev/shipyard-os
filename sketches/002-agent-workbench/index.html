@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shipyard OS — Agent Workbench</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #08080c; --panel: #0e0e14; --panel-2: #14141d; --border: #1d1d29; --border-2: #2b2b3d;
+    --fg: #edeef4; --muted: #8f93a8; --faint: #5c6075;
+    --accent: #7c3aed; --cyan: #22d3ee; --emerald: #34d399; --amber: #f59e0b; --pink: #ec4899;
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  body { font-family: var(--font); background: var(--bg); color: var(--fg); -webkit-font-smoothing: antialiased; line-height: 1.5; overflow: hidden; }
+  .app { display: grid; grid-template-columns: 220px 300px 1fr; height: 100vh; }
+
+  /* Rail */
+  .rail { border-right: 1px solid var(--border); padding: 16px 10px; display: flex; flex-direction: column; gap: 2px; }
+  .brand { display: flex; align-items: center; gap: 9px; padding: 4px 6px 16px; }
+  .brand-mark { width: 26px; height: 26px; border-radius: 8px; background: linear-gradient(135deg,#7c3aed,#22d3ee); display: grid; place-items: center; font-size: 13px; }
+  .brand b { font-size: 13px; }
+  .rail-item { display: flex; gap: 9px; align-items: center; padding: 7px 9px; border-radius: 8px; color: var(--muted); font-size: 13px; cursor: pointer; }
+  .rail-item:hover { background: var(--panel-2); color: var(--fg); }
+  .rail-item.active { background: rgba(124,58,237,.13); color: var(--fg); }
+  .rail-foot { margin-top: auto; font-size: 11px; color: var(--faint); padding: 10px 8px; }
+
+  /* Missions column */
+  .missions { border-right: 1px solid var(--border); display: flex; flex-direction: column; background: var(--panel); }
+  .missions-head { padding: 16px 16px 10px; display: flex; justify-content: space-between; align-items: center; }
+  .missions-head h2 { font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+  .new-btn { font-size: 16px; color: var(--faint); cursor: pointer; background: none; border: none; }
+  .new-btn:hover { color: var(--accent); }
+  .tabs { display: flex; gap: 4px; padding: 0 12px 10px; }
+  .tab { font-size: 11.5px; padding: 4px 10px; border-radius: 99px; color: var(--muted); cursor: pointer; }
+  .tab.active { background: var(--panel-2); color: var(--fg); box-shadow: inset 0 0 0 1px var(--border-2); }
+  .mission-list { overflow-y: auto; flex: 1; }
+  .mission { padding: 11px 16px; cursor: pointer; border-left: 2px solid transparent; }
+  .mission:hover { background: var(--panel-2); }
+  .mission.sel { background: var(--panel-2); border-left-color: var(--accent); }
+  .mission-top { display: flex; align-items: center; gap: 7px; }
+  .m-title { font-size: 13px; font-weight: 550; flex: 1; }
+  .m-live { width: 6px; height: 6px; border-radius: 50%; background: var(--emerald); box-shadow: 0 0 6px var(--emerald); animation: pulse 1.8s infinite; }
+  @keyframes pulse { 50% { opacity: .35; } }
+  .m-sub { font-size: 11.5px; color: var(--muted); margin-top: 3px; }
+  .progress { height: 3px; border-radius: 2px; background: var(--border); margin-top: 8px; overflow: hidden; }
+  .progress > div { height: 100%; border-radius: 2px; background: linear-gradient(90deg,#7c3aed,#22d3ee); }
+
+  /* Workbench */
+  .bench { display: flex; flex-direction: column; height: 100vh; }
+  .bench-head { padding: 14px 22px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; }
+  .bench-head h3 { font-size: 14.5px; font-weight: 600; }
+  .avatar-chip { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--muted); background: var(--panel-2); padding: 4px 10px 4px 6px; border-radius: 99px; margin-left: auto; }
+  .avatar-chip .a { width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; font-size: 10px; }
+
+  .stream { flex: 1; overflow-y: auto; padding: 24px 28px; max-width: 760px; }
+
+  /* Thinking trace */
+  .trace { border: 1px solid var(--border); border-radius: 12px; margin-bottom: 18px; overflow: hidden; background: var(--panel); }
+  .trace-head { display: flex; align-items: center; gap: 8px; padding: 10px 14px; font-size: 12.5px; color: var(--muted); cursor: pointer; }
+  .trace-head .chev { transition: transform .2s; color: var(--faint); font-size: 10px; }
+  .trace.open .chev { transform: rotate(90deg); }
+  .trace-steps { display: flex; gap: 4px; margin-left: auto; }
+  .step-dot { font-size: 10px; padding: 2px 8px; border-radius: 5px; background: var(--panel-2); }
+  .step-dot.on { color: var(--cyan); box-shadow: inset 0 0 0 1px rgba(34,211,238,.3); }
+  .trace-body { display: none; padding: 0 14px 12px; font-size: 12.5px; color: var(--muted); }
+  .trace.open .trace-body { display: block; }
+  .trace-body .tline { padding: 3px 0; display: flex; gap: 8px; }
+  .tline .tk { color: var(--cyan); font-family: var(--mono); font-size: 11px; min-width: 64px; }
+
+  /* Tool chips */
+  .tools-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 18px; }
+  .tool-chip { display: flex; align-items: center; gap: 6px; font-size: 11.5px; font-family: var(--mono); color: var(--muted); background: var(--panel); border: 1px solid var(--border); border-radius: 7px; padding: 5px 9px; cursor: pointer; transition: border-color .15s; }
+  .tool-chip:hover { border-color: var(--accent); color: var(--fg); }
+  .tool-chip .ic { color: var(--cyan); }
+
+  /* Task rows */
+  .taskgroup { margin-bottom: 18px; }
+  .taskgroup-head { font-size: 11px; letter-spacing: .09em; text-transform: uppercase; color: var(--faint); margin-bottom: 8px; display: flex; gap: 8px; align-items: center; }
+  .task { display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: 9px; background: var(--panel); border: 1px solid var(--border); margin-bottom: 6px; cursor: pointer; transition: all .15s; }
+  .task:hover { border-color: var(--border-2); transform: translateX(2px); }
+  .st { width: 16px; height: 16px; border-radius: 5px; display: grid; place-items: center; font-size: 9px; flex-shrink: 0; }
+  .st.done { background: rgba(52,211,153,.15); color: var(--emerald); }
+  .st.run { background: rgba(34,211,238,.15); color: var(--cyan); animation: pulse 1.4s infinite; }
+  .st.fail { background: rgba(236,72,153,.15); color: var(--pink); }
+  .t-name { font-size: 13px; flex: 1; }
+  .t-stat { font-size: 11px; color: var(--faint); font-family: var(--mono); }
+  .t-stat b { color: var(--muted); font-weight: 500; }
+
+  /* Answer */
+  .answer { font-size: 14.5px; line-height: 1.65; color: #d8dbe6; }
+  .answer b { color: var(--fg); }
+  .src-row { display: flex; gap: 8px; margin: 14px 0 6px; flex-wrap: wrap; }
+  .src { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); border: 1px solid var(--border); background: var(--panel); border-radius: 7px; padding: 4px 8px; }
+  .src .fav { border-radius: 4px; width: 13px; height: 13px; display: grid; place-items: center; font-size: 8px; }
+
+  /* Composer */
+  .composer { padding: 16px 28px 22px; max-width: 760px; }
+  .comp { background: var(--panel-2); border: 1px solid var(--border-2); border-radius: 14px; padding: 12px 14px; box-shadow: 0 10px 36px rgba(0,0,0,.45); }
+  .comp input { width: 100%; background: none; border: none; outline: none; color: var(--fg); font-size: 14px; font-family: var(--font); }
+  .comp input::placeholder { color: var(--faint); }
+  .comp-foot { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+  .pill { font-size: 11px; color: var(--muted); border: 1px solid var(--border); border-radius: 99px; padding: 3px 10px; cursor: pointer; }
+  .pill:hover { color: var(--fg); border-color: var(--border-2); }
+  .pill.model { display: flex; gap: 6px; align-items: center; }
+  .send { margin-left: auto; width: 30px; height: 30px; border-radius: 9px; background: var(--accent); border: none; color: white; cursor: pointer; font-size: 13px; }
+  .followups { display: flex; gap: 8px; margin-top: 12px; }
+  .follow { font-size: 12px; color: var(--muted); background: var(--panel); border: 1px solid var(--border); border-radius: 99px; padding: 6px 12px; cursor: pointer; transition: all .15s; }
+  .follow:hover { color: var(--fg); border-color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="app">
+  <nav class="rail">
+    <div class="brand"><div class="brand-mark">⚓</div><b>Shipyard OS</b></div>
+    <div class="rail-item active">◉ Workbench</div>
+    <div class="rail-item">◎ Command Deck</div>
+    <div class="rail-item">🧭 Intel</div>
+    <div class="rail-item">🛠 Skills</div>
+    <div class="rail-item">⚙ Settings</div>
+    <div class="rail-foot">3 agents live · $1.24 today</div>
+  </nav>
+
+  <aside class="missions">
+    <div class="missions-head"><h2>Missions</h2><button class="new-btn">+</button></div>
+    <div class="tabs"><span class="tab active">All 6</span><span class="tab">Live 3</span><span class="tab">Done</span></div>
+    <div class="mission-list">
+      <div class="mission sel">
+        <div class="mission-top"><span class="m-title">Buoy launch brief</span><span class="m-live"></span></div>
+        <div class="m-sub">Vic + Scout · 4 tasks running</div>
+        <div class="progress"><div style="width:62%"></div></div>
+      </div>
+      <div class="mission">
+        <div class="mission-top"><span class="m-title">Dock onboarding flow</span><span class="m-live"></span></div>
+        <div class="m-sub">Builder · deploy preview ready</div>
+        <div class="progress"><div style="width:85%"></div></div>
+      </div>
+      <div class="mission">
+        <div class="mission-top"><span class="m-title">Inference /connect fix</span><span class="m-live"></span></div>
+        <div class="m-sub">Builder · blocked on SQL</div>
+        <div class="progress"><div style="width:30%"></div></div>
+      </div>
+      <div class="mission">
+        <div class="mission-top"><span class="m-title">Miami dev-shop lead</span></div>
+        <div class="m-sub">Deal Flow · draft written</div>
+      </div>
+      <div class="mission">
+        <div class="mission-top"><span class="m-title">Weekly standup digest</span></div>
+        <div class="m-sub">Vic · delivered 7:02 AM</div>
+      </div>
+    </div>
+  </aside>
+
+  <main class="bench">
+    <div class="bench-head">
+      <h3>Buoy launch brief</h3>
+      <span class="pill" style="margin-left:4px">fork</span>
+      <div class="avatar-chip"><span class="a" style="background:rgba(124,58,237,.2)">🦞</span> Vic · live</div>
+    </div>
+
+    <div class="stream">
+      <div class="trace open" id="trace" onclick="this.classList.toggle('open')">
+        <div class="trace-head"><span class="chev">▶</span> Thinking <span class="trace-steps"><span class="step-dot on">Steps</span><span class="step-dot">Reasoning</span><span class="step-dot">Search</span><span class="step-dot">Coding</span></span></div>
+        <div class="trace-body">
+          <div class="tline"><span class="tk">plan</span>Pricing needs the 3 competitor scans from Scout's report first.</div>
+          <div class="tline"><span class="tk">search</span>Pulled x402 marketplace take-rates from 12 sources.</div>
+          <div class="tline"><span class="tk">draft</span>Positioning: flat 5% vs competitor 8–12% + gas fees.</div>
+        </div>
+      </div>
+
+      <div class="tools-row">
+        <span class="tool-chip"><span class="ic">⚙</span> scout.scan(query="x402 competitors") <span style="color:#34d399">✓ 1.2s</span></span>
+        <span class="tool-chip"><span class="ic">✎</span> briefs/pricing.md <span style="color:#f59e0b">+48 lines</span></span>
+        <span class="tool-chip"><span class="ic">⚙</span> tasks.agent-spawn("Builder")</span>
+      </div>
+
+      <div class="taskgroup">
+        <div class="taskgroup-head">Live tasks</div>
+        <div class="task"><span class="st done">✓</span><span class="t-name">Verified competitor pricing sources</span><span class="t-stat"><b>12</b>/12</span></div>
+        <div class="task"><span class="st run">◐</span><span class="t-name">Drafting positioning one-pager</span><span class="t-stat"><b>68%</b></span></div>
+        <div class="task"><span class="st fail">!</span><span class="t-name">Apply Supabase api_keys migration</span><span class="t-stat">blocked · needs SQL</span></div>
+      </div>
+
+      <div class="answer">
+        <b>Your positioning holds.</b> Three x402 paywall competitors launched this quarter — all price 8–12% take plus gas. Buoy's flat 5% with no gas passthrough is a defensible wedge, especially for agents doing micro-transactions under $1.
+        <div class="src-row">
+          <span class="src"><span class="fav" style="background:#1f7a5f">A</span> competitor-scan.json</span>
+          <span class="src"><span class="fav" style="background:#2f6fec">✎</span> briefs/pricing.md</span>
+          <span class="src"><span class="fav" style="background:#e56d24">B</span> scout report · Sept 14</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="composer">
+      <div class="comp">
+        <input placeholder="Message Vic — @ to mention an agent, / for commands">
+        <div class="comp-foot">
+          <span class="pill model">◆ shipyard/claude-haiku-4-5 ▾</span>
+          <span class="pill">@ sources</span>
+          <span class="pill">/ commands</span>
+          <button class="send">↑</button>
+        </div>
+      </div>
+      <div class="followups">
+        <span class="follow">Turn this into a launch plan</span>
+        <span class="follow">Draft the pricing page copy</span>
+      </div>
+    </div>
+  </main>
+</div>
+</body>
+</html>
