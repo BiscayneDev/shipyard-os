@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useCallback } from "react"
 import Link from "next/link"
-import { CopilotSidebar } from "@/components/CopilotSidebar"
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -342,10 +341,9 @@ export default function DashboardPage() {
     detail: `${task.title} • ${task.priority} • ${task.column}`,
     severity: index === 0 ? "high" : "medium",
   }))
-  const livePulse = recentActivity[0]?.timestamp ?? intel?.generatedAt ?? new Date().toISOString()
-  const activeWorkItems = tasks
+  const liveWorkItems = tasks
     .filter((task) => task.column === "in-progress" || task.column === "in-review")
-    .slice(0, 3)
+    .slice(0, 4)
     .map((task) => {
       const conversation = conversations.find((conv) => conv.taskId === task.id)
       const latestActivity = recentActivity.find((entry) => entry.taskId === task.id)
@@ -353,239 +351,328 @@ export default function DashboardPage() {
       return { task, conversation, latestActivity, lastHeard }
     })
 
+  const openVicWith = (prompt: string) => window.dispatchEvent(new CustomEvent("vic:open", { detail: prompt }))
+
   return (
-    <div className="mx-auto max-w-7xl space-y-6 px-4 lg:px-6">
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_288px]">
-        <div className="space-y-4">
-          <div>
-            <p
-              className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.16em]"
-              style={{ color: "#62657a" }}
+    <div className="relative mx-auto max-w-[820px] px-5 pb-24 pt-10 lg:px-8">
+      {/* ambient light */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute left-1/4 top-[-220px] h-[420px] w-[420px] rounded-full"
+        style={{ background: "radial-gradient(circle, rgba(139,92,246,.12), transparent 65%)", filter: "blur(30px)" }}
+      />
+
+      {/* meta row */}
+      <div className="flex items-center justify-between">
+        <span
+          className="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.08em]"
+          style={{ borderColor: "var(--line)", backgroundColor: "var(--surface-1)", color: "var(--ink-2)" }}
+        >
+          <span
+            className="h-[5px] w-[5px] rounded-full"
+            style={{ backgroundColor: "var(--emerald, #6ee7b7)", boxShadow: "0 0 7px #6ee7b7" }}
+          />
+          {loading ? "syncing…" : "fleet nominal"} · {repos.length} projects
+        </span>
+        <span className="font-mono text-[10.5px] uppercase tracking-[0.1em]" style={{ color: "var(--ink-3)" }}>
+          {getFormattedDate()}
+        </span>
+      </div>
+
+      {/* greeting */}
+      <h1
+        className="mt-10 font-serif text-[40px] font-normal leading-[1.1] tracking-[-0.01em]"
+        style={{ color: "var(--ink)" }}
+      >
+        Good {new Date().getHours() < 12 ? "morning" : new Date().getHours() < 17 ? "afternoon" : "evening"}
+        {userName ? "," : "."} <em style={{ color: "var(--ink-2)" }}>{userName || "Captain"}</em>
+      </h1>
+      <p className="mt-2.5 text-[14px]" style={{ color: "var(--ink-2)" }}>
+        {loading ? "Reading the fleet…" : (
+          <>
+            Your agents moved <b style={{ color: "var(--ink)", fontWeight: 550 }}>{recentActivity.length} things</b> recently ·{" "}
+            <b style={{ color: "var(--ink)", fontWeight: 550 }}>
+              {taskCounts.find((c) => c.id === "in-progress")?.count ?? 0} tasks in flight
+            </b>
+            {emails.length > 0 ? ` · ${emails.length} inbox item${emails.length === 1 ? "" : "s"}` : ""}
+            {urgentTasks.length > 0 ? `. ${urgentTasks.length >= 2 ? "Two decisions" : "One decision"} waiting for you.` : "."}
+          </>
+        )}
+      </p>
+
+      {/* executive brief */}
+      <section
+        className="relative mt-8 overflow-hidden rounded-2xl border p-7 pb-6"
+        style={{ borderColor: "var(--line)", background: "linear-gradient(180deg, var(--surface-1), #08080b)" }}
+      >
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-[-1px] rounded-[17px]"
+          style={{
+            padding: "1px",
+            background: "linear-gradient(120deg, rgba(167,139,250,.5), transparent 30%, transparent 65%, rgba(103,232,249,.25))",
+            WebkitMask: "linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)",
+            WebkitMaskComposite: "xor",
+            maskComposite: "exclude",
+          }}
+        />
+        <div
+          className="mb-4 flex items-center gap-2.5 font-mono text-[9.5px] uppercase tracking-[0.16em]"
+          style={{ color: "var(--ink-3)" }}
+        >
+          <span
+            className="inline-block h-[7px] w-[7px] rotate-45"
+            style={{ background: "linear-gradient(135deg, #a78bfa, #22d3ee)", boxShadow: "0 0 10px rgba(139,92,246,.6)" }}
+          />
+          executive brief · {intel?.generatedAt ? relativeTime(intel.generatedAt) : "live"}
+        </div>
+        <p className="max-w-[62ch] text-[15px] leading-[1.72]" style={{ color: "#c3c6d4" }}>
+          {intelSummary}{" "}
+          {recentActivity[0] && (
+            <>
+              <b style={{ color: "var(--ink)", fontWeight: 550 }}>{recentActivity[0].agent}</b>{" "}
+              {ACTION_LABEL_MAP[recentActivity[0].action] ?? "touched"} &ldquo;{recentActivity[0].taskTitle}&rdquo;{" "}
+              {relativeTime(recentActivity[0].timestamp)}.
+            </>
+          )}{" "}
+          {hotRiskRepo(repos) ? (
+            <>
+              <b style={{ color: "var(--ink)", fontWeight: 550 }}>One risk:</b> {hotRiskLabel(repos)}.
+            </>
+          ) : (
+            <>All pipelines green.</>
+          )}
+        </p>
+        <div className="mt-5 flex items-center gap-2.5">
+          <button
+            onClick={() => openVicWith("Walk me through today's brief.")}
+            className="rounded-[10px] px-4 py-2 text-[12.5px] font-semibold transition-all duration-200 hover:-translate-y-[1px]"
+            style={{
+              color: "#0b0b10",
+              background: "linear-gradient(135deg, #f2e3b3, #e7c979 60%, #cfa94e)",
+              boxShadow: "0 1px 0 rgba(255,255,255,.4) inset, 0 6px 22px rgba(231,201,121,.25)",
+            }}
+          >
+            Discuss with Vic
+          </button>
+          <Link
+            href="/tasks"
+            className="rounded-[10px] border px-4 py-2 text-[12.5px] font-semibold transition-all duration-200 hover:-translate-y-[1px]"
+            style={{ borderColor: "var(--line-strong)", backgroundColor: "var(--surface-2)", color: "var(--ink)" }}
+          >
+            All tasks
+          </Link>
+          <button
+            onClick={() => openVicWith("What are the agents working on right now?")}
+            className="px-2.5 py-2 text-[12.5px] font-normal transition-colors"
+            style={{ color: "var(--ink-3)" }}
+          >
+            Ask about the fleet →
+          </button>
+        </div>
+      </section>
+
+      {/* fleet */}
+      <div className="mb-4 mt-10 flex items-baseline justify-between">
+        <h2 className="text-[12px] font-semibold uppercase tracking-[0.14em]" style={{ color: "var(--ink-2)" }}>
+          Fleet
+        </h2>
+        <Link href="/agents" className="text-[12px] transition-colors" style={{ color: "var(--ink-3)" }}>
+          all agents →
+        </Link>
+      </div>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        {AGENT_DEFS.map((agent) => {
+          const work = activeAgents.find(
+            (a) =>
+              a.agentName.toLowerCase().includes(agent.name.toLowerCase()) ||
+              agent.keys.some((k) => a.agentName.toLowerCase().includes(k))
+          )
+          const live = isSessionActive(sessions, agent.keys) || Boolean(work)
+          const now = work?.task?.title ?? work?.latestActivity?.summary ?? (live ? "standing by" : "idle")
+          return (
+            <button
+              key={agent.name}
+              onClick={() => openVicWith(`What's ${agent.name} working on?`)}
+              className="group rounded-[15px] border p-4 text-left transition-all duration-300 hover:-translate-y-[2px]"
+              style={{ borderColor: "var(--line)", backgroundColor: "var(--surface-1)" }}
+            >
+              <div className="mb-2 flex items-center gap-2">
+                <span className="text-[15px]">{agent.emoji}</span>
+                <span className="text-[12.5px] font-semibold">{agent.name}</span>
+                {live && (
+                  <span
+                    className="ml-auto h-[5px] w-[5px] rounded-full"
+                    style={{ backgroundColor: "#6ee7b7", boxShadow: "0 0 8px #6ee7b7" }}
+                  />
+                )}
+              </div>
+              <p className="line-clamp-2 min-h-[32px] text-[11px] leading-[1.45]" style={{ color: "var(--ink-3)" }}>
+                {now}
+              </p>
+            </button>
+          )
+        })}
+      </div>
+
+      {/* decisions */}
+      <div className="mb-4 mt-10 flex items-baseline justify-between">
+        <h2 className="text-[12px] font-semibold uppercase tracking-[0.14em]" style={{ color: "var(--ink-2)" }}>
+          Decisions
+        </h2>
+        <Link href="/tasks" className="text-[12px] transition-colors" style={{ color: "var(--ink-3)" }}>
+          history →
+        </Link>
+      </div>
+      <div className="overflow-hidden rounded-[15px] border" style={{ borderColor: "var(--line)", backgroundColor: "var(--surface-1)" }}>
+        {urgentTasks.length === 0 && !loading && (
+          <p className="p-5 text-[13px]" style={{ color: "var(--ink-3)" }}>
+            Nothing needs you — the fleet has it handled.
+          </p>
+        )}
+        {(loading ? Array.from({ length: 3 }) : urgentTasks.slice(0, 3)).map((task, i) =>
+          task ? (
+            <button
+              key={(task as Task).id}
+              onClick={() => openVicWith(`Brief me on "${(task as Task).title}" — what's the decision?`)}
+              className="grid w-full grid-cols-[26px_1fr_auto_18px] items-center gap-3.5 border-b px-5 py-4 text-left transition-colors last:border-b-0 hover:bg-[var(--surface-2)]"
+              style={{ borderColor: "var(--line)" }}
             >
               <span
-                className="inline-block h-[5px] w-[5px] rounded-full"
-                style={{ backgroundColor: "#6ee7b7", boxShadow: "0 0 7px #6ee7b7" }}
-              />
-              {getFormattedDate()}
-            </p>
-            <h1
-              className="mt-3 font-serif text-[38px] font-normal leading-[1.1] tracking-[-0.01em]"
-              style={{ color: "#e9eaf0" }}
-            >
-              Mission Control
-            </h1>
-            <p className="mt-2 text-sm font-medium" style={{ color: "#a2a5b8" }}>
-              {getDynamicGreeting(userName)}{" "}
-              <span style={{ color: "#62657a" }}>
-                · {loading ? "syncing…" : "fleet nominal"}
+                className="flex h-5 w-5 items-center justify-center rounded-[7px] border-[1.5px] text-[9px]"
+                style={{
+                  color: (task as Task).column === "in-review" ? "#6ee7b7" : PRIORITY_COLOR[(task as Task).priority] ?? "#6ee7b7",
+                  borderColor: (task as Task).column === "in-review" ? "rgba(110,231,183,.3)" : "var(--line-strong)",
+                }}
+              >
+                {(task as Task).column === "in-review" ? "✓" : "!"}
               </span>
-            </p>
-            <button
-              onClick={() => window.dispatchEvent(new CustomEvent("vic:open", { detail: "Walk me through today's brief." }))}
-              className="mt-5 rounded-[10px] px-4 py-2 text-[12.5px] font-semibold transition-all duration-200 hover:-translate-y-[1px]"
-              style={{
-                color: "#0b0b10",
-                background: "linear-gradient(135deg, #f2e3b3, #e7c979 60%, #cfa94e)",
-                boxShadow: "0 1px 0 rgba(255,255,255,.4) inset, 0 6px 22px rgba(231,201,121,.25)",
-              }}
-            >
-              Discuss with Vic
+              <span>
+                <span className="block text-[13.5px] font-semibold tracking-[-0.003em]">{(task as Task).title}</span>
+                <span className="mt-0.5 block text-[11.5px]" style={{ color: "var(--ink-3)" }}>
+                  <b style={{ color: "var(--ink-2)", fontWeight: 500 }}>{(task as Task).assignee}</b> ·{" "}
+                  {(task as Task).column.replace("-", " ")} · {(task as Task).priority} priority
+                </span>
+              </span>
+              <span
+                className="whitespace-nowrap rounded-full px-2.5 py-1 font-mono text-[10px] tracking-[0.05em]"
+                style={
+                  (task as Task).column === "in-review"
+                    ? { color: "#6ee7b7", backgroundColor: "rgba(110,231,183,.07)", boxShadow: "inset 0 0 0 1px rgba(110,231,183,.2)" }
+                    : { color: "var(--gold)", backgroundColor: "rgba(231,201,121,.09)", boxShadow: "inset 0 0 0 1px rgba(231,201,121,.25)" }
+                }
+              >
+                {(task as Task).column === "in-review" ? "on rails" : "needs you"}
+              </span>
+              <span className="text-[13px]" style={{ color: "var(--ink-3)" }}>→</span>
             </button>
+          ) : (
+            <div key={i} className="border-b px-5 py-4 last:border-b-0" style={{ borderColor: "var(--line)" }}>
+              <div className="h-3.5 w-2/3 animate-pulse rounded" style={{ backgroundColor: "var(--surface-3)" }} />
+            </div>
+          ),
+        )}
+      </div>
+
+      {/* live work */}
+      {liveWorkItems.length > 0 && (
+        <>
+          <div className="mb-4 mt-10 flex items-baseline justify-between">
+            <h2 className="text-[12px] font-semibold uppercase tracking-[0.14em]" style={{ color: "var(--ink-2)" }}>
+              Live work
+            </h2>
+            <Link href="/conversations" className="text-[12px] transition-colors" style={{ color: "var(--ink-3)" }}>
+              conversations →
+            </Link>
           </div>
+          <div className="flex flex-col gap-1.5">
+            {liveWorkItems.map(({ task, conversation, lastHeard }) => (
+              <button
+                key={task.id}
+                onClick={() => openVicWith(`Status on "${task.title}"?`)}
+                className="flex items-center gap-3 rounded-[11px] border px-4 py-2.5 text-left transition-all duration-200 hover:translate-x-[3px]"
+                style={{ borderColor: "var(--line)", backgroundColor: "var(--surface-1)" }}
+              >
+                <span
+                  className="flex h-[15px] w-[15px] shrink-0 items-center justify-center rounded-[5px] text-[8px]"
+                  style={{
+                    backgroundColor: task.column === "in-progress" ? "rgba(103,232,249,.1)" : "rgba(110,231,183,.12)",
+                    color: task.column === "in-progress" ? "#67e8f9" : "#6ee7b7",
+                  }}
+                >
+                  {task.column === "in-progress" ? "◐" : "✓"}
+                </span>
+                <span className="flex-1 text-[12.5px]" style={{ color: "#d4d7e3" }}>
+                  {task.title}
+                </span>
+                <span className="font-mono text-[10px]" style={{ color: "var(--ink-3)" }}>
+                  {AGENT_EMOJI_MAP[task.assignee] ?? "·"} {task.assignee}
+                  {lastHeard ? ` · ${relativeTime(lastHeard)}` : ""}
+                  {conversation ? ` · ${conversation.runCount} runs` : ""}
+                </span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
 
-          {!loading && !setupCompleted && (
-            <div className="rounded-xl p-5" style={{ backgroundColor: "#111118", border: "1px solid #7c3aed30" }}>
-              <div className="flex items-center gap-3 mb-4">
-                <span className="text-lg">🧭</span>
-                <div>
-                  <p className="text-sm font-semibold text-white">Welcome to Shipyard OS</p>
-                  <p className="text-xs text-zinc-500">Complete setup to get your agents running.</p>
-                </div>
-              </div>
-              <Link href="/setup" className="text-xs font-medium px-4 py-2 rounded-lg transition-colors inline-block" style={{ backgroundColor: "#7c3aed", color: "#fff" }}>
-                Run Setup Wizard →
-              </Link>
+      {/* portfolio */}
+      <div className="mb-4 mt-10 flex items-baseline justify-between">
+        <h2 className="text-[12px] font-semibold uppercase tracking-[0.14em]" style={{ color: "var(--ink-2)" }}>
+          Portfolio
+        </h2>
+        <Link href="/projects" className="text-[12px] transition-colors" style={{ color: "var(--ink-3)" }}>
+          all projects →
+        </Link>
+      </div>
+      <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+        {pinnedRepos.map((repo) => (
+          <Link
+            key={repo.name}
+            href={`/projects/${encodeURIComponent(repo.name)}`}
+            className="group rounded-[15px] border p-[18px] transition-all duration-300 hover:-translate-y-[2px]"
+            style={{ borderColor: "var(--line)", backgroundColor: "var(--surface-1)" }}
+          >
+            <div className="mb-3.5 flex items-center gap-2.5">
+              <span
+                className="flex h-[34px] w-[34px] items-center justify-center rounded-[10px] border font-serif text-[17px]"
+                style={{ borderColor: "var(--line)", backgroundColor: "var(--surface-3)", color: "var(--ink-2)" }}
+              >
+                ◈
+              </span>
+              <span>
+                <span className="block text-[14px] font-semibold">{repo.name}</span>
+                <span className="mt-px block line-clamp-1 text-[11px]" style={{ color: "var(--ink-3)" }}>
+                  {repo.description ?? "—"}
+                </span>
+              </span>
+              <span
+                className="ml-auto flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-[0.1em]"
+                style={{ color: "var(--ink-3)" }}
+              >
+                <span
+                  className="h-[5px] w-[5px] rounded-full"
+                  style={{ backgroundColor: ciColor(repo.latestRun), boxShadow: `0 0 8px ${ciColor(repo.latestRun)}` }}
+                />
+                {ciLabel(repo.latestRun)}
+              </span>
             </div>
-          )}
-
-          {demoMode && (
-            <div className="rounded-xl p-4 flex items-center justify-between" style={{ backgroundColor: "#1a1a2e", border: "1px solid #f59e0b30" }}>
-              <div className="flex items-center gap-3">
-                <span className="text-lg">🧪</span>
-                <div>
-                  <p className="text-sm font-medium text-amber-400">Running in demo mode</p>
-                  <p className="text-xs text-zinc-500">Connect OpenClaw to activate agents and run real tasks.</p>
-                </div>
-              </div>
-              <Link href="/settings" className="text-xs font-medium px-3 py-1.5 rounded-lg transition-colors" style={{ backgroundColor: "#f59e0b20", color: "#f59e0b" }}>
-                Connect
-              </Link>
-            </div>
-          )}
-
-          <Link href="/shipwright" className="block rounded-xl border border-cyan-500/20 bg-cyan-500/10 p-5 shadow-[0_0_30px_rgba(6,182,212,0.05)] transition hover:border-cyan-400/30 hover:bg-cyan-500/15">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">Shipwright</p>
-                <h2 className="mt-2 text-lg font-semibold text-white">From API spec to agent-ready tooling</h2>
-                <p className="mt-2 text-sm text-zinc-400">Generate CLIs and MCP servers from any API spec inside the main Shipyard stack.</p>
-              </div>
-              <span className="rounded-full border border-cyan-500/20 bg-cyan-500/10 px-2 py-1 text-[10px] uppercase tracking-widest text-cyan-300">New</span>
+            <div className="flex items-baseline gap-2">
+              <span className="font-serif text-[27px] tabular-nums">{repo.openPRs.length}</span>
+              <span className="font-mono text-[10.5px] uppercase tracking-[0.08em]" style={{ color: "var(--ink-3)" }}>
+                open PRs
+              </span>
+              <span className="ml-auto font-mono text-[10px]" style={{ color: "var(--ink-3)" }}>
+                {relativeTime(repo.updatedAt)}
+              </span>
             </div>
           </Link>
-
-          <section className="rounded-xl border border-zinc-800 bg-[#111118] p-5 shadow-[0_0_30px_rgba(124,58,237,0.05)]">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">Active work</p>
-                <p className="mt-2 text-sm text-zinc-300">Your agents are currently executing these tasks.</p>
-              </div>
-              {intel?.generatedAt ? <span className="text-[10px] text-zinc-700">{relativeTime(intel.generatedAt)}</span> : null}
-            </div>
-            <div className="mt-4 grid gap-3 md:grid-cols-3">
-              {activeWorkItems.length === 0 ? (
-                <div className="rounded-xl border border-zinc-800 bg-black/20 p-3 md:col-span-3">
-                  <p className="text-sm text-zinc-400">No tasks are actively in progress right now.</p>
-                </div>
-              ) : (
-                activeWorkItems.map(({ task, conversation, latestActivity, lastHeard }) => (
-                  <div key={task.id} className="rounded-xl border border-zinc-800 bg-black/20 p-3 transition-transform duration-300 hover:-translate-y-0.5 hover:border-cyan-500/30 hover:bg-cyan-500/5">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="text-[10px] uppercase tracking-widest text-zinc-500">{task.assignee}</p>
-                        <p className="mt-1 text-sm text-white leading-5">{task.title}</p>
-                        <p className="mt-2 text-[10px] text-zinc-600">{task.column === "in-progress" ? "In progress" : "In review"} • last heard {relativeTime(lastHeard)}</p>
-                      </div>
-                      <Link href={`/tasks?id=${task.id}`} className="rounded-full border border-zinc-700 bg-zinc-900/60 px-2 py-1 text-[10px] text-zinc-300 hover:border-cyan-500/30 hover:text-cyan-200">Open task</Link>
-                    </div>
-                    <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
-                      <Link href={conversation ? `/conversations?id=${conversation.id}` : `/conversations?id=task-${task.id}`} className="rounded-full border border-zinc-700 bg-zinc-900/60 px-2 py-1 text-zinc-300 hover:border-cyan-500/30 hover:text-cyan-200">Open thread</Link>
-                    </div>
-                    {latestActivity ? <p className="mt-2 text-[11px] text-zinc-500">Latest: {latestActivity.action} • {latestActivity.summary ?? latestActivity.taskTitle}</p> : null}
-                  </div>
-                ))
-              )}
-            </div>
-          </section>
-
-          <section className="rounded-xl border border-zinc-800 bg-[#111118] p-5 shadow-[0_0_30px_rgba(124,58,237,0.05)]">
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">Now / Next / Risk</p>
-              <span className="flex items-center gap-2 rounded-full border border-cyan-500/20 bg-cyan-500/10 px-3 py-1 text-[10px] uppercase tracking-[0.22em] text-cyan-300">
-                <span className="relative flex h-2 w-2">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-cyan-300 opacity-75" />
-                  <span className="relative inline-flex h-2 w-2 rounded-full bg-cyan-300" />
-                </span>
-                Live {relativeTime(livePulse)}
-              </span>
-            </div>
-            <div className="mt-4 flex items-center justify-between">
-              <Link href="/tasks" className="text-[10px] font-medium text-cyan-300">Open board →</Link>
-              <span className="text-[10px] text-zinc-600">auto-updated</span>
-            </div>
-            <div className="mt-3 grid gap-3 md:grid-cols-3">
-              <div className="rounded-xl border border-zinc-800 bg-black/20 p-3 transition-transform duration-300 hover:-translate-y-0.5 min-h-[104px]">
-                <p className="text-[10px] uppercase tracking-widest text-zinc-500">Now</p>
-                <p className="mt-1 text-sm text-white leading-5">{urgentTasks[0]?.title ?? "Nothing urgent"}</p>
-                <p className="mt-2 text-[10px] text-zinc-600">Next action</p>
-              </div>
-              <div className="rounded-xl border border-zinc-800 bg-black/20 p-3 transition-transform duration-300 hover:-translate-y-0.5 min-h-[104px]">
-                <p className="text-[10px] uppercase tracking-widest text-zinc-500">Next</p>
-                <p className="mt-1 text-sm text-white leading-5">{urgentTasks[1]?.title ?? "All caught up"}</p>
-                <p className="mt-2 text-[10px] text-zinc-600">Queued follow-up</p>
-              </div>
-              {hotRiskRepo(repos) ? (
-                <Link href={`/projects/${encodeURIComponent(hotRiskRepo(repos)!.name)}`} className="rounded-xl border border-zinc-800 bg-black/20 p-3 transition-transform duration-300 hover:-translate-y-0.5 hover:border-amber-500/30 hover:bg-amber-500/5 min-h-[104px]">
-                  <p className="text-[10px] uppercase tracking-widest text-zinc-500">Risk</p>
-                  <p className="mt-1 text-sm text-white leading-5">{hotRiskLabel(repos)}</p>
-                  <p className="mt-2 text-[10px] text-zinc-600">Open war room →</p>
-                </Link>
-              ) : (
-                <Link href="/alerts" className="rounded-xl border border-zinc-800 bg-black/20 p-3 transition-transform duration-300 hover:-translate-y-0.5 hover:border-amber-500/30 hover:bg-amber-500/5">
-                  <p className="text-[10px] uppercase tracking-widest text-zinc-500">Risk</p>
-                  <p className="mt-1 text-sm text-white">No live risk</p>
-                  <p className="mt-1 text-[10px] text-zinc-600">Open alerts →</p>
-                </Link>
-              )}
-            </div>
-          </section>
-
-          <section className="rounded-xl border border-zinc-800 bg-[#111118] p-5">
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">Who’s busy</p>
-              <span className="text-[10px] text-zinc-600">{loading ? "…" : `${activeAgents.length} live`}</span>
-            </div>
-            <div className="mt-4 grid gap-2">
-              {activeAgents.length === 0 ? (
-                <p className="text-sm text-zinc-500">No agents are currently active.</p>
-              ) : (
-                activeAgents.map(({ session, agentName, conversation, latestActivity, task }) => {
-                  const agent = session?.key ?? session?.id ?? session?.label ?? agentName
-                  const cardKey = task ? `task-${task.id}` : `${agent}-${conversation?.id ?? latestActivity?.id ?? "session"}`
-                  const conversationHref = conversation ? `/conversations?id=${conversation.id}` : "/conversations"
-                  const taskHref = task ? `/tasks?id=${task.id}` : latestActivity?.taskId ? `/tasks?id=${latestActivity.taskId}` : "/tasks"
-                  const lastHeard = latestActivity?.timestamp ?? conversation?.updatedAt ?? session?.startedAt ?? session?.created_at ?? new Date().toISOString()
-                  return (
-                    <div key={cardKey} className="rounded-xl border border-zinc-800 bg-black/20 px-3 py-2.5">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="text-sm text-white">{agentName}{task ? ` • ${task.title}` : ""}</p>
-                          <p className="mt-1 text-[11px] text-zinc-500">{task ? (task.column === "planning" ? "Draft in progress • planning with Vic" : `In progress • ${task.column.replace("-", " ")}`) : `Busy now • ${session?.model ?? "runtime session"}`} • last heard {relativeTime(lastHeard)}</p>
-                          <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
-                            <Link href={conversationHref} className="rounded-full border border-zinc-700 bg-zinc-900/60 px-2 py-1 text-zinc-300 hover:border-cyan-500/30 hover:text-cyan-200">
-                              Open thread
-                            </Link>
-                            <Link href={taskHref} className="rounded-full border border-zinc-700 bg-zinc-900/60 px-2 py-1 text-zinc-300 hover:border-cyan-500/30 hover:text-cyan-200">
-                              Open task
-                            </Link>
-                          </div>
-                        </div>
-                        <span className="rounded-full border border-cyan-500/20 bg-cyan-500/10 px-2 py-1 text-[10px] uppercase tracking-widest text-cyan-300">
-                          Live
-                        </span>
-                      </div>
-                      {latestActivity ? (
-                        <p className="mt-2 text-[11px] text-zinc-600">{latestActivity.taskTitle} • {ACTION_LABEL_MAP[latestActivity.action]}</p>
-                      ) : conversation ? (
-                        <p className="mt-2 text-[11px] text-zinc-600">{conversation.title} • {conversation.status}</p>
-                      ) : null}
-                    </div>
-                  )
-                })
-              )}
-            </div>
-          </section>
-
-          <section className="rounded-xl border border-zinc-800 bg-[#111118] p-5">
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">Approvals</p>
-              <span className="text-[10px] text-zinc-600">{loading ? "…" : "Live"}</span>
-            </div>
-            <div className="mt-4 grid gap-3">
-              {approvalQueue.slice(0, 2).map((item) => (
-                <div key={item.id} className="rounded-xl border border-zinc-800 bg-black/20 p-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-sm text-white">{item.label}</p>
-                      <p className="mt-1 text-[11px] text-zinc-500">{item.detail}</p>
-                    </div>
-                    <span className="rounded-full border border-zinc-700 px-2 py-1 text-[10px] uppercase tracking-widest text-zinc-400">{item.severity}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-        </div>
-
-        <CopilotSidebar
-          activeGoals={activeGoals}
-          urgentTasks={urgentTasks}
-          repos={repos}
-          recentActivity={recentActivity}
-          inboxItems={emails}
-          intelSummary={intelSummary}
-          demoMode={demoMode}
-        />
+        ))}
+        {!loading && pinnedRepos.length === 0 && (
+          <p className="text-[13px]" style={{ color: "var(--ink-3)" }}>
+            No pinned projects yet — connect GitHub on the projects page.
+          </p>
+        )}
       </div>
     </div>
   )
