@@ -25,7 +25,14 @@ import { existsSync } from "fs"
 import { homedir } from "os"
 import path from "path"
 import type { PayboxClient } from "@paybox-sh/sdk"
-import { createPayingFetch, createSolanaPayProvider, payboxSigner } from "shipyard-inference"
+import { createPayingFetch, createSolanaPayProvider } from "shipyard-inference"
+
+/** Minimal signer shape `createSolanaPayProvider` accepts. */
+interface SolanaSignerShape {
+  publicKey: string
+  signTransaction(tx: Uint8Array): Promise<Uint8Array>
+  signMessage?(message: Uint8Array): Promise<Uint8Array>
+}
 
 // ── Client ───────────────────────────────────────────────────────────────────
 
@@ -193,6 +200,124 @@ export async function listPayboxCredentials(): Promise<PayboxCredential[]> {
   }
 }
 
+// ── Wallet signer (versioned→legacy conversion) ─────────────────────────────
+//
+// shipyard-inference's settle path builds a *versioned* transaction, but the
+// Paybox SDK's in-process `solanaTransaction` signing (`MoonXSolanaSigner`)
+// parses with the *legacy* `Transaction.from()` — feeding it versioned bytes
+// throws "Versioned messages must be deserialized with
+// VersionedMessage.deserialize()". We therefore convert versioned → legacy
+// before handing bytes to Paybox; the returned signed legacy tx is equally
+// valid on-chain, and the gateway submits whatever bytes we return.
+
+async function versionedToLegacy(bytes: Uint8Array): Promise<Uint8Array> {
+  const web3 = await import("@solana/web3.js")
+  type Pubkey = InstanceType<typeof web3.PublicKey>
+  const vtx = web3.VersionedTransaction.deserialize(bytes)
+  const msg = vtx.message as unknown as {
+    staticAccountKeys?: Pubkey[]
+    accountKeys?: Pubkey[]
+    recentBlockhash: string
+    compiledInstructions: Array<{ programIdIndex: number; accountKeyIndexes: number[]; data: Uint8Array }>
+    isAccountSigner(i: number): boolean
+    isAccountWritable(i: number): boolean
+  }
+  // Address-lookup tables are never used by our settle path — refuse loudly.
+  if (!msg.compiledInstructions || (!msg.staticAccountKeys && !msg.accountKeys)) {
+    throw new Error("paybox signer: unsupported transaction shape (address lookup tables?)")
+  }
+  const keys = msg.staticAccountKeys ?? msg.accountKeys!
+  const legacy = new web3.Transaction()
+  legacy.feePayer = keys[0]
+  legacy.recentBlockhash = msg.recentBlockhash
+  for (const ci of msg.compiledInstructions) {
+    legacy.add(
+      new web3.TransactionInstruction({
+        programId: keys[ci.programIdIndex],
+        keys: ci.accountKeyIndexes.map((i) => ({
+          pubkey: keys[i],
+          isSigner: msg.isAccountSigner(i),
+          isWritable: msg.isAccountWritable(i),
+        })),
+        data: Buffer.from(ci.data),
+      }),
+    )
+  }
+  return legacy.serialize({ requireAllSignatures: false, verifySignatures: false })
+}
+
+/** Poll a pending Paybox request until it leaves a pending state. */
+async function waitForPaybox(
+  client: PayboxClient,
+  requestId: string,
+  timeoutMs = 120_000,
+): Promise<Record<string, unknown>> {
+  const deadline = Date.now() + timeoutMs
+  let response = await client.getRequest(requestId)
+  while (
+    (response.status === "pending_approval" || response.status === "pending_signature") &&
+    Date.now() < deadline
+  ) {
+    await new Promise((r) => setTimeout(r, 2_000))
+    response = await client.getRequest(requestId)
+  }
+  if (response.status !== "success") {
+    throw new Error(
+      `Paybox request ${requestId} ended '${String(response.status)}'` +
+        (typeof (response as { error?: string }).error === "string"
+          ? `: ${(response as { error: string }).error}`
+          : ""),
+    )
+  }
+  return response as unknown as Record<string, unknown>
+}
+
+/**
+ * A non-custodial Solana signer backed by a Paybox wallet credential, with the
+ * versioned→legacy conversion above. Signs inside the user's Paybox grant —
+ * the private key never reaches this process.
+ */
+function payboxWalletSigner(options: {
+  client: PayboxClient
+  credentialId: string
+  address: string
+  network: "mainnet" | "devnet"
+}): SolanaSignerShape {
+  const chain = options.network === "devnet" ? "solana:devnet" : "solana:mainnet-beta"
+  return {
+    publicKey: options.address,
+    async signTransaction(tx: Uint8Array): Promise<Uint8Array> {
+      const legacyBase64 = Buffer.from(await versionedToLegacy(tx)).toString("base64")
+      const first = await options.client.requestWalletSign({
+        credentialId: options.credentialId,
+        chain,
+        intent: {
+          op: "solanaTransaction",
+          address: options.address,
+          transactionBase64: legacyBase64,
+        },
+      } as Parameters<PayboxClient["requestWalletSign"]>[0])
+      const response =
+        first.status === "pending_approval" || first.status === "pending_signature"
+          ? await waitForPaybox(options.client, first.request_id)
+          : (first as unknown as Record<string, unknown>)
+      const out = (response as { output?: { value?: unknown } }).output?.value
+      const signed =
+        typeof out === "string"
+          ? out
+          : out &&
+              typeof out === "object" &&
+              typeof (out as { signedTransactionBase64?: unknown }).signedTransactionBase64 === "string"
+            ? (out as { signedTransactionBase64: string }).signedTransactionBase64
+            : undefined
+      if (typeof signed !== "string") {
+        throw new Error("Paybox wallet sign returned no signed transaction")
+      }
+      return new Uint8Array(Buffer.from(signed, "base64"))
+    },
+  }
+}
+
 // ── Pay x402 ──────────────────────────────────────────────────────────────────
 
 export interface PayX402Params {
@@ -233,8 +358,26 @@ export async function payX402(params: PayX402Params): Promise<PayX402Result> {
   }
   const network = payboxNetwork()
 
+  // Resolve the credential's on-chain address up front and pass it as
+  // `publicKey` — payboxSigner then skips its internal (registry-0.20.0) lookup
+  // and signs directly within the grant.
+  const credentials = await listPayboxCredentials()
+  const wallet = credentials.find((c) => c.id === credentialId)
+  if (!wallet) {
+    throw new Error("Paybox wallet credential not found — refresh credentials on the Treasury page")
+  }
+  if (!wallet.address) {
+    throw new Error("Selected wallet has no on-chain address in its Paybox metadata")
+  }
+
   const client = await payboxClient()
-  const signer = await payboxSigner({ credentialId, network, ...(client ? { client } : {}) })
+  if (!client) {
+    throw new Error("Paybox client unavailable — run `npx @paybox-sh/sdk login` or set PAYBOX_API_KEY")
+  }
+  // Sign with our conversion-aware signer: shipyard-inference's settle path
+  // builds versioned txs, but the Paybox SDK signs legacy ones (see the
+  // versioned→legacy note above), so we convert before handing bytes over.
+  const signer = payboxWalletSigner({ client, credentialId, address: wallet.address, network })
   const payment = await createSolanaPayProvider({ signer, network })
   const payments: PayboxPaymentRecord[] = []
 
