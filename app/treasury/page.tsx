@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react"
 import Link from "next/link"
+import PayboxPanel from "@/components/PayboxPanel"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -150,6 +151,9 @@ export default function TreasuryPage() {
           ))}
         </div>
       )}
+
+      {/* Paybox x402 wallet */}
+      <PayboxPanel />
 
       {/* Add Wallet Form */}
       {adding && (
