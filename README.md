@@ -110,6 +110,12 @@ In the setup wizard, choose **"Ollama / Local Models"** and point it at your run
 
 Don't have agents set up yet? No problem. Click **"Skip — explore without agents"** in the setup wizard to get a feel for the dashboard with sample data.
 
+### Deploying
+
+This repo deploys itself: **push to `main` → Vercel builds and ships to production automatically** (CI runs typecheck + build on every PR first). No deploy commands, no manual steps — if the build passes, it's live.
+
+To deploy your own instance: import the repo into Vercel, add the env vars from [`.env.example`](./.env.example), and connect a Vercel KV store for durable tasks/conversations in production. Serverless-safe routes gracefully degrade when local CLIs (OpenClaw, gh, gog) aren't available.
+
 <br />
 
 ## 🏗 How It Works
