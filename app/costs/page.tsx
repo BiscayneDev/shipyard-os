@@ -2,32 +2,92 @@
 
 import { useEffect, useState } from "react"
 
-interface ModelStats {
-  model: string
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+interface OperatorOverview {
+  requests: number
   inputTokens: number
   outputTokens: number
-  cacheCreationTokens: number
-  cacheReadTokens: number
+  actualCostUsd: number
+  baselineCostUsd: number
+  savedUsd: number
+  savingsPct: number
+  revenueUsd: number
+  marginUsd: number
+  errors: number
+  errorRate: number
+  cacheHitRate: number
+  failovers: number
+  latencyP50Ms?: number
+  latencyP95Ms?: number
+  users: number
+}
+
+interface OperatorBreakdownRow {
+  key: string
+  requests: number
+  inputTokens: number
+  outputTokens: number
+  actualCostUsd: number
+  baselineCostUsd: number
+  savedUsd: number
+  revenueUsd: number
+  avgLatencyMs?: number
+  errors: number
+}
+
+interface OperatorBilling {
+  revenueUsd: number
+  actualCostUsd: number
+  marginUsd: number
+  settledUsd: number
+  stuck: number
+  settlements?: Array<{
+    at: number
+    userId?: string
+    amountUsd: number
+    status: string
+    signature?: string
+    network?: string
+  }>
+}
+
+interface ShipyardData {
+  configured: boolean
+  overview?: OperatorOverview | null
+  breakdown?: OperatorBreakdownRow[] | null
+  billing?: OperatorBilling | null
+}
+
+interface AnthropicData {
   totalTokens: number
-}
-
-interface DailyCost {
-  date: string
-  costUSD: number
-}
-
-interface CostsData {
   totalInputTokens: number
   totalOutputTokens: number
-  totalCacheCreationTokens: number
   totalCacheReadTokens: number
-  totalTokens: number
   totalCostUSD: number
-  byModel: ModelStats[]
-  dailyCosts: DailyCost[]
+  byModel: Array<{
+    model: string
+    inputTokens: number
+    outputTokens: number
+    cacheCreationTokens: number
+    cacheReadTokens: number
+    totalTokens: number
+  }>
+  dailyCosts: Array<{ date: string; costUSD: number }>
   dataSource: string
   lastUpdated: string | null
   error?: string
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function fmtUsd(n: number, compact = false): string {
+  if (!Number.isFinite(n)) return "—"
+  if (n === 0) return "$0"
+  if (n < 0.01) return `$${n.toFixed(4)}`
+  if (n < 1) return `$${n.toFixed(3)}`
+  if (compact && n >= 1000) return `$${(n / 1000).toFixed(1)}K`
+  return `$${n.toFixed(2)}`
 }
 
 function fmtTokens(n: number): string {
@@ -36,341 +96,307 @@ function fmtTokens(n: number): string {
   return String(n)
 }
 
-function fmtCost(n: number): string {
-  if (n < 0.01) return "<$0.01"
-  return `$${n.toFixed(2)}`
+function fmtPct(n: number): string {
+  return `${Math.round(n * 100)}%`
 }
 
-function timeAgo(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime()
-  const mins = Math.floor(diff / 60000)
+function timeAgoMs(ms: number): string {
+  const mins = Math.floor((Date.now() - ms) / 60000)
+  if (mins < 1) return "just now"
   if (mins < 60) return `${mins}m ago`
   const hrs = Math.floor(mins / 60)
   if (hrs < 24) return `${hrs}h ago`
   return `${Math.floor(hrs / 24)}d ago`
 }
 
-function fmtDate(iso: string): string {
-  const d = new Date(iso)
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+function timeAgoIso(iso: string): string {
+  return timeAgoMs(new Date(iso).getTime())
 }
 
-const AMBER = "#f59e0b"
+function shortSig(sig: string | undefined): string {
+  if (!sig) return "—"
+  return `${sig.slice(0, 8)}…${sig.slice(-6)}`
+}
+
+// ── Component ────────────────────────────────────────────────────────────────
 
 export default function CostsPage() {
-  const [data, setData] = useState<CostsData | null>(null)
+  const [shipyard, setShipyard] = useState<ShipyardData | null>(null)
+  const [anthropic, setAnthropic] = useState<AnthropicData | null>(null)
   const [loading, setLoading] = useState(true)
-  const [hoveredBar, setHoveredBar] = useState<number | null>(null)
 
   useEffect(() => {
-    fetch("/api/costs")
-      .then((r) => r.json())
-      .then((d: CostsData) => setData(d))
-      .catch(() => {})
-      .finally(() => setLoading(false))
+    Promise.all([
+      fetch("/api/costs/shipyard")
+        .then((r) => r.json())
+        .catch(() => null),
+      fetch("/api/costs")
+        .then((r) => r.json())
+        .catch(() => null),
+    ]).then(([s, a]) => {
+      setShipyard(s as ShipyardData | null)
+      setAnthropic(a as AnthropicData | null)
+      setLoading(false)
+    })
   }, [])
 
-  const noAdminKey = data?.error === "no_admin_key"
-  const isEmpty =
-    !data ||
-    (!noAdminKey && data.totalTokens === 0 && data.byModel.length === 0)
+  const o = shipyard?.overview ?? null
+  const b = shipyard?.billing ?? null
+  const breakdown = shipyard?.breakdown ?? null
+  const settlements = [...(b?.settlements ?? [])].sort((x, y) => y.at - x.at).slice(0, 6)
+  const hasAnthropic =
+    anthropic && !anthropic.error && anthropic.byModel.length > 0
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="text-xl">📊</span>
-            <h1 className="text-3xl font-bold text-white">Costs</h1>
-          </div>
-          <p className="text-sm text-zinc-500 mt-0.5">
-            Token usage &amp; spend across all models
-            {data?.lastUpdated && (
-              <span className="ml-2 text-zinc-600">· {timeAgo(data.lastUpdated)}</span>
-            )}
-          </p>
-        </div>
+    <div className="max-w-4xl mx-auto space-y-6 pb-16">
+      {/* Kicker + title */}
+      <div>
+        <p
+          className="flex items-center gap-2.5 font-mono text-[9.5px] uppercase tracking-[0.16em]"
+          style={{ color: "var(--ink-3)" }}
+        >
+          <span
+            className="inline-block h-[6px] w-[6px] rounded-full"
+            style={{ backgroundColor: "var(--gold)", boxShadow: "0 0 8px var(--gold)" }}
+          />
+          spend · savings · settlements
+        </p>
+        <h1
+          className="mt-3 font-serif text-[40px] leading-[1.05] tracking-[-0.01em]"
+          style={{ color: "var(--ink)" }}
+        >
+          Costs
+        </h1>
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center min-h-[40vh]">
-          <p className="text-zinc-600">Loading usage data...</p>
-        </div>
-      ) : noAdminKey ? (
-        /* ── No Admin Key empty state ──────────────────────────────────── */
-        <div
-          className="rounded-xl p-10 text-center space-y-4"
-          style={{ backgroundColor: "#111118", border: `1px solid ${AMBER}30` }}
-        >
-          <p className="text-3xl">🔑</p>
-          <p className="text-xl font-semibold text-white">Connect Anthropic</p>
-          <p className="text-sm text-zinc-400 max-w-md mx-auto leading-relaxed">
-            Add your Anthropic Admin API key to see real cost and usage data.
-          </p>
-          <div
-            className="rounded-lg p-4 text-left mx-auto max-w-sm"
-            style={{
-              backgroundColor: "#0d0d17",
-              border: "1px solid #2a2a3a",
-              fontFamily: "var(--font-geist-mono), monospace",
-              fontSize: 13,
-              lineHeight: 1.8,
-            }}
-          >
-            <div>
-              <span style={{ color: AMBER }}>ANTHROPIC_ADMIN_KEY</span>
-              <span style={{ color: "#71717a" }}>=</span>
-              <span style={{ color: "#a1a1aa" }}>sk-ant-admin...</span>
-            </div>
-          </div>
-          <p className="text-xs text-zinc-600">
-            Add to <code className="text-zinc-500" style={{ backgroundColor: "#1a1a2a", padding: "2px 6px", borderRadius: 4, fontSize: 12 }}>.env.local</code>
-          </p>
-          <a
-            href="https://console.anthropic.com/settings/admin-keys"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-block text-sm font-medium"
-            style={{ color: AMBER }}
-          >
-            Get your admin key →
-          </a>
-        </div>
-      ) : isEmpty ? (
-        <div
-          className="rounded-xl p-10 text-center space-y-3"
-          style={{ backgroundColor: "#111118", border: "1px solid #1a1a2e" }}
-        >
-          <p className="text-3xl">📊</p>
-          <p className="text-zinc-400 font-medium">No data yet</p>
-          <p className="text-xs text-zinc-600">
-            Usage data will appear here once API calls are made.
-          </p>
-        </div>
+        <p className="font-mono text-[11px]" style={{ color: "var(--ink-3)" }}>
+          Loading…
+        </p>
       ) : (
         <>
-          {/* Summary cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {[
-              {
-                label: "Total Tokens",
-                value: fmtTokens(data!.totalTokens),
-                sub: "last 30 days",
-              },
-              {
-                label: "Input Tokens",
-                value: fmtTokens(data!.totalInputTokens),
-                sub: "prompt",
-              },
-              {
-                label: "Output Tokens",
-                value: fmtTokens(data!.totalOutputTokens),
-                sub: "completion",
-              },
-              {
-                label: "Actual Cost",
-                value: fmtCost(data!.totalCostUSD),
-                sub: "USD",
-                highlight: true,
-              },
-            ].map(({ label, value, sub, highlight }) => (
-              <div
-                key={label}
-                className="rounded-xl p-4 space-y-1"
-                style={{
-                  backgroundColor: "#111118",
-                  border: highlight
-                    ? `1px solid ${AMBER}40`
-                    : "1px solid #1a1a2e",
-                  boxShadow: highlight
-                    ? `0 0 20px ${AMBER}10`
-                    : undefined,
-                }}
-              >
-                <p className="text-xs text-zinc-500 uppercase tracking-wider">{label}</p>
-                <p
-                  className="text-2xl font-bold"
-                  style={{ color: highlight ? AMBER : "white" }}
-                >
-                  {value}
-                </p>
-                <p className="text-xs text-zinc-700">{sub}</p>
-              </div>
-            ))}
-          </div>
-
-          {/* Daily cost bar chart */}
-          {data!.dailyCosts.length > 0 && (
-            <div
-              className="rounded-xl overflow-hidden"
-              style={{ backgroundColor: "#111118", border: "1px solid #1a1a2e" }}
+          {/* ── Shipyard Inference: the hero ─────────────────────────────── */}
+          {o ? (
+            <section
+              className="space-y-5 rounded-[17px] p-6"
+              style={{
+                border: "1px solid var(--line)",
+                background: "linear-gradient(180deg, var(--surface-1), #08080b)",
+              }}
             >
-              <div className="px-5 py-3 border-b border-zinc-800/50">
-                <p className="text-xs font-mono uppercase tracking-wider text-zinc-500">
-                  Last 30 days
-                </p>
-              </div>
-              <div className="px-5 py-4">
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "flex-end",
-                    gap: 2,
-                    height: 120,
-                    position: "relative",
-                  }}
+              <div className="flex items-center justify-between">
+                <p
+                  className="font-mono text-[9.5px] uppercase tracking-[0.16em]"
+                  style={{ color: "var(--ink-3)" }}
                 >
-                  {(() => {
-                    const maxCost = Math.max(...data!.dailyCosts.map((d) => d.costUSD), 0.01)
-                    return data!.dailyCosts.map((day, i) => {
-                      const heightPct = Math.max((day.costUSD / maxCost) * 100, 2)
-                      const isHovered = hoveredBar === i
-                      return (
-                        <div
-                          key={day.date}
-                          style={{
-                            flex: 1,
-                            height: `${heightPct}%`,
-                            backgroundColor: isHovered ? AMBER : `${AMBER}88`,
-                            borderRadius: "2px 2px 0 0",
-                            cursor: "pointer",
-                            transition: "background-color 0.15s, height 0.15s",
-                            position: "relative",
-                          }}
-                          onMouseEnter={() => setHoveredBar(i)}
-                          onMouseLeave={() => setHoveredBar(null)}
-                        >
-                          {isHovered && (
-                            <div
-                              style={{
-                                position: "absolute",
-                                bottom: "calc(100% + 8px)",
-                                left: "50%",
-                                transform: "translateX(-50%)",
-                                backgroundColor: "#1a1a2e",
-                                border: "1px solid #2a2a3a",
-                                borderRadius: 6,
-                                padding: "6px 10px",
-                                whiteSpace: "nowrap",
-                                zIndex: 10,
-                                fontSize: 12,
-                                pointerEvents: "none",
-                              }}
-                            >
-                              <div style={{ color: "#e4e4e7", fontWeight: 600 }}>
-                                {fmtCost(day.costUSD)}
-                              </div>
-                              <div style={{ color: "#71717a", fontSize: 11 }}>
-                                {fmtDate(day.date)}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )
-                    })
-                  })()}
+                  Inference · Shipyard gateway · last 24h
+                </p>
+                <span
+                  className="rounded-full border px-3 py-1 font-mono text-[9.5px] uppercase tracking-[0.12em]"
+                  style={{ borderColor: "var(--line)", color: "var(--ink-3)" }}
+                >
+                  {b?.settledUsd !== undefined ? `${fmtUsd(b.settledUsd)} settled` : "gateway live"}
+                </span>
+              </div>
+
+              {/* Hero numbers */}
+              <div className="grid grid-cols-2 gap-6 md:grid-cols-4">
+                <div>
+                  <p className="font-serif text-[27px] tabular-nums" style={{ color: "var(--ink)" }}>
+                    {o.requests}
+                  </p>
+                  <p
+                    className="font-mono text-[9.5px] uppercase tracking-[0.1em]"
+                    style={{ color: "var(--ink-3)" }}
+                  >
+                    requests
+                  </p>
+                </div>
+                <div>
+                  <p className="font-serif text-[27px] tabular-nums" style={{ color: "var(--ink)" }}>
+                    {fmtUsd(o.actualCostUsd)}
+                  </p>
+                  <p
+                    className="font-mono text-[9.5px] uppercase tracking-[0.1em]"
+                    style={{ color: "var(--ink-3)" }}
+                  >
+                    actual spend
+                  </p>
+                </div>
+                <div>
+                  <p className="font-serif text-[27px] tabular-nums" style={{ color: "var(--gold)" }}>
+                    {fmtUsd(o.savedUsd)}
+                  </p>
+                  <p
+                    className="font-mono text-[9.5px] uppercase tracking-[0.1em]"
+                    style={{ color: "var(--ink-3)" }}
+                  >
+                    saved vs baseline
+                  </p>
+                </div>
+                <div>
+                  <p className="font-serif text-[27px] tabular-nums" style={{ color: "var(--ink-2)" }}>
+                    {fmtUsd(o.revenueUsd)}
+                  </p>
+                  <p
+                    className="font-mono text-[9.5px] uppercase tracking-[0.1em]"
+                    style={{ color: "var(--ink-3)" }}
+                  >
+                    billable revenue
+                  </p>
                 </div>
               </div>
-            </div>
+
+              {/* Secondary row */}
+              <div
+                className="flex flex-wrap gap-x-8 gap-y-2 border-t pt-4"
+                style={{ borderColor: "var(--line)" }}
+              >
+                {[
+                  ["savings rate", o.savingsPct > 0 ? fmtPct(o.savingsPct) : "—"],
+                  ["margin", fmtUsd(b?.marginUsd ?? o.marginUsd)],
+                  ["tokens", fmtTokens(o.inputTokens + o.outputTokens)],
+                  ["cache hit", fmtPct(o.cacheHitRate)],
+                  ["errors", String(o.errors)],
+                  ["p95 latency", o.latencyP95Ms ? `${Math.round(o.latencyP95Ms)}ms` : "—"],
+                ].map(([label, value]) => (
+                  <span
+                    key={label}
+                    className="font-mono text-[10.5px]"
+                    style={{ color: "var(--ink-3)" }}
+                  >
+                    {label}
+                    <span className="ml-2 tabular-nums" style={{ color: "var(--ink-2)" }}>
+                      {value}
+                    </span>
+                  </span>
+                ))}
+              </div>
+
+              {/* Per-model breakdown */}
+              {breakdown && breakdown.length > 0 && (
+                <div className="space-y-1.5">
+                  <p
+                    className="font-mono text-[9.5px] uppercase tracking-[0.16em]"
+                    style={{ color: "var(--ink-3)" }}
+                  >
+                    By model
+                  </p>
+                  {breakdown.map((row) => (
+                    <div key={row.key} className="flex items-center justify-between gap-4">
+                      <span className="font-mono text-[11px]" style={{ color: "var(--ink-2)" }}>
+                        {row.key}
+                        <span
+                          className="ml-3 font-mono text-[10px]"
+                          style={{ color: "var(--ink-3)" }}
+                        >
+                          {row.requests} req
+                        </span>
+                      </span>
+                      <span className="flex shrink-0 items-baseline gap-4 font-serif text-[14px] tabular-nums">
+                        <span style={{ color: "var(--ink-2)" }}>{fmtUsd(row.actualCostUsd)}</span>
+                        <span style={{ color: "var(--gold)" }}>−{fmtUsd(row.savedUsd)}</span>
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Settlements */}
+              {settlements.length > 0 && (
+                <div className="space-y-1.5">
+                  <p
+                    className="font-mono text-[9.5px] uppercase tracking-[0.16em]"
+                    style={{ color: "var(--ink-3)" }}
+                  >
+                    x402 settlements
+                  </p>
+                  {settlements.map((s, i) => (
+                    <div key={i} className="flex items-center justify-between gap-4">
+                      <span
+                        className="truncate font-mono text-[10.5px]"
+                        style={{ color: "var(--ink-3)", maxWidth: "55%" }}
+                      >
+                        {s.userId ? `${s.userId.slice(0, 6)}…${s.userId.slice(-4)} · ` : ""}
+                        {shortSig(s.signature)}
+                      </span>
+                      <span className="flex shrink-0 items-baseline gap-3">
+                        <span
+                          className="font-serif text-[14px] tabular-nums"
+                          style={{ color: "var(--gold)" }}
+                        >
+                          {fmtUsd(s.amountUsd)}
+                        </span>
+                        <span className="font-mono text-[10px]" style={{ color: "var(--ink-3)" }}>
+                          {timeAgoMs(s.at)}
+                        </span>
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          ) : (
+            <section
+              className="rounded-[17px] p-6"
+              style={{ border: "1px solid var(--line)", backgroundColor: "var(--surface-1)" }}
+            >
+              <p className="text-[13px]" style={{ color: "var(--ink-2)" }}>
+                Inference telemetry not configured — set SHIPYARD_OPERATOR_URL and
+                SHIPYARD_OPERATOR_TOKEN to see gateway spend, savings, and settlements here.
+              </p>
+            </section>
           )}
 
-          {/* Per-model breakdown */}
-          {data!.byModel.length > 0 && (
-            <div
-              className="rounded-xl overflow-hidden"
-              style={{ backgroundColor: "#111118", border: "1px solid #1a1a2e" }}
-            >
-              <div className="px-5 py-3 border-b border-zinc-800/50">
-                <p className="text-xs font-mono uppercase tracking-wider text-zinc-500">
-                  Breakdown by model
-                </p>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-zinc-800/50">
-                      <th className="text-left px-5 py-2.5 text-xs text-zinc-600 font-medium uppercase tracking-wider">
-                        Model
-                      </th>
-                      <th className="text-right px-4 py-2.5 text-xs text-zinc-600 font-medium uppercase tracking-wider">
-                        Input
-                      </th>
-                      <th className="text-right px-4 py-2.5 text-xs text-zinc-600 font-medium uppercase tracking-wider">
-                        Output
-                      </th>
-                      <th className="text-right px-4 py-2.5 text-xs text-zinc-600 font-medium uppercase tracking-wider">
-                        Cache Created
-                      </th>
-                      <th className="text-right px-4 py-2.5 text-xs text-zinc-600 font-medium uppercase tracking-wider">
-                        Cache Read
-                      </th>
-                      <th className="text-right px-5 py-2.5 text-xs text-zinc-600 font-medium uppercase tracking-wider">
-                        Total
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data!.byModel.map((m) => (
-                      <tr
-                        key={m.model}
-                        className="border-b border-zinc-800/30 hover:bg-white/[0.02] transition-colors"
-                      >
-                        <td className="px-5 py-3 font-mono text-xs text-zinc-300">
-                          {m.model}
-                        </td>
-                        <td className="px-4 py-3 text-right text-xs text-zinc-400">
-                          {fmtTokens(m.inputTokens)}
-                        </td>
-                        <td className="px-4 py-3 text-right text-xs text-zinc-400">
-                          {fmtTokens(m.outputTokens)}
-                        </td>
-                        <td className="px-4 py-3 text-right text-xs text-zinc-400">
-                          {fmtTokens(m.cacheCreationTokens)}
-                        </td>
-                        <td className="px-4 py-3 text-right text-xs text-zinc-400">
-                          {fmtTokens(m.cacheReadTokens)}
-                        </td>
-                        <td className="px-5 py-3 text-right text-xs text-zinc-400">
-                          {fmtTokens(m.totalTokens)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot>
-                    <tr className="border-t border-zinc-700/50">
-                      <td className="px-5 py-3 text-xs font-semibold text-zinc-300">
-                        Total
-                      </td>
-                      <td className="px-4 py-3 text-right text-xs font-semibold text-zinc-300">
-                        {fmtTokens(data!.totalInputTokens)}
-                      </td>
-                      <td className="px-4 py-3 text-right text-xs font-semibold text-zinc-300">
-                        {fmtTokens(data!.totalOutputTokens)}
-                      </td>
-                      <td className="px-4 py-3 text-right text-xs font-semibold text-zinc-300">
-                        {fmtTokens(data!.totalCacheCreationTokens)}
-                      </td>
-                      <td className="px-4 py-3 text-right text-xs font-semibold text-zinc-300">
-                        {fmtTokens(data!.totalCacheReadTokens)}
-                      </td>
-                      <td
-                        className="px-5 py-3 text-right text-sm font-bold"
-                        style={{ color: AMBER }}
-                      >
-                        {fmtTokens(data!.totalTokens)}
-                      </td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
-              <div className="px-5 py-2 border-t border-zinc-800/50">
-                <p className="text-xs text-zinc-700">
-                  Actual costs from Anthropic Admin API · refreshes every 5 min
-                </p>
-              </div>
+          {/* ── Anthropic direct spend: secondary ──────────────────────────── */}
+          <section
+            className="space-y-4 rounded-[15px] p-6"
+            style={{
+              border: "1px solid var(--line)",
+              background: "linear-gradient(180deg, var(--surface-1), #08080b)",
+            }}
+          >
+            <div className="flex items-baseline justify-between gap-4">
+              <p
+                className="font-mono text-[9.5px] uppercase tracking-[0.16em]"
+                style={{ color: "var(--ink-3)" }}
+              >
+                Direct provider spend · Anthropic
+              </p>
+              <p className="font-serif text-[19px] tabular-nums" style={{ color: "var(--ink-2)" }}>
+                {hasAnthropic ? fmtUsd(anthropic!.totalCostUSD) : "—"}
+              </p>
             </div>
-          )}
+            {hasAnthropic ? (
+              <div className="space-y-1.5">
+                {anthropic!.byModel.slice(0, 5).map((m) => (
+                  <div key={m.model} className="flex items-center justify-between gap-4">
+                    <span className="font-mono text-[11px]" style={{ color: "var(--ink-2)" }}>
+                      {m.model}
+                    </span>
+                    <span
+                      className="font-mono text-[10.5px] tabular-nums"
+                      style={{ color: "var(--ink-3)" }}
+                    >
+                      {fmtTokens(m.totalTokens)} tok
+                    </span>
+                  </div>
+                ))}
+                <p
+                  className="pt-2 font-mono text-[10px]"
+                  style={{ color: "var(--ink-3)" }}
+                >
+                  {fmtTokens(anthropic!.totalTokens)} total · updated {timeAgoIso(anthropic!.lastUpdated ?? new Date().toISOString())}
+                </p>
+              </div>
+            ) : (
+              <p className="font-mono text-[10.5px]" style={{ color: "var(--ink-3)" }}>
+                {anthropic?.error === "no_admin_key"
+                  ? "Add ANTHROPIC_ADMIN_KEY to see direct Anthropic usage."
+                  : "No direct Anthropic usage recorded."}
+              </p>
+            )}
+          </section>
         </>
       )}
     </div>

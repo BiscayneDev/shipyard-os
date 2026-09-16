@@ -25,7 +25,8 @@ import { existsSync } from "fs"
 import { homedir } from "os"
 import path from "path"
 import type { PayboxClient } from "@paybox-sh/sdk"
-import { createPayingFetch, createSolanaPayProvider } from "shipyard-inference"
+import { createPayingFetch } from "shipyard-inference"
+import type { PaymentProvider, PaymentRequirement, PaymentResult } from "shipyard-inference"
 import { refreshOauth, type PayboxOauth } from "./paybox-connect"
 
 export type { PayboxOauth } from "./paybox-connect"
@@ -416,6 +417,107 @@ function payboxWalletSigner(options: {
   }
 }
 
+// ── Vendored Solana settle provider (fresh-payee safe) ──────────────────────
+//
+// shipyard-inference@0.20.0's createSolanaPayProvider builds a bare transfer,
+// which fails on-chain with InvalidAccountData when the payee's USDC token
+// account doesn't exist (any brand-new treasury). This local provider mirrors
+// the fixed upstream settle (commit 7313317): it leads with an idempotent
+// create-ATA instruction — a no-op when the destination exists, otherwise the
+// sender pays the ~0.002 SOL rent, exactly like wallet apps do. Swap back to
+// createSolanaPayProvider once shipyard-inference >=0.20.1 is published.
+
+const USDC_MINT = {
+  mainnet: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+  devnet: "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+} as const
+
+const DEFAULT_RPC = {
+  mainnet: "https://api.mainnet-beta.solana.com",
+  devnet: "https://api.devnet.solana.com",
+} as const
+
+function payboxSolanaPayProvider(options: {
+  signer: SolanaSignerShape
+  network: "mainnet" | "devnet"
+}): PaymentProvider {
+  const network = options.network
+  const settled = new Map<string, PaymentResult>()
+  const inflight = new Map<string, Promise<PaymentResult>>()
+
+  function idempotencyKey(req: PaymentRequirement): string {
+    if (req.nonce) return req.nonce
+    return `${req.resource}|${req.amount}|${req.payTo}`
+  }
+
+  async function settle(requirement: PaymentRequirement): Promise<PaymentResult> {
+    const web3 = await import("@solana/web3.js")
+    const splToken = await import("@solana/spl-token")
+    const rpc = DEFAULT_RPC[network]
+    const connection = new web3.Connection(rpc, "confirmed")
+    const mint = new web3.PublicKey(USDC_MINT[network])
+    const payer = new web3.PublicKey(options.signer.publicKey)
+    const recipient = new web3.PublicKey(requirement.payTo)
+
+    const payerAta = await splToken.getAssociatedTokenAddress(mint, payer)
+    const recipientAta = await splToken.getAssociatedTokenAddress(mint, recipient)
+
+    const instructions = [
+      // Fresh-payee fix: create the destination token account if missing.
+      splToken.createAssociatedTokenAccountIdempotentInstruction(
+        payer,
+        recipientAta,
+        recipient,
+        mint,
+      ),
+      splToken.createTransferInstruction(
+        payerAta,
+        recipientAta,
+        payer,
+        BigInt(requirement.amount),
+      ),
+    ]
+
+    const { blockhash } = await connection.getLatestBlockhash()
+    const message = new web3.TransactionMessage({
+      payerKey: payer,
+      recentBlockhash: blockhash,
+      instructions,
+    }).compileToV0Message()
+    const tx = new web3.VersionedTransaction(message)
+    const signed = await options.signer.signTransaction(tx.serialize())
+
+    const header = Buffer.from(
+      JSON.stringify({
+        x402Version: 1,
+        scheme: requirement.scheme ?? "exact",
+        network: `solana-${network}`,
+        payload: { transaction: Buffer.from(signed).toString("base64") },
+      }),
+    ).toString("base64")
+
+    return { header, reference: idempotencyKey(requirement), amount: requirement.amount }
+  }
+
+  return {
+    async pay(requirement: PaymentRequirement): Promise<PaymentResult> {
+      const key = idempotencyKey(requirement)
+      const done = settled.get(key)
+      if (done) return done
+      const pending = inflight.get(key)
+      if (pending) return pending
+      const promise = settle(requirement)
+        .then((result) => {
+          settled.set(key, result)
+          return result
+        })
+        .finally(() => inflight.delete(key))
+      inflight.set(key, promise)
+      return promise
+    },
+  }
+}
+
 // ── Pay x402 ──────────────────────────────────────────────────────────────────
 
 export interface PayX402Params {
@@ -476,7 +578,7 @@ export async function payX402(params: PayX402Params): Promise<PayX402Result> {
   // builds versioned txs, but the Paybox SDK signs legacy ones (see the
   // versioned→legacy note above), so we convert before handing bytes over.
   const signer = payboxWalletSigner({ client, credentialId, address: wallet.address, network })
-  const payment = await createSolanaPayProvider({ signer, network })
+  const payment = payboxSolanaPayProvider({ signer, network })
   const payments: PayboxPaymentRecord[] = []
 
   const payingFetch = createPayingFetch({
