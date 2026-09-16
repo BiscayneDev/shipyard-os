@@ -36,8 +36,32 @@ interface SolanaSignerShape {
 
 // ── Client ───────────────────────────────────────────────────────────────────
 
+/** OAuth token shape stored by `paybox login` (and by PAYBOX_OAUTH env). */
+interface StoredOauth {
+  clientId: string
+  accessToken: string
+  refreshToken?: string
+  /** Epoch millis the access token expires. */
+  expiresAt?: number
+  resource: string
+}
+
+/** Parsed PAYBOX_OAUTH env (full OAuth JSON for serverless deployments). */
+function envOauth(): StoredOauth | null {
+  const raw = process.env.PAYBOX_OAUTH?.trim()
+  if (!raw) return null
+  try {
+    const parsed = JSON.parse(raw) as StoredOauth
+    return parsed.accessToken ? parsed : null
+  } catch {
+    return null
+  }
+}
+
 export function payboxEnvConfigured(): boolean {
-  if (process.env.PAYBOX_API_KEY || process.env.PAYBOX_SIGNING_KEY) return true
+  if (process.env.PAYBOX_API_KEY || process.env.PAYBOX_SIGNING_KEY || envOauth()) {
+    return true
+  }
   // Local `paybox login` writes ~/.config/paybox/config.json (oauth + signing
   // key) — that's a live connection too, not just env-var configuration.
   try {
@@ -51,11 +75,40 @@ export function payboxEnvConfigured(): boolean {
  * A Paybox client. Locally `PayboxClient.fromConfig()` also reads
  * ~/.config/paybox/config.json (written by `paybox login`); env vars are passed
  * as explicit overrides so Vercel deployments work with no filesystem.
+ *
+ * Serverless auth (Vercel): set PAYBOX_OAUTH to the full OAuth JSON from the
+ * local config's `oauth` field plus PAYBOX_SIGNING_KEY. The access token is
+ * short-lived, so it is refreshed via the SDK's refreshTokens when within
+ * 5 minutes of expiry. Refresh-token rotation can't be persisted back to env
+ * vars — for a durable deployment prefer a `pbx_live_` API key (PAYBOX_API_KEY).
  * Returns null when nothing is configured.
  */
 export async function payboxClient(): Promise<PayboxClient | null> {
   try {
-    const { PayboxClient } = await import("@paybox-sh/sdk")
+    const { PayboxClient, refreshTokens } = await import("@paybox-sh/sdk")
+    const baseUrl = process.env.PAYBOX_BASE_URL ?? "https://api.paybox.sh"
+
+    const oauth = envOauth()
+    if (oauth) {
+      let accessToken = oauth.accessToken
+      const expiringSoon =
+        oauth.expiresAt !== undefined && oauth.expiresAt - Date.now() < 5 * 60_000
+      if (oauth.refreshToken && expiringSoon) {
+        try {
+          const fresh = await refreshTokens(baseUrl, oauth)
+          accessToken = fresh.accessToken
+        } catch {
+          // Refresh failed (rotated/revoked?) — try the stored token; the
+          // request itself will surface a 401 if it's dead.
+        }
+      }
+      return new PayboxClient({
+        baseUrl,
+        token: accessToken,
+        ...(process.env.PAYBOX_SIGNING_KEY ? { signingKey: process.env.PAYBOX_SIGNING_KEY } : {}),
+      })
+    }
+
     return PayboxClient.fromConfig({
       ...(process.env.PAYBOX_BASE_URL ? { baseUrl: process.env.PAYBOX_BASE_URL } : {}),
       ...(process.env.PAYBOX_API_KEY ? { apiKey: process.env.PAYBOX_API_KEY } : {}),
