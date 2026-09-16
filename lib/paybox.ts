@@ -21,6 +21,8 @@
  */
 
 import { mkdir, readFile, writeFile } from "fs/promises"
+import { existsSync } from "fs"
+import { homedir } from "os"
 import path from "path"
 import type { PayboxClient } from "@paybox-sh/sdk"
 import { createPayingFetch, createSolanaPayProvider, payboxSigner } from "shipyard-inference"
@@ -28,7 +30,14 @@ import { createPayingFetch, createSolanaPayProvider, payboxSigner } from "shipya
 // ── Client ───────────────────────────────────────────────────────────────────
 
 export function payboxEnvConfigured(): boolean {
-  return Boolean(process.env.PAYBOX_API_KEY || process.env.PAYBOX_SIGNING_KEY)
+  if (process.env.PAYBOX_API_KEY || process.env.PAYBOX_SIGNING_KEY) return true
+  // Local `paybox login` writes ~/.config/paybox/config.json (oauth + signing
+  // key) — that's a live connection too, not just env-var configuration.
+  try {
+    return existsSync(path.join(homedir(), ".config", "paybox", "config.json"))
+  } catch {
+    return false
+  }
 }
 
 /**
@@ -158,21 +167,27 @@ export async function listPayboxCredentials(): Promise<PayboxCredential[]> {
   const client = await payboxClient()
   if (!client) return []
   try {
-    const grants = await client.listCredentials()
-    return grants.map((g) => {
-      const c = g.credential as {
-        id?: string
-        label?: string
-        kind?: string
-        metadata?: { address?: string }
-      }
-      return {
-        id: c.id ?? "",
-        label: c.label,
-        kind: c.kind,
-        address: c.metadata?.address,
-      }
-    })
+    const result = (await client.listCredentials()) as {
+      credentials?: Array<{
+        credential?: {
+          id?: string
+          name?: string
+          credential_type?: string
+          metadata?: { address?: string }
+        }
+      }>
+    }
+    return (result.credentials ?? [])
+      .filter((g) => g.credential?.id)
+      .map((g) => {
+        const c = g.credential!
+        return {
+          id: c.id ?? "",
+          label: c.name,
+          kind: c.credential_type,
+          address: c.metadata?.address,
+        }
+      })
   } catch {
     return []
   }
@@ -226,6 +241,9 @@ export async function payX402(params: PayX402Params): Promise<PayX402Result> {
   const payingFetch = createPayingFetch({
     paymentProvider: payment,
     spendCap: { perRequest: perRequestCapAtomic() },
+    // A rejected first proof (e.g. blockhash aged out before the gateway
+    // submitted) 402s with a fresh nonce; one more settle-attempt recovers.
+    maxPaymentRetries: 2,
     onPayment: (result) => {
       const record: PayboxPaymentRecord = {
         at: Date.now(),
