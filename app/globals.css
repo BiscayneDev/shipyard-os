@@ -38,11 +38,9 @@ html {
 }
 
 body {
-  background: #0a0a0f;
-  color: #e4e4e7;
+  background: #08080b;
+  color: #e9eaf0;
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
-  background-image: radial-gradient(circle, #1a1a2e 1px, transparent 1px);
-  background-size: 24px 24px;
 }
 
 * {

@@ -354,7 +354,7 @@ export default function DashboardPage() {
   const openVicWith = (prompt: string) => window.dispatchEvent(new CustomEvent("vic:open", { detail: prompt }))
 
   return (
-    <div className="relative mx-auto max-w-[820px] px-5 pb-24 pt-10 lg:px-8">
+    <div className="relative mx-auto max-w-[820px] px-5 pb-24 pt-2 lg:px-8">
       {/* ambient light */}
       <div
         aria-hidden

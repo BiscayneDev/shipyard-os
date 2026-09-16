@@ -111,7 +111,7 @@ export function CommandPalette() {
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+      if ((e.metaKey || e.ctrlKey) && e.key === "p") {
         e.preventDefault()
         setOpen((prev) => !prev)
         setQuery("")
