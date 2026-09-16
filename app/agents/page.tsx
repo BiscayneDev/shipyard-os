@@ -61,8 +61,13 @@ function truncateModel(model: string): string {
   return model.replace(/^(anthropic|openai|google)\//, "").slice(0, 30)
 }
 
-const PURPLE = "#7c3aed"
-const GREEN = "#22c55e"
+function getFormattedDate(): string {
+  return new Date().toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  })
+}
 
 // ── Agent Modal ───────────────────────────────────────────────────────────────
 
@@ -97,61 +102,62 @@ function AgentModal({ agent, onClose, onSave }: AgentModalProps) {
     }
   }
 
+  const inputStyle = {
+    backgroundColor: "var(--surface-2)",
+    border: "1px solid var(--line)",
+    color: "var(--ink)",
+    outline: "none",
+  } as const
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ backgroundColor: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)" }}
     >
       <div
-        className="w-full max-w-md rounded-xl p-6 space-y-4"
+        className="w-full max-w-md space-y-5 rounded-[17px] p-7"
         style={{
-          backgroundColor: "#111118",
-          border: `1px solid ${PURPLE}40`,
-          boxShadow: `0 0 40px ${PURPLE}20`,
+          backgroundColor: "var(--surface-1)",
+          border: "1px solid var(--line)",
         }}
       >
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-bold text-white uppercase tracking-wider">
-            {isCreate ? "New Agent" : `Edit ${agent.name}`}
+        <div className="flex items-baseline justify-between">
+          <h2 className="font-mono text-[9.5px] uppercase tracking-[0.16em]" style={{ color: "var(--ink-3)" }}>
+            {isCreate ? "New agent" : `Edit · ${agent.name}`}
           </h2>
           <button
             onClick={onClose}
-            className="text-zinc-500 hover:text-white transition-colors text-lg leading-none"
+            className="text-[15px] leading-none transition-colors"
+            style={{ color: "var(--ink-3)" }}
           >
             ✕
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-3">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div className="flex gap-3">
             <div className="w-20">
-              <label className="block text-xs text-zinc-500 mb-1">Emoji</label>
+              <label className="mb-1.5 block font-mono text-[9.5px] uppercase tracking-[0.16em]" style={{ color: "var(--ink-3)" }}>
+                Emoji
+              </label>
               <input
                 value={emoji}
                 onChange={(e) => setEmoji(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg text-center text-xl"
-                style={{
-                  backgroundColor: "#0a0a0f",
-                  border: "1px solid #27272a",
-                  color: "white",
-                  outline: "none",
-                }}
+                className="w-full rounded-[10px] px-3 py-2 text-center text-xl"
+                style={inputStyle}
                 maxLength={4}
                 required
               />
             </div>
             <div className="flex-1">
-              <label className="block text-xs text-zinc-500 mb-1">Name</label>
+              <label className="mb-1.5 block font-mono text-[9.5px] uppercase tracking-[0.16em]" style={{ color: "var(--ink-3)" }}>
+                Name
+              </label>
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg text-sm"
-                style={{
-                  backgroundColor: "#0a0a0f",
-                  border: "1px solid #27272a",
-                  color: "white",
-                  outline: "none",
-                }}
+                className="w-full rounded-[10px] px-3 py-2 text-[13px]"
+                style={inputStyle}
                 placeholder="Agent name"
                 required
               />
@@ -159,103 +165,90 @@ function AgentModal({ agent, onClose, onSave }: AgentModalProps) {
           </div>
 
           <div>
-            <label className="block text-xs text-zinc-500 mb-1">Role</label>
+            <label className="mb-1.5 block font-mono text-[9.5px] uppercase tracking-[0.16em]" style={{ color: "var(--ink-3)" }}>
+              Role
+            </label>
             <input
               value={role}
               onChange={(e) => setRole(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg text-sm"
-              style={{
-                backgroundColor: "#0a0a0f",
-                border: "1px solid #27272a",
-                color: "white",
-                outline: "none",
-              }}
+              className="w-full rounded-[10px] px-3 py-2 text-[13px]"
+              style={inputStyle}
               placeholder="e.g. Market Intelligence"
             />
           </div>
 
           <div>
-            <label className="block text-xs text-zinc-500 mb-1">Description</label>
+            <label className="mb-1.5 block font-mono text-[9.5px] uppercase tracking-[0.16em]" style={{ color: "var(--ink-3)" }}>
+              Description
+            </label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg text-sm resize-none"
-              style={{
-                backgroundColor: "#0a0a0f",
-                border: "1px solid #27272a",
-                color: "white",
-                outline: "none",
-              }}
+              className="w-full resize-none rounded-[10px] px-3 py-2 text-[13px]"
+              style={inputStyle}
               rows={3}
               placeholder="What does this agent do?"
             />
           </div>
 
           <div>
-            <label className="block text-xs text-zinc-500 mb-1">Accent Color</label>
-            <div className="flex items-center gap-2">
-              <div
-                className="w-8 h-8 rounded-md border border-zinc-700 shrink-0"
-                style={{ backgroundColor: accent }}
+            <label className="mb-1.5 block font-mono text-[9.5px] uppercase tracking-[0.16em]" style={{ color: "var(--ink-3)" }}>
+              Identity dot
+            </label>
+            <div className="flex items-center gap-2.5">
+              <span
+                className="h-[18px] w-[18px] shrink-0 rounded-full"
+                style={{ backgroundColor: accent, boxShadow: `0 0 8px ${accent}66` }}
               />
               <input
                 value={accent}
                 onChange={(e) => setAccent(e.target.value)}
-                className="flex-1 px-3 py-2 rounded-lg text-sm font-mono"
-                style={{
-                  backgroundColor: "#0a0a0f",
-                  border: "1px solid #27272a",
-                  color: "white",
-                  outline: "none",
-                }}
+                className="flex-1 rounded-[10px] px-3 py-2 font-mono text-[12px]"
+                style={inputStyle}
                 placeholder="#7c3aed"
               />
               <input
                 type="color"
                 value={accent}
                 onChange={(e) => setAccent(e.target.value)}
-                className="w-8 h-8 rounded cursor-pointer border border-zinc-700"
-                style={{ backgroundColor: "transparent", padding: "1px" }}
+                className="h-[34px] w-[34px] shrink-0 cursor-pointer rounded-[10px] border"
+                style={{ borderColor: "var(--line)", backgroundColor: "transparent", padding: "1px" }}
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs text-zinc-500 mb-1">Tags (comma-separated)</label>
+            <label className="mb-1.5 block font-mono text-[9.5px] uppercase tracking-[0.16em]" style={{ color: "var(--ink-3)" }}>
+              Tags
+            </label>
             <input
               value={tagsInput}
               onChange={(e) => setTagsInput(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg text-sm"
-              style={{
-                backgroundColor: "#0a0a0f",
-                border: "1px solid #27272a",
-                color: "white",
-                outline: "none",
-              }}
+              className="w-full rounded-[10px] px-3 py-2 text-[13px]"
+              style={inputStyle}
               placeholder="DeFi, Solana, Yield"
             />
           </div>
 
-          <div className="flex gap-2 pt-1">
+          <div className="flex gap-2.5 pt-2">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 py-2 rounded-lg text-xs font-medium text-zinc-400 hover:text-white transition-colors"
-              style={{ backgroundColor: "#1a1a22", border: "1px solid #27272a" }}
+              className="flex-1 rounded-[10px] border py-2 font-mono text-[10.5px] uppercase tracking-[0.08em] transition-colors"
+              style={{ borderColor: "var(--line)", backgroundColor: "var(--surface-2)", color: "var(--ink-2)" }}
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={saving}
-              className="flex-1 py-2 rounded-lg text-xs font-bold transition-colors"
+              className="flex-1 rounded-[10px] py-2 font-mono text-[10.5px] uppercase tracking-[0.08em] transition-all duration-200 hover:-translate-y-[1px]"
               style={{
-                backgroundColor: saving ? `${PURPLE}40` : PURPLE,
-                color: "white",
-                border: `1px solid ${PURPLE}60`,
+                backgroundColor: saving ? "rgba(231,201,121,.4)" : "var(--gold)",
+                color: "#1a1508",
               }}
             >
-              {saving ? "Saving…" : isCreate ? "Create Agent" : "Save Changes"}
+              {saving ? "Saving…" : isCreate ? "Create" : "Save"}
             </button>
           </div>
         </form>
@@ -291,33 +284,36 @@ function DeleteDialog({ agent, onClose, onConfirm }: DeleteDialogProps) {
       style={{ backgroundColor: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)" }}
     >
       <div
-        className="w-full max-w-sm rounded-xl p-6 space-y-4"
+        className="w-full max-w-sm space-y-5 rounded-[17px] p-7"
         style={{
-          backgroundColor: "#111118",
-          border: "1px solid rgba(239,68,68,0.3)",
-          boxShadow: "0 0 40px rgba(239,68,68,0.1)",
+          backgroundColor: "var(--surface-1)",
+          border: "1px solid var(--line)",
         }}
       >
-        <div className="text-center space-y-2">
-          <div className="text-3xl">{agent.emoji}</div>
-          <h2 className="text-sm font-bold text-white">Delete {agent.name}?</h2>
-          <p className="text-xs text-zinc-500">This cannot be undone. The agent will be removed permanently.</p>
+        <div className="space-y-2.5 text-center">
+          <div className="text-[26px]">{agent.emoji}</div>
+          <h2 className="text-[15px] font-semibold" style={{ color: "var(--ink)" }}>
+            Delete {agent.name}?
+          </h2>
+          <p className="text-[12px]" style={{ color: "var(--ink-3)" }}>
+            This cannot be undone. The agent will be removed permanently.
+          </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2.5">
           <button
             onClick={onClose}
-            className="flex-1 py-2 rounded-lg text-xs font-medium text-zinc-400 hover:text-white transition-colors"
-            style={{ backgroundColor: "#1a1a22", border: "1px solid #27272a" }}
+            className="flex-1 rounded-[10px] border py-2 font-mono text-[10.5px] uppercase tracking-[0.08em] transition-colors"
+            style={{ borderColor: "var(--line)", backgroundColor: "var(--surface-2)", color: "var(--ink-2)" }}
           >
             Cancel
           </button>
           <button
             onClick={handleConfirm}
             disabled={deleting}
-            className="flex-1 py-2 rounded-lg text-xs font-bold text-white transition-colors"
+            className="flex-1 rounded-[10px] py-2 font-mono text-[10.5px] uppercase tracking-[0.08em] transition-colors"
             style={{
-              backgroundColor: deleting ? "rgba(239,68,68,0.4)" : "rgba(239,68,68,0.8)",
-              border: "1px solid rgba(239,68,68,0.4)",
+              backgroundColor: deleting ? "rgba(239,68,68,.4)" : "rgba(239,68,68,.85)",
+              color: "#fff",
             }}
           >
             {deleting ? "Deleting…" : "Delete"}
@@ -430,254 +426,220 @@ export default function AgentsPage() {
   const displayEvents = activity?.events?.slice(0, 8) ?? []
 
   return (
-    <div className="max-w-5xl mx-auto space-y-4 h-full">
-      {/* Mission Banner */}
-      <div
-        className="rounded-lg px-5 py-3"
-        style={{
-          backgroundColor: "#111118",
-          border: "1px solid rgba(124, 58, 237, 0.3)",
-          boxShadow: "0 0 24px rgba(124, 58, 237, 0.1)",
-        }}
-      >
-        <p className="text-sm italic font-light text-center leading-snug" style={{ color: "#c4b5fd" }}>
-          &ldquo;Build an unfair advantage at the AI &times; crypto frontier — staying ahead of deals, protocols, and agent economies while automating everything that does not need me in it.&rdquo;
-        </p>
+    <div className="relative mx-auto max-w-[820px] px-5 pb-24 pt-2 lg:px-8">
+      {/* meta row */}
+      <div className="flex items-center justify-between">
+        <span
+          className="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.08em]"
+          style={{ borderColor: "var(--line)", backgroundColor: "var(--surface-1)", color: "var(--ink-2)" }}
+        >
+          <span
+            className="h-[5px] w-[5px] rounded-full"
+            style={{ backgroundColor: "var(--gold)", boxShadow: "0 0 7px var(--gold)" }}
+          />
+          {agentsLoading ? "syncing…" : `${agents.length} agents · ${sessions.length} live`}
+        </span>
+        <span className="font-mono text-[10.5px] uppercase tracking-[0.1em]" style={{ color: "var(--ink-3)" }}>
+          {getFormattedDate()}
+        </span>
       </div>
 
-      {/* Vic hero row */}
+      {/* title */}
+      <h1
+        className="mt-10 font-serif text-[40px] font-normal leading-[1.1] tracking-[-0.01em]"
+        style={{ color: "var(--ink)" }}
+      >
+        The <em style={{ color: "var(--ink-2)" }}>fleet</em>
+      </h1>
+      <p className="mt-2.5 max-w-[62ch] text-[14px] leading-[1.6]" style={{ color: "var(--ink-2)" }}>
+        Vic orchestrates; the specialists execute. Everything below runs itself —
+        you are here for exceptions and direction.
+      </p>
+
+      {/* mission */}
+      <p
+        className="mt-6 border-l-2 pl-4 font-serif text-[14.5px] italic leading-[1.72]"
+        style={{ borderColor: "var(--gold)", color: "var(--ink-2)" }}
+      >
+        Build an unfair advantage at the AI &times; crypto frontier — staying ahead of deals,
+        protocols, and agent economies while automating everything that does not need me in it.
+      </p>
+
+      {/* Vic hero */}
       {agentsLoading ? (
         <div
-          className="rounded-lg p-4 animate-pulse"
-          style={{ backgroundColor: "#111118", border: "1px solid #27272a" }}
+          className="mt-10 rounded-[15px] border p-5"
+          style={{ borderColor: "var(--line)", backgroundColor: "var(--surface-1)" }}
         >
-          <div className="h-12 bg-zinc-800 rounded" />
+          <div className="h-6 w-1/3 animate-pulse rounded" style={{ backgroundColor: "var(--surface-3)" }} />
         </div>
       ) : vicAgent ? (
-        <div
-          className="rounded-lg p-4"
-          style={{
-            backgroundColor: "#111118",
-            border: `1px solid ${vicAgent.accent}38`,
-            boxShadow: `0 0 30px ${vicAgent.accent}08`,
-          }}
+        <section
+          className="relative mt-10 overflow-hidden rounded-[17px] border p-6"
+          style={{ borderColor: "var(--line)", background: "linear-gradient(180deg, var(--surface-1), #08080b)" }}
         >
-          <div className="flex items-center gap-4">
-            <div
-              className="flex items-center justify-center rounded-lg text-2xl shrink-0"
-              style={{ width: "48px", height: "48px", backgroundColor: `${vicAgent.accent}18` }}
-            >
-              {vicAgent.emoji}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-baseline gap-2">
-                <span className="text-base font-bold text-white">{vicAgent.name}</span>
-                <span className="text-xs" style={{ color: vicAgent.accent }}>
-                  {vicAgent.role} · Orchestrator
-                </span>
-              </div>
-              <p className="text-xs text-zinc-500 mt-0.5 truncate">{vicAgent.description}</p>
-            </div>
-            <div className="hidden sm:flex gap-1.5 shrink-0 flex-wrap">
-              {vicAgent.tags.map((tag) => (
-                <span
-                  key={tag}
-                  className="px-2 py-0.5 rounded-full text-xs font-medium"
-                  style={{
-                    backgroundColor: `${vicAgent.accent}12`,
-                    color: vicAgent.accent,
-                    border: `1px solid ${vicAgent.accent}25`,
-                  }}
-                >
-                  {tag}
-                </span>
-              ))}
-            </div>
+          <div className="flex items-center gap-3.5">
+            <span className="text-[22px]">{vicAgent.emoji}</span>
+            <span
+              className="h-[7px] w-[7px] shrink-0 rounded-full"
+              style={{ backgroundColor: vicAgent.accent, boxShadow: `0 0 8px ${vicAgent.accent}` }}
+            />
+            <span className="font-serif text-[20px]" style={{ color: "var(--ink)" }}>
+              {vicAgent.name}
+            </span>
+            <span className="font-mono text-[9.5px] uppercase tracking-[0.16em]" style={{ color: "var(--ink-3)" }}>
+              orchestrator
+            </span>
+            {vicAgent.tags.length > 0 && (
+              <span className="ml-auto hidden font-mono text-[10px] tracking-[0.05em] sm:block" style={{ color: "var(--ink-3)" }}>
+                {vicAgent.tags.join(" · ")}
+              </span>
+            )}
             <button
               onClick={() => setEditAgent(vicAgent)}
               title="Edit Vic"
-              className="shrink-0 w-7 h-7 flex items-center justify-center rounded-md text-zinc-600 hover:text-zinc-300 hover:bg-white/5 transition-colors text-sm"
+              className="ml-auto shrink-0 text-[13px] transition-colors sm:ml-4"
+              style={{ color: "var(--ink-3)" }}
             >
               ✎
             </button>
           </div>
-        </div>
+          <p className="mt-3 max-w-[62ch] text-[13.5px] leading-[1.65]" style={{ color: "var(--ink-2)" }}>
+            {vicAgent.description}
+          </p>
+        </section>
       ) : null}
 
-      {/* Flow arrow */}
-      <div className="flex items-center justify-center gap-2 text-xs font-mono text-zinc-700">
-        <span>INPUT</span>
+      {/* delegation line */}
+      <p className="mt-5 flex items-center justify-center gap-2 font-mono text-[9.5px] uppercase tracking-[0.16em]" style={{ color: "var(--ink-3)" }}>
+        <span>input</span>
         <span>→</span>
-        <span style={{ color: "#a78bfa" }}>Vic</span>
+        <span style={{ color: "var(--gold)" }}>vic</span>
         <span>→</span>
-        <span>DELEGATES</span>
-        <span>→</span>
-        <span>AGENTS</span>
-      </div>
+        <span>specialists</span>
+      </p>
 
-      {/* Agent grid header */}
-      <div className="flex items-center justify-between">
-        <p className="text-xs font-mono uppercase tracking-wider text-zinc-600">
-          Team ({otherAgents.length})
-        </p>
+      {/* team header */}
+      <div className="mb-4 mt-10 flex items-baseline justify-between">
+        <h2 className="font-mono text-[9.5px] uppercase tracking-[0.16em]" style={{ color: "var(--ink-3)" }}>
+          Team · {otherAgents.length}
+        </h2>
         <button
           onClick={() => setEditAgent(null)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+          className="rounded-[10px] px-4 py-2 font-mono text-[10.5px] uppercase tracking-[0.08em] transition-all duration-200 hover:-translate-y-[1px]"
           style={{
-            backgroundColor: `${PURPLE}15`,
-            color: "#a78bfa",
-            border: `1px solid ${PURPLE}30`,
+            backgroundColor: "var(--gold)",
+            color: "#1a1508",
           }}
         >
-          <span>+</span>
-          <span>New Agent</span>
+          + New agent
         </button>
       </div>
 
-      {/* Agent Grid */}
+      {/* Agent grid */}
       {agentsLoading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {[0, 1, 2, 3].map((i) => (
             <div
               key={i}
-              className="rounded-lg p-4 animate-pulse"
-              style={{ backgroundColor: "#111118", border: "1px solid #27272a" }}
+              className="rounded-[15px] border p-5"
+              style={{ borderColor: "var(--line)", backgroundColor: "var(--surface-1)" }}
             >
-              <div className="flex gap-3">
-                <div className="w-10 h-10 rounded-md bg-zinc-800 shrink-0" />
-                <div className="flex-1 space-y-2">
-                  <div className="h-3 bg-zinc-800 rounded w-1/3" />
-                  <div className="h-3 bg-zinc-800 rounded w-2/3" />
-                </div>
-              </div>
+              <div className="h-3.5 w-1/3 animate-pulse rounded" style={{ backgroundColor: "var(--surface-3)" }} />
+              <div className="mt-3 h-3 w-2/3 animate-pulse rounded" style={{ backgroundColor: "var(--surface-3)" }} />
             </div>
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {otherAgents.map((agent) => (
             <div
               key={agent.id}
-              className="rounded-lg p-4 relative group"
-              style={{
-                backgroundColor: "#111118",
-                border: `1px solid ${agent.accent}28`,
-                boxShadow: `0 0 20px ${agent.accent}0a`,
-              }}
+              className="group relative rounded-[15px] border p-5 transition-all duration-300 hover:-translate-y-[2px]"
+              style={{ borderColor: "var(--line)", backgroundColor: "var(--surface-1)" }}
             >
-              {/* Edit / Delete buttons — appear on hover */}
-              <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              {/* Edit / Delete — appear on hover */}
+              <div className="absolute right-3.5 top-3.5 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
                 <button
                   onClick={() => setEditAgent(agent)}
                   title="Edit agent"
-                  className="w-6 h-6 flex items-center justify-center rounded text-zinc-600 hover:text-zinc-300 hover:bg-white/5 transition-colors text-xs"
+                  className="text-[12px] transition-colors"
+                  style={{ color: "var(--ink-3)" }}
                 >
                   ✎
                 </button>
                 <button
                   onClick={() => setDeleteAgent(agent)}
                   title="Delete agent"
-                  className="w-6 h-6 flex items-center justify-center rounded text-zinc-700 hover:text-red-400 hover:bg-red-500/5 transition-colors text-xs"
+                  className="text-[12px] transition-colors"
+                  style={{ color: "var(--ink-3)" }}
                 >
                   ✕
                 </button>
               </div>
 
-              <div className="flex items-start gap-3">
-                <div
-                  className="flex items-center justify-center rounded-md text-xl shrink-0"
-                  style={{ width: "40px", height: "40px", backgroundColor: `${agent.accent}18` }}
-                >
-                  {agent.emoji}
-                </div>
-                <div className="flex-1 min-w-0 space-y-1.5 pr-8">
-                  <div>
-                    <span className="text-sm font-bold text-white">{agent.name}</span>
-                    <span className="text-xs ml-2" style={{ color: agent.accent }}>{agent.role}</span>
-                  </div>
-                  <p className="text-xs text-zinc-500 leading-relaxed line-clamp-2">{agent.description}</p>
-                  <div className="flex flex-wrap gap-1">
-                    {agent.tags.map((tag) => (
-                      <span
-                        key={tag}
-                        className="px-2 py-0.5 rounded-full text-xs"
-                        style={{
-                          backgroundColor: `${agent.accent}12`,
-                          color: agent.accent,
-                          border: `1px solid ${agent.accent}25`,
-                        }}
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                </div>
+              <div className="flex items-center gap-2.5">
+                <span className="text-[17px]">{agent.emoji}</span>
+                <span className="text-[13.5px] font-semibold tracking-[-0.003em]" style={{ color: "var(--ink)" }}>
+                  {agent.name}
+                </span>
+                <span
+                  className="h-[7px] w-[7px] shrink-0 rounded-full"
+                  style={{ backgroundColor: agent.accent, boxShadow: `0 0 8px ${agent.accent}99` }}
+                />
+                {agent.role && (
+                  <span className="font-mono text-[9.5px] uppercase tracking-[0.16em]" style={{ color: "var(--ink-3)" }}>
+                    {agent.role}
+                  </span>
+                )}
               </div>
+              <p className="mt-2.5 line-clamp-2 text-[12px] leading-[1.55]" style={{ color: "var(--ink-2)" }}>
+                {agent.description}
+              </p>
+              {agent.tags.length > 0 && (
+                <p className="mt-3 font-mono text-[10px] tracking-[0.05em]" style={{ color: "var(--ink-3)" }}>
+                  {agent.tags.join(" · ")}
+                </p>
+              )}
             </div>
           ))}
 
           {otherAgents.length === 0 && (
             <div
-              className="col-span-2 rounded-lg p-8 text-center"
-              style={{ backgroundColor: "#111118", border: "1px solid #27272a" }}
+              className="col-span-2 rounded-[15px] border p-8 text-center"
+              style={{ borderColor: "var(--line)", backgroundColor: "var(--surface-1)" }}
             >
-              <p className="text-sm text-zinc-500">No agents yet</p>
-              <p className="text-xs text-zinc-700 mt-1">Click &ldquo;+ New Agent&rdquo; to add one</p>
+              <p className="text-[13px]" style={{ color: "var(--ink-3)" }}>
+                No specialists yet — add one to start delegating.
+              </p>
             </div>
           )}
         </div>
       )}
 
-      {/* Live Sessions Panel */}
+      {/* Live Sessions */}
+      <div className="mb-4 mt-10 flex items-baseline justify-between">
+        <h2 className="font-mono text-[9.5px] uppercase tracking-[0.16em]" style={{ color: "var(--ink-3)" }}>
+          Live sessions
+        </h2>
+        <span className="font-mono text-[10px]" style={{ color: "var(--ink-3)" }}>
+          refreshes every 15s
+        </span>
+      </div>
       <div
-        className="rounded-xl overflow-hidden"
-        style={{
-          backgroundColor: "#111118",
-          border: `1px solid ${GREEN}28`,
-          boxShadow: `0 0 20px ${GREEN}08`,
-        }}
+        className="overflow-hidden rounded-[15px] border"
+        style={{ borderColor: "var(--line)", backgroundColor: "var(--surface-1)" }}
       >
-        <div
-          className="flex items-center justify-between px-5 py-3 border-b"
-          style={{ borderColor: `${GREEN}20` }}
-        >
-          <div className="flex items-center gap-2">
-            <span className="relative flex h-2 w-2">
-              <span
-                className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75"
-                style={{ backgroundColor: GREEN }}
-              />
-              <span
-                className="relative inline-flex rounded-full h-2 w-2"
-                style={{ backgroundColor: GREEN }}
-              />
-            </span>
-            <p className="text-xs font-mono uppercase tracking-wider text-zinc-400">
-              Live Sessions
-            </p>
-            {!sessionsLoading && sessions.length > 0 && (
-              <span
-                className="px-1.5 py-0.5 rounded-full text-[10px] font-bold"
-                style={{ backgroundColor: `${GREEN}20`, color: GREEN }}
-              >
-                {sessions.length}
-              </span>
-            )}
-          </div>
-          <p className="text-xs text-zinc-700">refreshes every 15s</p>
-        </div>
-
         {sessionsLoading ? (
-          <div className="px-5 py-4 text-center">
-            <p className="text-xs text-zinc-600">Connecting to gateway...</p>
-          </div>
+          <p className="px-5 py-4 text-[12px]" style={{ color: "var(--ink-3)" }}>
+            Connecting to gateway…
+          </p>
         ) : sessions.length === 0 ? (
-          <div className="px-5 py-4 text-center space-y-0.5">
-            <p className="text-xs text-zinc-500">All quiet</p>
-            <p className="text-xs text-zinc-700">No active sessions right now</p>
-          </div>
+          <p className="px-5 py-4 text-[12px]" style={{ color: "var(--ink-3)" }}>
+            All quiet — no active sessions right now.
+          </p>
         ) : (
-          <div className="divide-y divide-zinc-800/30">
+          <div>
             {sessions.map((session, idx) => {
               const key = session.key ?? session.id ?? session.label ?? String(idx)
               const { emoji, name } = resolveSession(key)
@@ -688,33 +650,36 @@ export default function AgentsPage() {
               return (
                 <div
                   key={key}
-                  className="flex items-center gap-3 px-5 py-2.5 hover:bg-white/[0.02] transition-colors"
+                  className="flex items-center gap-3 border-b px-5 py-3 transition-colors last:border-b-0 hover:bg-[var(--surface-2)]"
+                  style={{ borderColor: "var(--line)" }}
                 >
-                  <span className="text-base shrink-0">{emoji}</span>
-                  <div className="flex-1 min-w-0 flex items-baseline gap-2 flex-wrap">
-                    <span className="text-xs font-semibold text-zinc-300">{name}</span>
-                    <span className="text-[10px] text-zinc-600 font-mono truncate max-w-[160px]">
+                  <span className="shrink-0 text-[15px]">{emoji}</span>
+                  <div className="flex flex-1 flex-wrap items-baseline gap-2">
+                    <span className="text-[12.5px] font-semibold" style={{ color: "var(--ink)" }}>
+                      {name}
+                    </span>
+                    <span className="max-w-[160px] truncate font-mono text-[10px]" style={{ color: "var(--ink-3)" }}>
                       {key}
                     </span>
                     {model && (
-                      <span className="text-[10px] text-zinc-600 font-mono truncate max-w-[160px]">
+                      <span className="max-w-[160px] truncate font-mono text-[10px]" style={{ color: "var(--ink-3)" }}>
                         · {model}
                       </span>
                     )}
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex shrink-0 items-center gap-2.5">
                     <span
-                      className="px-2 py-0.5 rounded-full text-[10px] font-medium capitalize"
-                      style={{
-                        backgroundColor: `${GREEN}15`,
-                        color: GREEN,
-                        border: `1px solid ${GREEN}30`,
-                      }}
+                      className="inline-flex items-center gap-1.5 font-mono text-[10px] capitalize"
+                      style={{ color: "var(--gold)" }}
                     >
+                      <span
+                        className="h-[5px] w-[5px] rounded-full"
+                        style={{ backgroundColor: "var(--gold)", boxShadow: "0 0 6px var(--gold)" }}
+                      />
                       {status}
                     </span>
                     {startedAt && (
-                      <span className="text-[10px] text-zinc-700 hidden sm:inline">
+                      <span className="hidden font-mono text-[10px] tabular-nums sm:inline" style={{ color: "var(--ink-3)" }}>
                         {timeAgo(String(startedAt))}
                       </span>
                     )}
@@ -726,64 +691,56 @@ export default function AgentsPage() {
         )}
       </div>
 
-      {/* Activity Feed */}
+      {/* Activity */}
+      <div className="mb-4 mt-10 flex items-baseline justify-between">
+        <h2 className="font-mono text-[9.5px] uppercase tracking-[0.16em]" style={{ color: "var(--ink-3)" }}>
+          Activity
+        </h2>
+        {activity?.lastUpdated && (
+          <span className="font-mono text-[10px]" style={{ color: "var(--ink-3)" }}>
+            updated {timeAgo(activity.lastUpdated)}
+          </span>
+        )}
+      </div>
       <div
-        className="rounded-xl overflow-hidden"
-        style={{
-          backgroundColor: "#111118",
-          border: `1px solid ${PURPLE}28`,
-          boxShadow: `0 0 20px ${PURPLE}08`,
-        }}
+        className="overflow-hidden rounded-[15px] border"
+        style={{ borderColor: "var(--line)", backgroundColor: "var(--surface-1)" }}
       >
-        <div
-          className="flex items-center justify-between px-5 py-3 border-b"
-          style={{ borderColor: `${PURPLE}20` }}
-        >
-          <div className="flex items-center gap-2">
-            <span
-              className="w-2 h-2 rounded-full"
-              style={{ backgroundColor: PURPLE, boxShadow: `0 0 6px ${PURPLE}` }}
-            />
-            <p className="text-xs font-mono uppercase tracking-wider text-zinc-400">
-              Activity Feed
-            </p>
-          </div>
-          {activity?.lastUpdated && (
-            <p className="text-xs text-zinc-700">
-              updated {timeAgo(activity.lastUpdated)}
-            </p>
-          )}
-        </div>
-
         {activityLoading ? (
-          <div className="px-5 py-6 text-center">
-            <p className="text-xs text-zinc-600">Loading activity...</p>
-          </div>
+          <p className="px-5 py-4 text-[12px]" style={{ color: "var(--ink-3)" }}>
+            Loading activity…
+          </p>
         ) : displayEvents.length === 0 ? (
-          <div className="px-5 py-6 text-center space-y-1">
-            <p className="text-xs text-zinc-500">No recent activity</p>
-            <p className="text-xs text-zinc-700">Events appear as agents run</p>
-          </div>
+          <p className="px-5 py-4 text-[12px]" style={{ color: "var(--ink-3)" }}>
+            No recent activity — events appear as agents run.
+          </p>
         ) : (
-          <div className="divide-y divide-zinc-800/30">
+          <div>
             {displayEvents.map((event) => (
               <div
                 key={event.id}
-                className="flex items-start gap-3 px-5 py-2.5 hover:bg-white/[0.02] transition-colors"
+                className="flex items-start gap-3 border-b px-5 py-3 transition-colors last:border-b-0 hover:bg-[var(--surface-2)]"
+                style={{ borderColor: "var(--line)" }}
               >
-                <span className="text-base shrink-0 mt-0.5">{event.agentEmoji}</span>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-baseline gap-1.5 flex-wrap">
-                    <span className="text-xs font-semibold text-zinc-300">{event.agentName}</span>
-                    <span className="text-xs text-zinc-500">{event.action}</span>
+                <span className="mt-0.5 shrink-0 text-[15px]">{event.agentEmoji}</span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-baseline gap-1.5">
+                    <span className="text-[12.5px] font-semibold" style={{ color: "var(--ink)" }}>
+                      {event.agentName}
+                    </span>
+                    <span className="text-[12px]" style={{ color: "var(--ink-2)" }}>
+                      {event.action}
+                    </span>
                     {event.detail && (
-                      <span className="text-xs text-zinc-700 truncate max-w-[200px]">
+                      <span className="max-w-[200px] truncate text-[12px]" style={{ color: "var(--ink-3)" }}>
                         · {event.detail}
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-zinc-700 mt-0.5">{timeAgo(event.timestamp)}</p>
                 </div>
+                <span className="shrink-0 font-mono text-[10px] tabular-nums" style={{ color: "var(--ink-3)" }}>
+                  {timeAgo(event.timestamp)}
+                </span>
               </div>
             ))}
           </div>

@@ -13,6 +13,8 @@ interface PayboxCredential {
 
 interface PayboxStatus {
   configured: boolean
+  inApp?: boolean
+  hasSigningKey?: boolean
   credentials: PayboxCredential[]
   wallet: string | null
   network: string
@@ -78,6 +80,9 @@ export default function PayboxPanel() {
   const [payBody, setPayBody] = useState("")
   const [paying, setPaying] = useState(false)
   const [result, setResult] = useState<string | null>(null)
+  const [banner, setBanner] = useState<string | null>(null)
+  const [signingKey, setSigningKeyValue] = useState("")
+  const [savingSigningKey, setSavingSigningKey] = useState(false)
 
   const refresh = useCallback(async () => {
     try {
@@ -97,6 +102,46 @@ export default function PayboxPanel() {
   useEffect(() => {
     void refresh()
   }, [refresh])
+
+  // Connect-flow result banner (?paybox=connected|error&reason=…).
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const state = params.get("paybox")
+    if (state === "connected") {
+      setBanner("✓ Paybox connected")
+      window.history.replaceState({}, "", window.location.pathname)
+    } else if (state === "error") {
+      setBanner(`✗ ${params.get("reason") ?? "connect failed"}`)
+      window.history.replaceState({}, "", window.location.pathname)
+    }
+  }, [])
+
+  async function saveSigningKey() {
+    if (!signingKey.trim()) return
+    setSavingSigningKey(true)
+    try {
+      const res = await fetch("/api/paybox/signing", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ signingKey: signingKey.trim() }),
+      })
+      const data = (await res.json()) as { ok?: boolean; error?: string }
+      if (data.error) setResult(`✗ ${data.error}`)
+      else {
+        setSigningKeyValue("")
+        setBanner("✓ Signing key enabled — wallet payments unlocked")
+        await refresh()
+      }
+    } finally {
+      setSavingSigningKey(false)
+    }
+  }
+
+  async function disconnect() {
+    await fetch("/api/paybox/disconnect", { method: "POST" })
+    setBanner("Paybox disconnected")
+    await refresh()
+  }
 
   async function selectWallet(credentialId: string) {
     await fetch("/api/paybox/wallet", {
@@ -167,11 +212,22 @@ export default function PayboxPanel() {
           x402 payments · non-custodial
         </p>
         {connected && (
-          <span
-            className="rounded-full border px-3 py-1 font-mono text-[9.5px] uppercase tracking-[0.12em]"
-            style={{ borderColor: "var(--line)", color: "var(--ink-3)" }}
-          >
-            {status?.network ?? "mainnet"}
+          <span className="flex items-center gap-3">
+            {status?.inApp && (
+              <button
+                onClick={disconnect}
+                className="font-mono text-[9.5px] uppercase tracking-[0.12em] transition-colors hover:opacity-70"
+                style={{ color: "var(--ink-3)" }}
+              >
+                Disconnect
+              </button>
+            )}
+            <span
+              className="rounded-full border px-3 py-1 font-mono text-[9.5px] uppercase tracking-[0.12em]"
+              style={{ borderColor: "var(--line)", color: "var(--ink-3)" }}
+            >
+              {status?.network ?? "mainnet"}
+            </span>
           </span>
         )}
       </div>
@@ -205,24 +261,39 @@ export default function PayboxPanel() {
         )}
       </div>
 
+      {banner && (
+        <p
+          className="rounded-[10px] px-4 py-2.5 font-mono text-[11px]"
+          style={{
+            backgroundColor: banner.startsWith("✓") ? "rgba(231,201,121,0.08)" : "var(--surface-2)",
+            border: `1px solid ${banner.startsWith("✓") ? "var(--gold)" : "var(--line)"}`,
+            color: banner.startsWith("✓") ? "var(--gold)" : "var(--ink-2)",
+          }}
+        >
+          {banner}
+        </p>
+      )}
+
       {loading ? (
         <p className="font-mono text-[11px]" style={{ color: "var(--ink-3)" }}>
           Loading…
         </p>
       ) : !connected ? (
-        <div className="space-y-3">
+        <div className="space-y-4">
           <p className="text-[13px] leading-relaxed" style={{ color: "var(--ink-2)" }}>
             Connect your Paybox vault to pay for x402 services — marketplace APIs, inference,
-            pay.sh skills — straight from your own wallet. Keys never leave Paybox.
+            pay.sh skills — straight from your own wallet. Approve once with your passkey;
+            keys never leave Paybox.
           </p>
-          <code
-            className="block rounded-[10px] px-4 py-2.5 font-mono text-[11px]"
-            style={{ backgroundColor: "var(--surface-2)", border: "1px solid var(--line)", color: "var(--ink-2)" }}
+          <a
+            href="/api/paybox/connect"
+            className="inline-block rounded-[10px] px-6 py-3 font-mono text-[12px] font-semibold uppercase tracking-[0.08em] transition-opacity hover:opacity-85"
+            style={{ backgroundColor: "var(--gold)", color: "#1a1508" }}
           >
-            npx @paybox-sh/sdk login
-          </code>
-          <p className="font-mono text-[10.5px]" style={{ color: "var(--ink-3)" }}>
-            Then set PAYBOX_API_KEY (and PAYBOX_SIGNING_KEY for wallet signing) in .env.local.
+            Connect Paybox →
+          </a>
+          <p className="font-mono text-[10.5px] leading-relaxed" style={{ color: "var(--ink-3)" }}>
+            Don't have Paybox? Get a wallet at paybox.sh — it's free.
           </p>
         </div>
       ) : (
@@ -266,6 +337,43 @@ export default function PayboxPanel() {
               )}
             </div>
           </div>
+
+          {/* Signing key (unlocks wallet signing) */}
+          {status?.hasSigningKey === false && (
+            <div className="space-y-2">
+              <p
+                className="font-mono text-[9.5px] uppercase tracking-[0.16em]"
+                style={{ color: "var(--ink-3)" }}
+              >
+                Signing key — enables paying from this wallet
+              </p>
+              <div className="flex gap-2">
+                <input
+                  value={signingKey}
+                  onChange={(e) => setSigningKeyValue(e.target.value)}
+                  placeholder="pbxk1.… (from the Paybox app → Settings → Signing keys)"
+                  type="password"
+                  className="flex-1 rounded-[10px] px-3.5 py-2.5 font-mono text-[11px] placeholder:text-[var(--ink-3)] focus:outline-none"
+                  style={{
+                    backgroundColor: "var(--surface-2)",
+                    border: "1px solid var(--line)",
+                    color: "var(--ink)",
+                  }}
+                />
+                <button
+                  onClick={saveSigningKey}
+                  disabled={savingSigningKey || !signingKey.trim()}
+                  className="rounded-[10px] border px-5 py-2.5 font-mono text-[11px] font-semibold uppercase tracking-[0.08em] transition-opacity hover:opacity-85 disabled:opacity-30"
+                  style={{ borderColor: "var(--gold)", color: "var(--gold)" }}
+                >
+                  {savingSigningKey ? "Saving…" : "Enable"}
+                </button>
+              </div>
+              <p className="font-mono text-[10px]" style={{ color: "var(--ink-3)" }}>
+                Read balances now; add the signing key to settle payments. It never leaves this server.
+              </p>
+            </div>
+          )}
 
           {/* Pay form */}
           <div className="space-y-2">

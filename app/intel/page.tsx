@@ -42,17 +42,14 @@ interface StandupData {
 const SIGNAL_COLORS: Record<string, string> = {
   high: "#ef4444",
   medium: "#f59e0b",
-  low: "#06b6d4",
+  low: "#6ee7b7",
 }
 
-const TOPIC_COLORS: Record<string, string> = {
-  x402: "#06b6d4",
-  OpenClaw: "#7c3aed",
-  "MoonPay Agents": "#10b981",
-  "crypto agent skills": "#f59e0b",
+const SIGNAL_LABELS: Record<string, string> = {
+  high: "high",
+  medium: "med",
+  low: "low",
 }
-
-const EMERALD = "#10b981"
 
 function timeAgo(iso: string) {
   const diff = Date.now() - new Date(iso).getTime()
@@ -72,31 +69,25 @@ function StandupCard({ data }: { data: StandupData | null }) {
   const isSeparator = (e: string) => e.startsWith("---") && e.endsWith("---")
 
   return (
-    <div
-      className="rounded-xl overflow-hidden"
-      style={{
-        backgroundColor: "#111118",
-        border: `1px solid ${EMERALD}28`,
-        boxShadow: open ? `0 0 20px ${EMERALD}08` : undefined,
-      }}
+    <section
+      className="rounded-[15px] border"
+      style={{ borderColor: "var(--line)", backgroundColor: "var(--surface-1)" }}
     >
       <button
-        className="w-full flex items-center justify-between px-5 py-3 text-left hover:bg-white/[0.02] transition-colors"
+        className="flex w-full items-center justify-between px-5 py-3.5 text-left transition-colors hover:bg-[var(--surface-2)]"
         onClick={() => setOpen((o) => !o)}
       >
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5 font-mono text-[9.5px] uppercase tracking-[0.16em]" style={{ color: "var(--ink-3)" }}>
           <span
-            className="w-2 h-2 rounded-full shrink-0"
-            style={{ backgroundColor: EMERALD, boxShadow: `0 0 6px ${EMERALD}` }}
+            className="h-[5px] w-[5px] rounded-full"
+            style={{ backgroundColor: "var(--gold)", boxShadow: "0 0 7px var(--gold)" }}
           />
-          <span className="text-xs font-mono uppercase tracking-wider text-zinc-400">
-            Daily Standup
-          </span>
-          <span className="text-xs text-zinc-600">· from memory logs</span>
+          Daily Standup
+          <span className="normal-case tracking-normal" style={{ color: "var(--ink-3)" }}>· from memory logs</span>
           {data.filesRead.length > 0 && (
             <span
-              className="text-xs px-2 py-0.5 rounded-full ml-1"
-              style={{ backgroundColor: `${EMERALD}15`, color: EMERALD }}
+              className="ml-1 rounded-full px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.08em]"
+              style={{ color: "var(--gold)", backgroundColor: "rgba(231,201,121,.09)" }}
             >
               {data.filesRead.length} file{data.filesRead.length !== 1 ? "s" : ""}
             </span>
@@ -105,7 +96,7 @@ function StandupCard({ data }: { data: StandupData | null }) {
         <span
           className="text-xs transition-transform duration-200"
           style={{
-            color: EMERALD,
+            color: "var(--ink-3)",
             transform: open ? "rotate(180deg)" : "rotate(0deg)",
             display: "inline-block",
           }}
@@ -115,32 +106,33 @@ function StandupCard({ data }: { data: StandupData | null }) {
       </button>
 
       {open && (
-        <div className="px-5 pb-4 space-y-1 border-t border-zinc-800/50 pt-3">
+        <div className="space-y-1 border-t px-5 pb-4 pt-3" style={{ borderColor: "var(--line)" }}>
           {!hasEntries ? (
-            <p className="text-xs text-zinc-600">
+            <p className="text-xs" style={{ color: "var(--ink-3)" }}>
               No daily notes found for today or yesterday in{" "}
-              <code className="text-zinc-500">~/clawd/memory/</code>
+              <code style={{ color: "var(--ink-2)" }}>~/clawd/memory/</code>
             </p>
           ) : (
-            data.entries.map((entry, i) => (
+            data.entries.map((entry, i) =>
               isSeparator(entry) ? (
                 <p
                   key={i}
-                  className="text-xs font-mono text-zinc-600 pt-2 pb-1"
+                  className="pb-1 pt-2 font-mono text-[10px] uppercase tracking-[0.12em]"
+                  style={{ color: "var(--ink-3)" }}
                 >
                   {entry.replace(/^--- /, "").replace(/ ---$/, "")}
                 </p>
               ) : (
                 <div key={i} className="flex items-start gap-2">
-                  <span style={{ color: EMERALD }} className="text-xs shrink-0 mt-0.5">·</span>
-                  <p className="text-xs text-zinc-400 leading-relaxed">{entry}</p>
+                  <span className="mt-0.5 shrink-0 text-xs" style={{ color: "var(--gold)" }}>·</span>
+                  <p className="text-xs leading-relaxed" style={{ color: "var(--ink-2)" }}>{entry}</p>
                 </div>
               )
-            ))
+            )
           )}
         </div>
       )}
-    </div>
+    </section>
   )
 }
 
@@ -174,19 +166,28 @@ export default function IntelPage() {
   const hasReport = report?.generatedAt != null && (report?.sections?.length ?? 0) > 0
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="mx-auto max-w-[820px] space-y-6 px-5 pb-24 pt-2 lg:px-8">
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <div className="flex items-center gap-2">
-            <span className="text-xl">🔭</span>
-            <h1 className="text-3xl font-bold text-white">Intel</h1>
-          </div>
-          <p className="text-sm text-zinc-500 mt-0.5">
-            Scout&apos;s market intelligence feed
+          <div className="flex items-center gap-2.5 font-mono text-[9.5px] uppercase tracking-[0.16em]" style={{ color: "var(--ink-3)" }}>
+            <span
+              className="h-[7px] w-[7px] rotate-45"
+              style={{ background: "var(--gold)", boxShadow: "0 0 10px rgba(231,201,121,.6)" }}
+            />
+            Scout · Market Intelligence
             {report?.generatedAt && (
-              <span className="ml-2 text-zinc-600">· {timeAgo(report.generatedAt)}</span>
+              <span>· {timeAgo(report.generatedAt)}</span>
             )}
+          </div>
+          <h1
+            className="mt-3 font-serif text-[40px] font-normal leading-[1.1] tracking-[-0.01em]"
+            style={{ color: "var(--ink)" }}
+          >
+            Intel
+          </h1>
+          <p className="mt-2 text-[14px]" style={{ color: "var(--ink-2)" }}>
+            Scout&apos;s market intelligence feed
           </p>
         </div>
 
@@ -203,153 +204,148 @@ export default function IntelPage() {
             }, 15000)
           }}
           disabled={deploying}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all"
+          className="rounded-[10px] px-4 py-2 font-mono text-[11px] uppercase tracking-[0.08em] transition-all duration-200 hover:-translate-y-[1px] disabled:opacity-50"
           style={{
-            backgroundColor: deploying ? "#1a1a2e" : "rgba(6,182,212,0.15)",
-            color: deploying ? "#52525b" : "#06b6d4",
-            border: "1px solid rgba(6,182,212,0.3)",
+            backgroundColor: "var(--gold)",
+            color: "#1a1508",
             cursor: deploying ? "not-allowed" : "pointer",
           }}
         >
-          <span style={{ display: "inline-block", animation: deploying ? "spin 1s linear infinite" : "none" }}>🔭</span>
+          <span style={{ display: "inline-block", animation: deploying ? "spin 1s linear infinite" : "none" }}>🔭</span>{" "}
           {deploying ? "Scout deployed..." : "Deploy Scout"}
         </button>
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center min-h-[40vh]">
-          <p className="text-zinc-600">Loading last report...</p>
+        <div className="flex min-h-[40vh] items-center justify-center">
+          <p className="text-[13px]" style={{ color: "var(--ink-3)" }}>Loading last report...</p>
         </div>
       ) : !hasReport ? (
         <div
-          className="rounded-xl p-10 text-center space-y-3"
-          style={{ backgroundColor: "#111118", border: "1px solid #1a1a2e" }}
+          className="rounded-[15px] border p-12 text-center"
+          style={{ borderColor: "var(--line)", background: "linear-gradient(180deg, var(--surface-1), #08080b)" }}
         >
-          <p className="text-3xl">🔭</p>
-          <p className="text-zinc-400 font-medium">Scout hasn&apos;t reported yet</p>
-          <p className="text-xs text-zinc-600">
+          <p className="font-serif text-[34px]" style={{ color: "var(--ink-2)" }}>🔭</p>
+          <p className="mt-3 text-[14px] font-semibold" style={{ color: "var(--ink)" }}>Scout hasn&apos;t reported yet</p>
+          <p className="mt-1.5 text-[12.5px]" style={{ color: "var(--ink-3)" }}>
             Hit &quot;Deploy Scout&quot; or ask Vic &quot;what&apos;s the latest in agent land&quot;
           </p>
         </div>
       ) : (
         <>
-          {/* Summary card */}
-          <div
-            className="rounded-xl p-5"
-            style={{
-              backgroundColor: "#111118",
-              border: "1px solid rgba(6,182,212,0.2)",
-              boxShadow: "0 0 20px rgba(6,182,212,0.05)",
-            }}
+          {/* Executive summary */}
+          <section
+            className="rounded-[15px] border p-7 pb-6"
+            style={{ borderColor: "var(--line)", background: "linear-gradient(180deg, var(--surface-1), #08080b)" }}
           >
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-xs font-mono uppercase tracking-wider text-zinc-600">Executive Summary</span>
+            <div className="mb-3 flex items-center gap-2.5 font-mono text-[9.5px] uppercase tracking-[0.16em]" style={{ color: "var(--ink-3)" }}>
               <span
-                className="text-xs px-2 py-0.5 rounded-full"
-                style={{ backgroundColor: "rgba(6,182,212,0.1)", color: "#06b6d4" }}
+                className="h-[5px] w-[5px] rounded-full"
+                style={{ backgroundColor: "var(--gold)", boxShadow: "0 0 7px var(--gold)" }}
+              />
+              Executive Summary
+              <span
+                className="rounded-full px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.08em]"
+                style={{ color: "var(--gold)", backgroundColor: "rgba(231,201,121,.09)" }}
               >
                 {report?.period ?? "24h"}
               </span>
             </div>
-            <p className="text-sm text-zinc-300 leading-relaxed">{report?.summary}</p>
+            <p className="max-w-[62ch] text-[15px] leading-[1.72]" style={{ color: "var(--ink-2)" }}>
+              {report?.summary}
+            </p>
 
-            {/* Stats row */}
             {report?.stats && (
-              <div className="flex gap-4 mt-4 pt-4 border-t border-zinc-800/50">
-                <div className="text-center">
-                  <p className="text-lg font-bold text-white">{report.stats.xPosts}</p>
-                  <p className="text-xs text-zinc-600">X posts</p>
+              <div className="mt-5 flex items-baseline gap-7 border-t pt-4" style={{ borderColor: "var(--line)" }}>
+                <div className="flex items-baseline gap-1.5">
+                  <span className="font-serif text-[24px] tabular-nums" style={{ color: "var(--ink)" }}>{report.stats.xPosts}</span>
+                  <span className="font-mono text-[9.5px] uppercase tracking-[0.1em]" style={{ color: "var(--ink-3)" }}>X posts</span>
                 </div>
-                <div className="text-center">
-                  <p className="text-lg font-bold text-white">{report.stats.redditThreads}</p>
-                  <p className="text-xs text-zinc-600">Reddit threads</p>
+                <div className="flex items-baseline gap-1.5">
+                  <span className="font-serif text-[24px] tabular-nums" style={{ color: "var(--ink)" }}>{report.stats.redditThreads}</span>
+                  <span className="font-mono text-[9.5px] uppercase tracking-[0.1em]" style={{ color: "var(--ink-3)" }}>Reddit threads</span>
                 </div>
-                <div className="text-center">
-                  <p className="text-lg font-bold text-white">{report.stats.webPages}</p>
-                  <p className="text-xs text-zinc-600">Web pages</p>
+                <div className="flex items-baseline gap-1.5">
+                  <span className="font-serif text-[24px] tabular-nums" style={{ color: "var(--ink)" }}>{report.stats.webPages}</span>
+                  <span className="font-mono text-[9.5px] uppercase tracking-[0.1em]" style={{ color: "var(--ink-3)" }}>Web pages</span>
                 </div>
               </div>
             )}
-          </div>
+          </section>
 
           {/* Sections */}
           <div className="space-y-4">
-            {report?.sections?.map((section) => {
-              const color = TOPIC_COLORS[section.topic] ?? "#a1a1aa"
-              return (
-                <div
-                  key={section.topic}
-                  className="rounded-xl p-5 space-y-4"
-                  style={{
-                    backgroundColor: "#111118",
-                    border: `1px solid ${color}22`,
-                    borderLeftWidth: "3px",
-                    borderLeftColor: color,
-                  }}
-                >
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-mono uppercase tracking-wider" style={{ color }}>
-                        {section.topic}
-                      </span>
-                    </div>
-                    <p className="text-sm font-semibold text-white mt-1">{section.headline}</p>
-                  </div>
-
-                  <div className="space-y-3">
-                    {section.items?.map((item, i) => (
-                      <div key={i} className="flex gap-3">
-                        <span
-                          className="text-xs mt-0.5 shrink-0 font-bold"
-                          style={{ color: SIGNAL_COLORS[item.signal] ?? "#a1a1aa" }}
-                        >
-                          {item.signal === "high" ? "🔥" : item.signal === "medium" ? "→" : "·"}
-                        </span>
-                        <div className="space-y-0.5">
-                          <p className="text-xs font-medium text-zinc-300">{item.title}</p>
-                          <p className="text-xs text-zinc-500">{item.detail}</p>
-                          <p className="text-xs text-zinc-700">per {item.source}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+            {report?.sections?.map((section) => (
+              <section
+                key={section.topic}
+                className="rounded-[15px] border p-6"
+                style={{ borderColor: "var(--line)", backgroundColor: "var(--surface-1)" }}
+              >
+                <div className="font-mono text-[9.5px] uppercase tracking-[0.16em]" style={{ color: "var(--ink-3)" }}>
+                  {section.topic}
                 </div>
-              )
-            })}
+                <p className="mt-1.5 text-[14px] font-semibold tracking-[-0.003em]" style={{ color: "var(--ink)" }}>
+                  {section.headline}
+                </p>
+
+                <div className="mt-4 space-y-3.5">
+                  {section.items?.map((item, i) => (
+                    <div key={i} className="flex gap-3">
+                      <span
+                        className="mt-[7px] h-[5px] w-[5px] shrink-0 rounded-full"
+                        style={{ backgroundColor: SIGNAL_COLORS[item.signal] ?? "var(--ink-3)" }}
+                      />
+                      <div className="min-w-0 space-y-0.5">
+                        <p className="text-[12.5px] font-semibold" style={{ color: "var(--ink)" }}>{item.title}</p>
+                        <p className="text-[11.5px] leading-[1.5]" style={{ color: "var(--ink-2)" }}>{item.detail}</p>
+                        <p className="font-mono text-[9.5px] uppercase tracking-[0.08em]" style={{ color: "var(--ink-3)" }}>
+                          {item.signal ? SIGNAL_LABELS[item.signal] ?? item.signal : ""} · per {item.source}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            ))}
           </div>
 
           {/* Raw output fallback when no structured sections */}
           {(!report?.sections || report.sections.length === 0) && report?.rawOutput && (
-            <div
-              className="rounded-xl p-5"
-              style={{ backgroundColor: "#111118", border: "1px solid #1a1a2e" }}
+            <section
+              className="rounded-[15px] border p-6"
+              style={{ borderColor: "var(--line)", backgroundColor: "var(--surface-1)" }}
             >
-              <p className="text-xs font-mono uppercase tracking-wider text-zinc-600 mb-3">Scout&apos;s raw output</p>
-              <pre className="text-xs text-zinc-400 whitespace-pre-wrap leading-relaxed overflow-x-auto">
+              <p className="mb-3 font-mono text-[9.5px] uppercase tracking-[0.16em]" style={{ color: "var(--ink-3)" }}>
+                Scout&apos;s raw output
+              </p>
+              <pre
+                className="overflow-x-auto whitespace-pre-wrap text-xs leading-relaxed"
+                style={{ color: "var(--ink-2)" }}
+              >
                 {report.rawOutput}
               </pre>
-            </div>
+            </section>
           )}
 
           {/* Top posts */}
           {report?.topPosts && report.topPosts.length > 0 && (
-            <div className="space-y-2">
-              <p className="text-xs font-mono uppercase tracking-wider text-zinc-600">Top posts</p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="space-y-3">
+              <p className="font-mono text-[9.5px] uppercase tracking-[0.16em]" style={{ color: "var(--ink-3)" }}>Top posts</p>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                 {report.topPosts.map((post, i) => (
                   <div
                     key={i}
-                    className="rounded-lg p-3 space-y-1.5"
-                    style={{ backgroundColor: "#111118", border: "1px solid #1a1a2e" }}
+                    className="space-y-1.5 rounded-[11px] border p-4"
+                    style={{ borderColor: "var(--line)", backgroundColor: "var(--surface-1)" }}
                   >
                     <div className="flex items-center gap-1.5">
                       <span className="text-xs">{post.platform === "x" ? "𝕏" : "🟠"}</span>
-                      <span className="text-xs font-medium text-zinc-400">{post.handle}</span>
+                      <span className="text-[11.5px] font-semibold" style={{ color: "var(--ink)" }}>{post.handle}</span>
                       {post.engagement && (
-                        <span className="text-xs text-zinc-700 ml-auto">{post.engagement}</span>
+                        <span className="ml-auto font-mono text-[9.5px]" style={{ color: "var(--ink-3)" }}>{post.engagement}</span>
                       )}
                     </div>
-                    <p className="text-xs text-zinc-500 line-clamp-2">{post.text}</p>
+                    <p className="line-clamp-2 text-[11.5px] leading-[1.5]" style={{ color: "var(--ink-2)" }}>{post.text}</p>
                   </div>
                 ))}
               </div>

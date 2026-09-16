@@ -26,6 +26,9 @@ import { homedir } from "os"
 import path from "path"
 import type { PayboxClient } from "@paybox-sh/sdk"
 import { createPayingFetch, createSolanaPayProvider } from "shipyard-inference"
+import { refreshOauth, type PayboxOauth } from "./paybox-connect"
+
+export type { PayboxOauth } from "./paybox-connect"
 
 /** Minimal signer shape `createSolanaPayProvider` accepts. */
 interface SolanaSignerShape {
@@ -36,15 +39,8 @@ interface SolanaSignerShape {
 
 // ── Client ───────────────────────────────────────────────────────────────────
 
-/** OAuth token shape stored by `paybox login` (and by PAYBOX_OAUTH env). */
-interface StoredOauth {
-  clientId: string
-  accessToken: string
-  refreshToken?: string
-  /** Epoch millis the access token expires. */
-  expiresAt?: number
-  resource: string
-}
+/** OAuth token shape carried by PAYBOX_OAUTH env (same as the connect store). */
+type StoredOauth = PayboxOauth
 
 /** Parsed PAYBOX_OAUTH env (full OAuth JSON for serverless deployments). */
 function envOauth(): StoredOauth | null {
@@ -85,27 +81,31 @@ export function payboxEnvConfigured(): boolean {
  */
 export async function payboxClient(): Promise<PayboxClient | null> {
   try {
-    const { PayboxClient, refreshTokens } = await import("@paybox-sh/sdk")
+    const { PayboxClient } = await import("@paybox-sh/sdk")
     const baseUrl = process.env.PAYBOX_BASE_URL ?? "https://api.paybox.sh"
 
-    const oauth = envOauth()
+    // In-app Connect flow first (rotation persists via the store), then the
+    // PAYBOX_OAUTH env var, then the local `paybox login` config file.
+    const storedOauth = await getStoredOauth()
+    const oauth = storedOauth ?? envOauth()
     if (oauth) {
-      let accessToken = oauth.accessToken
+      let tokens = oauth
       const expiringSoon =
-        oauth.expiresAt !== undefined && oauth.expiresAt - Date.now() < 5 * 60_000
-      if (oauth.refreshToken && expiringSoon) {
+        tokens.expiresAt !== undefined && tokens.expiresAt - Date.now() < 5 * 60_000
+      if (tokens.refreshToken && expiringSoon) {
         try {
-          const fresh = await refreshTokens(baseUrl, oauth)
-          accessToken = fresh.accessToken
+          tokens = await refreshOauth(tokens)
+          if (storedOauth) await saveConnectedOauth(tokens) // persist rotation
         } catch {
-          // Refresh failed (rotated/revoked?) — try the stored token; the
-          // request itself will surface a 401 if it's dead.
+          // Refresh failed (revoked?) — try the stored token; a dead token
+          // surfaces as a 401 on the request itself.
         }
       }
+      const signingKey = (await getSigningKey()) ?? process.env.PAYBOX_SIGNING_KEY
       return new PayboxClient({
         baseUrl,
-        token: accessToken,
-        ...(process.env.PAYBOX_SIGNING_KEY ? { signingKey: process.env.PAYBOX_SIGNING_KEY } : {}),
+        token: tokens.accessToken,
+        ...(signingKey ? { signingKey } : {}),
       })
     }
 
@@ -136,6 +136,10 @@ interface PayboxPaymentRecord {
 interface PayboxStore {
   walletCredentialId?: string
   payments?: PayboxPaymentRecord[]
+  /** OAuth tokens from the in-app Connect Paybox flow. */
+  oauth?: PayboxOauth
+  /** Signing key pasted/connected in-app (`pbxk1.…`). */
+  signingKey?: string
 }
 
 const DATA_PATH = path.join(process.cwd(), "data", "paybox.json")
@@ -195,7 +199,48 @@ async function writeStore(store: PayboxStore): Promise<void> {
   await writeFile(DATA_PATH, JSON.stringify(store, null, 2), "utf-8")
 }
 
-/** The credentialId of the wallet to pay from (env beats the UI selection). */
+// ── In-app connection store helpers ─────────────────────────────────────────
+
+/** OAuth tokens from the in-app Connect flow (null when not connected that way). */
+export async function getStoredOauth(): Promise<PayboxOauth | null> {
+  const store = await readStore()
+  return store.oauth ?? null
+}
+
+/** Persist tokens from a completed Connect flow (rotation-aware). */
+export async function saveConnectedOauth(oauth: PayboxOauth): Promise<void> {
+  const store = await readStore()
+  store.oauth = oauth
+  await writeStore(store)
+}
+
+/** Disconnect: forget in-app tokens + signing key (env-based config remains). */
+export async function clearConnection(): Promise<void> {
+  const store = await readStore()
+  delete store.oauth
+  delete store.signingKey
+  await writeStore(store)
+}
+
+/** The connected signing key, if the user provided one in-app. */
+export async function getSigningKey(): Promise<string | null> {
+  const store = await readStore()
+  return store.signingKey ?? null
+}
+
+/** Save a signing key from the UI (`pbxk1.…`). */
+export async function setSigningKey(key: string): Promise<void> {
+  const store = await readStore()
+  store.signingKey = key
+  await writeStore(store)
+}
+
+/** Whether the user connected via the in-app flow (vs env / local config). */
+export async function hasInAppConnection(): Promise<boolean> {
+  const store = await readStore()
+  return Boolean(store.oauth)
+}
+
 export async function selectedWalletCredentialId(): Promise<string | null> {
   if (process.env.PAYBOX_WALLET_ID) return process.env.PAYBOX_WALLET_ID
   const store = await readStore()

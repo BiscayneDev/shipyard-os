@@ -4,10 +4,13 @@ import {
   payboxEnvConfigured,
   payboxNetwork,
   selectedWalletCredentialId,
+  getStoredOauth,
+  getSigningKey,
 } from "@/lib/paybox"
 
 export async function GET() {
-  const configured = payboxEnvConfigured()
+  const inApp = (await getStoredOauth()) !== null
+  const configured = payboxEnvConfigured() || inApp
   const credentials = configured ? await listPayboxCredentials() : []
   const wallet = await selectedWalletCredentialId()
   const network = payboxNetwork()
@@ -46,6 +49,8 @@ export async function GET() {
 
   return NextResponse.json({
     configured,
+    inApp,
+    hasSigningKey: Boolean(await getSigningKey()) || Boolean(process.env.PAYBOX_SIGNING_KEY),
     credentials,
     wallet,
     network,

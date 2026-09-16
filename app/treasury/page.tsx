@@ -42,7 +42,7 @@ function relativeTime(iso: string | null | undefined): string {
   if (mins < 60) return `${mins}m ago`
   const hrs = Math.floor(diff / 3600000)
   if (hrs < 24) return `${hrs}h ago`
-  return `${Math.floor(diff / 86400000)}d ago`
+  return `${Math.floor(hrs / 24)}d ago`
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────
@@ -104,30 +104,40 @@ export default function TreasuryPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 pb-16">
+    <div className="mx-auto max-w-[820px] space-y-6 px-5 pb-24 pt-2 lg:px-8">
       {/* Header */}
       <div className="flex items-end justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-white">Treasury</h1>
-          <p className="text-sm text-zinc-500 mt-1">On-chain wallets and balances</p>
+          <div className="flex items-center gap-2.5 font-mono text-[9.5px] uppercase tracking-[0.16em]" style={{ color: "var(--ink-3)" }}>
+            <span
+              className="h-[7px] w-[7px] rotate-45"
+              style={{ background: "var(--gold)", boxShadow: "0 0 10px rgba(231,201,121,.6)" }}
+            />
+            Baron · On-chain
+          </div>
+          <h1
+            className="mt-3 font-serif text-[40px] font-normal leading-[1.1] tracking-[-0.01em]"
+            style={{ color: "var(--ink)" }}
+          >
+            Treasury
+          </h1>
+          <p className="mt-2 text-[14px]" style={{ color: "var(--ink-2)" }}>
+            On-chain wallets and balances
+          </p>
         </div>
         <div className="flex gap-2">
           <button
             onClick={() => fetchTreasury(true)}
             disabled={refreshing}
-            className="px-3 py-2 rounded-lg text-xs font-medium transition-colors hover:bg-white/5 disabled:opacity-50"
-            style={{ border: "1px solid #1a1a2e", color: "#71717a" }}
+            className="rounded-[10px] border px-4 py-2 font-mono text-[10px] uppercase tracking-[0.08em] transition-all duration-200 hover:-translate-y-[1px] disabled:opacity-50"
+            style={{ borderColor: "var(--line)", backgroundColor: "var(--surface-2)", color: "var(--ink-2)" }}
           >
-            {refreshing ? "Refreshing..." : "Refresh Balances"}
+            {refreshing ? "Refreshing..." : "Refresh"}
           </button>
           <button
             onClick={() => setAdding(true)}
-            className="px-4 py-2 rounded-lg text-xs font-semibold transition-all hover:opacity-80"
-            style={{
-              backgroundColor: "rgba(236,72,153,0.15)",
-              border: "1px solid rgba(236,72,153,0.3)",
-              color: "#ec4899",
-            }}
+            className="rounded-[10px] px-4 py-2 font-mono text-[10px] uppercase tracking-[0.08em] transition-all duration-200 hover:-translate-y-[1px]"
+            style={{ backgroundColor: "var(--gold)", color: "#1a1508" }}
           >
             + Add Wallet
           </button>
@@ -136,17 +146,15 @@ export default function TreasuryPage() {
 
       {/* Totals */}
       {Object.keys(totals).length > 0 && (
-        <div className="flex gap-4 flex-wrap">
+        <div className="flex flex-wrap items-baseline gap-x-8 gap-y-3">
           {Object.entries(totals).map(([symbol, amount]) => (
-            <div
-              key={symbol}
-              className="rounded-xl px-5 py-3 flex items-center gap-3"
-              style={{ backgroundColor: "#111118", border: "1px solid #1a1a2e" }}
-            >
-              <span className="text-xl font-mono font-bold text-white">
+            <div key={symbol} className="flex items-baseline gap-2">
+              <span className="font-serif text-[28px] tabular-nums" style={{ color: "var(--ink)" }}>
                 {amount < 0.001 ? amount.toFixed(6) : amount < 1 ? amount.toFixed(4) : amount.toFixed(2)}
               </span>
-              <span className="text-xs font-semibold text-zinc-500 uppercase">{symbol}</span>
+              <span className="font-mono text-[10px] uppercase tracking-[0.1em]" style={{ color: "var(--gold)" }}>
+                {symbol}
+              </span>
             </div>
           ))}
         </div>
@@ -157,45 +165,51 @@ export default function TreasuryPage() {
 
       {/* Add Wallet Form */}
       {adding && (
-        <div
-          className="rounded-xl p-5 space-y-4"
-          style={{ backgroundColor: "#111118", border: "1px solid rgba(236,72,153,0.3)" }}
+        <section
+          className="rounded-[15px] border p-6"
+          style={{ borderColor: "var(--line)", background: "linear-gradient(180deg, var(--surface-1), #08080b)" }}
         >
-          <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "#ec4899" }}>
+          <p className="mb-4 font-mono text-[9.5px] uppercase tracking-[0.16em]" style={{ color: "var(--ink-3)" }}>
             Add Wallet
           </p>
 
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <label className="text-[10px] text-zinc-500 uppercase tracking-wider">Label (optional)</label>
+            <div className="space-y-1.5">
+              <label className="font-mono text-[9px] uppercase tracking-[0.12em]" style={{ color: "var(--ink-3)" }}>
+                Label (optional)
+              </label>
               <input
-                className="w-full rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-600 outline-none"
-                style={{ backgroundColor: "#0a0a0f", border: "1px solid #1a1a2e" }}
+                className="w-full rounded-[10px] border px-3 py-2 text-sm outline-none transition-colors placeholder:opacity-50 focus:border-[var(--line-strong)]"
+                style={{ borderColor: "var(--line)", backgroundColor: "var(--surface-2)", color: "var(--ink)" }}
                 value={formLabel}
                 onChange={(e) => setFormLabel(e.target.value)}
                 placeholder='e.g. "Baron treasury"'
               />
             </div>
-            <div className="space-y-1">
-              <label className="text-[10px] text-zinc-500 uppercase tracking-wider">Chain</label>
+            <div className="space-y-1.5">
+              <label className="font-mono text-[9px] uppercase tracking-[0.12em]" style={{ color: "var(--ink-3)" }}>
+                Chain
+              </label>
               <select
-                className="w-full rounded-lg px-3 py-2 text-sm text-white outline-none"
-                style={{ backgroundColor: "#0a0a0f", border: "1px solid #1a1a2e" }}
+                className="w-full rounded-[10px] border px-3 py-2 text-sm outline-none"
+                style={{ borderColor: "var(--line)", backgroundColor: "var(--surface-2)", color: "var(--ink)" }}
                 value={formChain}
                 onChange={(e) => setFormChain(e.target.value)}
               >
                 {Object.entries(CHAIN_CONFIG).map(([k, v]) => (
-                  <option key={k} value={k}>{v.icon} {v.label}</option>
+                  <option key={k} value={k}>{v.label}</option>
                 ))}
               </select>
             </div>
           </div>
 
-          <div className="space-y-1">
-            <label className="text-[10px] text-zinc-500 uppercase tracking-wider">Wallet Address</label>
+          <div className="mt-3 space-y-1.5">
+            <label className="font-mono text-[9px] uppercase tracking-[0.12em]" style={{ color: "var(--ink-3)" }}>
+              Wallet Address
+            </label>
             <input
-              className="w-full rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-600 outline-none font-mono"
-              style={{ backgroundColor: "#0a0a0f", border: "1px solid #1a1a2e" }}
+              className="w-full rounded-[10px] border px-3 py-2 font-mono text-sm outline-none transition-colors placeholder:opacity-50 focus:border-[var(--line-strong)]"
+              style={{ borderColor: "var(--line)", backgroundColor: "var(--surface-2)", color: "var(--ink)" }}
               value={formAddress}
               onChange={(e) => setFormAddress(e.target.value)}
               placeholder="Paste wallet address..."
@@ -203,112 +217,113 @@ export default function TreasuryPage() {
             />
           </div>
 
-          <div className="flex gap-2">
+          <div className="mt-4 flex gap-2">
             <button
               onClick={addWallet}
               disabled={saving || !formAddress.trim()}
-              className="px-4 py-2 rounded-lg text-xs font-semibold transition-opacity disabled:opacity-50"
-              style={{ backgroundColor: "#ec4899", color: "white" }}
+              className="rounded-[10px] px-4 py-2 font-mono text-[11px] uppercase tracking-[0.08em] transition-all duration-200 hover:-translate-y-[1px] disabled:opacity-50"
+              style={{ backgroundColor: "var(--gold)", color: "#1a1508" }}
             >
               {saving ? "Adding..." : "Add Wallet"}
             </button>
             <button
               onClick={() => setAdding(false)}
-              className="px-4 py-2 rounded-lg text-xs font-medium text-zinc-400 hover:text-white transition-colors"
-              style={{ backgroundColor: "#1a1a2e" }}
+              className="rounded-[10px] border px-4 py-2 font-mono text-[11px] uppercase tracking-[0.08em] transition-colors"
+              style={{ borderColor: "var(--line)", backgroundColor: "var(--surface-2)", color: "var(--ink-2)" }}
             >
               Cancel
             </button>
           </div>
-        </div>
+        </section>
       )}
 
       {/* Wallet List */}
       {loading ? (
         <div
-          className="rounded-2xl p-8 text-center text-xs text-zinc-600"
-          style={{ backgroundColor: "#111118", border: "1px solid #1a1a2e" }}
+          className="rounded-[15px] border p-8 text-center"
+          style={{ borderColor: "var(--line)", backgroundColor: "var(--surface-1)" }}
         >
-          Loading treasury...
+          <div className="mx-auto h-3.5 w-40 animate-pulse rounded" style={{ backgroundColor: "var(--surface-3)" }} />
         </div>
       ) : wallets.length === 0 ? (
         <div
-          className="rounded-2xl p-12 text-center space-y-3"
-          style={{ backgroundColor: "#111118", border: "1px solid #1a1a2e" }}
+          className="rounded-[15px] border p-12 text-center"
+          style={{ borderColor: "var(--line)", background: "linear-gradient(180deg, var(--surface-1), #08080b)" }}
         >
-          <p className="text-3xl">🏦</p>
-          <p className="text-sm text-zinc-400">No wallets configured</p>
-          <p className="text-xs text-zinc-600 max-w-sm mx-auto">
+          <p className="font-serif text-[34px]" style={{ color: "var(--ink-2)" }}>🏦</p>
+          <p className="mt-3 text-[14px] font-semibold" style={{ color: "var(--ink)" }}>No wallets configured</p>
+          <p className="mx-auto mt-1.5 max-w-sm text-[12.5px] leading-[1.6]" style={{ color: "var(--ink-3)" }}>
             Add wallet addresses to track balances across Solana, Ethereum, Base, and Polygon.
             Baron can monitor positions and execute DeFi strategies.
           </p>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div
+          className="overflow-hidden rounded-[15px] border"
+          style={{ borderColor: "var(--line)", backgroundColor: "var(--surface-1)" }}
+        >
           {wallets.map((wallet) => {
             const chain = CHAIN_CONFIG[wallet.chain] ?? CHAIN_CONFIG.other
             return (
               <div
                 key={wallet.id}
-                className="group rounded-xl p-4 transition-all hover:bg-white/[0.02]"
-                style={{ backgroundColor: "#111118", border: "1px solid #1a1a2e" }}
+                className="group flex items-center justify-between border-b px-5 py-4 transition-colors last:border-b-0 hover:bg-[var(--surface-2)]"
+                style={{ borderColor: "var(--line)" }}
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className="w-10 h-10 rounded-xl flex items-center justify-center text-lg font-bold"
-                      style={{ backgroundColor: `${chain.color}18`, color: chain.color }}
-                    >
-                      {chain.icon}
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-semibold text-white">{wallet.label}</p>
-                        <span
-                          className="text-[10px] px-2 py-0.5 rounded-full font-medium"
-                          style={{ backgroundColor: `${chain.color}18`, color: chain.color }}
+                <div className="flex items-center gap-3">
+                  <span
+                    className="h-[6px] w-[6px] shrink-0 rounded-full"
+                    style={{ backgroundColor: chain.color }}
+                    title={chain.label}
+                  />
+                  <div>
+                    <p className="text-[13.5px] font-semibold tracking-[-0.003em]" style={{ color: "var(--ink)" }}>
+                      {wallet.label}
+                    </p>
+                    <div className="mt-0.5 flex items-center gap-2">
+                      {chain.explorer ? (
+                        <a
+                          href={`${chain.explorer}${wallet.address}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-mono text-[10.5px] transition-colors"
+                          style={{ color: "var(--ink-3)" }}
                         >
-                          {chain.label}
+                          {shortAddress(wallet.address)} ↗
+                        </a>
+                      ) : (
+                        <span className="font-mono text-[10.5px]" style={{ color: "var(--ink-3)" }}>
+                          {shortAddress(wallet.address)}
                         </span>
-                      </div>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        {chain.explorer ? (
-                          <a
-                            href={`${chain.explorer}${wallet.address}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-xs font-mono text-zinc-500 hover:text-zinc-300 transition-colors"
-                          >
-                            {shortAddress(wallet.address)} ↗
-                          </a>
-                        ) : (
-                          <span className="text-xs font-mono text-zinc-500">{shortAddress(wallet.address)}</span>
-                        )}
-                        <span className="text-[10px] text-zinc-700">
-                          checked {relativeTime(wallet.lastChecked)}
-                        </span>
-                      </div>
+                      )}
+                      <span className="font-mono text-[9.5px] uppercase tracking-[0.08em]" style={{ color: "var(--ink-3)" }}>
+                        {chain.label} · checked {relativeTime(wallet.lastChecked)}
+                      </span>
                     </div>
                   </div>
+                </div>
 
-                  <div className="flex items-center gap-4">
-                    {wallet.balance !== undefined && (
-                      <div className="text-right">
-                        <p className="text-lg font-mono font-bold text-white">
-                          {wallet.balance < 0.001 ? wallet.balance.toFixed(6) :
-                           wallet.balance < 1 ? wallet.balance.toFixed(4) :
-                           wallet.balance.toFixed(2)}
-                        </p>
-                        <p className="text-[10px] text-zinc-500 uppercase">{wallet.symbol}</p>
-                      </div>
-                    )}
-                    <button
-                      onClick={() => removeWallet(wallet.id)}
-                      className="opacity-0 group-hover:opacity-100 text-zinc-700 hover:text-red-400 transition-all text-xs px-2 py-1"
-                    >
-                      ✕
-                    </button>
-                  </div>
+                <div className="flex items-center gap-4">
+                  {wallet.balance !== undefined && (
+                    <div className="text-right">
+                      <p className="font-serif text-[18px] tabular-nums" style={{ color: "var(--ink)" }}>
+                        {wallet.balance < 0.001 ? wallet.balance.toFixed(6) :
+                         wallet.balance < 1 ? wallet.balance.toFixed(4) :
+                         wallet.balance.toFixed(2)}
+                      </p>
+                      <p className="font-mono text-[9.5px] uppercase tracking-[0.1em]" style={{ color: "var(--ink-3)" }}>
+                        {wallet.symbol}
+                      </p>
+                    </div>
+                  )}
+                  <button
+                    onClick={() => removeWallet(wallet.id)}
+                    className="px-2 py-1 text-xs opacity-0 transition-all hover:opacity-100 group-hover:opacity-100"
+                    style={{ color: "var(--ink-3)" }}
+                    aria-label={`Remove ${wallet.label}`}
+                  >
+                    ✕
+                  </button>
                 </div>
               </div>
             )
@@ -318,7 +333,7 @@ export default function TreasuryPage() {
 
       {/* Back link */}
       <div className="pt-2">
-        <Link href="/dashboard" className="text-xs text-zinc-600 hover:text-zinc-400 transition-colors">
+        <Link href="/dashboard" className="text-[12px] transition-colors" style={{ color: "var(--ink-3)" }}>
           ← Dashboard
         </Link>
       </div>
