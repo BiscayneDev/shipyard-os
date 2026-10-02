@@ -127,6 +127,9 @@ export async function completeConnect(
   const resource = `${baseUrl}/mcp`
   const form = new URLSearchParams({
     grant_type: "authorization_code",
+    // Public client: no secret, but client_id is required in the body
+    // (docs.paybox.sh/connect/oauth → Exchange).
+    client_id: clientId,
     code,
     redirect_uri: `${origin}/api/paybox/connect/callback`,
     code_verifier: verifier,
@@ -137,7 +140,10 @@ export async function completeConnect(
     headers: { "content-type": "application/x-www-form-urlencoded" },
     body: form,
   })
-  if (!res.ok) throw new Error(`Paybox token exchange failed (${res.status})`)
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "")
+    throw new Error(`Paybox token exchange failed (${res.status}): ${detail.slice(0, 200)}`)
+  }
   const t = (await res.json()) as { access_token: string; refresh_token?: string; expires_in?: number }
   if (!t.access_token) throw new Error("Paybox token exchange returned no access token")
   return {
