@@ -11,6 +11,16 @@ export interface Task {
   acceptanceCriteria?: string[]
   implementationPlan?: string[]
   risks?: string[]
+  /** Buoy quoted plan attached to this brief (quote IS the approval UX). */
+  toolNeeds?: string[]
+  quote?: {
+    quoteId: string
+    totalUsd: number
+    steps: Array<{ name: string; serviceId: string; amountUsd: number; serviceName?: string; outcome?: string; category?: string }>
+    expiresAt: string
+  }
+  jobId?: string
+  jobStatus?: string
   column: Column
   priority: Priority
   assignee: Agent

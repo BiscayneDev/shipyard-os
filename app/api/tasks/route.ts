@@ -3,6 +3,7 @@ import { readFile, writeFile } from "fs/promises"
 import { join } from "path"
 import type { Task } from "@/lib/tasks"
 import { enrichTaskBrief } from "@/lib/task-enrichment"
+import { quoteBriefTools } from "@/lib/brief-quote"
 import { appendEvent, ensureTaskConversation } from "@/lib/conversations"
 
 const DATA_PATH = join(process.cwd(), "data", "tasks.json")
@@ -79,6 +80,18 @@ export async function POST(request: Request) {
       newTask.acceptanceCriteria = enrichment.acceptanceCriteria
       newTask.implementationPlan = enrichment.implementationPlan
       newTask.risks = enrichment.risks
+      newTask.toolNeeds = enrichment.toolNeeds
+      if (enrichment.toolNeeds.length > 0) {
+        const tq = await quoteBriefTools(enrichment.toolNeeds)
+        if (tq) {
+          newTask.quote = {
+            quoteId: tq.quote.quoteId,
+            totalUsd: tq.quote.totalUsd,
+            steps: tq.detail,
+            expiresAt: tq.quote.expiresAt,
+          }
+        }
+      }
     }
 
     const updated = [...tasks, newTask]

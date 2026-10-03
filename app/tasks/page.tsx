@@ -59,6 +59,8 @@ interface PendingActivation {
     implementationPlan: string[]
     risks: string[]
   }
+  quote?: Task["quote"] | null
+  quoteLoading?: boolean
 }
 
 interface PlanningDraft {
@@ -446,6 +448,7 @@ export default function TasksPage() {
   const [planningDraft, setPlanningDraft] = useState<PlanningDraft | null>(null)
   const [activating, setActivating] = useState(false)
   const [budgetError, setBudgetError] = useState<string | null>(null)
+  const [quoteRail, setQuoteRail] = useState<"shipusd" | "usdc">("shipusd")
   const [demoMode, setDemoMode] = useState(false)
   const [, setTick] = useState(0)
   const tasksSnapshotRef = useRef<string>("")
@@ -573,6 +576,28 @@ export default function TasksPage() {
           prev ? { ...prev, loading: false } : null
         )
       }
+
+      // Fetch the Buoy quoted plan in background (quote IS the approval UX)
+      if (task.toolNeeds && task.toolNeeds.length > 0) {
+        setPendingActivation((prev) => (prev ? { ...prev, quoteLoading: true } : null))
+        try {
+          const qres = await fetch(`/api/tasks/${task.id}/quote`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "refresh" }),
+          })
+          const qdata = await qres.json()
+          setPendingActivation((prev) =>
+            prev && prev.task.id === task.id
+              ? { ...prev, quote: qdata.task?.quote ?? null, quoteLoading: false }
+              : null
+          )
+        } catch {
+          setPendingActivation((prev) =>
+            prev && prev.task.id === task.id ? { ...prev, quoteLoading: false } : null
+          )
+        }
+      }
       return
     }
 
@@ -618,6 +643,19 @@ export default function TasksPage() {
     const parsedRisks = draft.risks.split(/\n+/).map((s) => s.trim()).filter(Boolean)
 
     try {
+      // Approve the tool-spend quote first (one approval = whole plan settles)
+      if (pendingActivation.quote && !pendingActivation.task.jobId) {
+        try {
+          await fetch(`/api/tasks/${task.id}/quote`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "approve", rail: quoteRail }),
+          })
+        } catch {
+          // Non-fatal — agent activation proceeds; quote can be approved later
+        }
+      }
+
       // Persist planning draft and column move
       await fetch(`/api/tasks/${task.id}`, {
         method: "PATCH",
@@ -1154,6 +1192,57 @@ export default function TasksPage() {
               >
                 <p className="font-medium mb-1">Demo Mode</p>
                 <p className="text-zinc-400">No agent runtime connected. Use &quot;Move Only&quot; to organize tasks, or connect a runtime in Settings to activate agents.</p>
+              </div>
+            )}
+
+            {/* Tool spend quote — approve once, whole plan settles */}
+            {!demoMode && (pendingActivation.quoteLoading || pendingActivation.quote) && (
+              <div
+                className="rounded-lg p-3 text-xs space-y-2"
+                style={{ backgroundColor: "#0a0a0f", border: "1px solid #a855f740" }}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Tool spend</span>
+                  {pendingActivation.quote && (
+                    <span className="text-white font-semibold">
+                      ${(pendingActivation.quote.totalUsd / 1_000_000).toFixed(2)}
+                    </span>
+                  )}
+                </div>
+                {pendingActivation.quoteLoading ? (
+                  <div className="text-zinc-500 py-1">Quoting plan against Buoy catalog...</div>
+                ) : pendingActivation.quote && (
+                  <>
+                    {pendingActivation.quote.steps.map((step, i) => (
+                      <div key={i} className="flex items-center justify-between gap-2 text-zinc-400">
+                        <span className="truncate">
+                          {step.serviceName ?? step.serviceId}
+                          <span className="text-zinc-600"> · {step.name}</span>
+                        </span>
+                        <span className="text-zinc-300 shrink-0">
+                          ${(step.amountUsd / 1_000_000).toFixed(2)}
+                        </span>
+                      </div>
+                    ))}
+                    {!pendingActivation.task.jobId && (
+                      <div className="flex items-center gap-1.5 pt-1">
+                        {(["shipusd", "usdc"] as const).map((rail) => (
+                          <button
+                            key={rail}
+                            onClick={() => setQuoteRail(rail)}
+                            className="px-2 py-1 rounded-md text-[10px] font-medium transition-colors"
+                            style={{
+                              backgroundColor: quoteRail === rail ? "#a855f7" : "#1a1a2e",
+                              color: quoteRail === rail ? "#0a0a0f" : "#a1a1aa",
+                            }}
+                          >
+                            {rail === "shipusd" ? "Pay with SHIPusd" : "Pay with USDC"}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
             )}
 

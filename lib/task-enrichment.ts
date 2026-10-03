@@ -7,6 +7,7 @@ export interface TaskEnrichment {
   acceptanceCriteria: string[]
   implementationPlan: string[]
   risks: string[]
+  toolNeeds: string[]
   recommendedAssignee?: Task["assignee"]
 }
 
@@ -31,6 +32,7 @@ function fallbackEnrichment(task: Pick<Task, "title" | "description" | "priority
       "Verify the behavior in the UI and update the task record with the final result",
     ],
     risks: ["Scope creep if the brief is left too open", "Authentication or onboarding regressions"],
+    toolNeeds: [],
     recommendedAssignee: task.assignee,
   }
 }
@@ -45,6 +47,7 @@ export async function enrichTaskBrief(task: Pick<Task, "title" | "description" |
     `Priority: ${task.priority}`,
     `Assignee: ${task.assignee}`,
     `Tags: ${(task.tags ?? []).join(", ")}`,
+    "Also return a toolNeeds array: 0-5 short natural-language phrases naming the PAID external tools or data this task needs (e.g. \"web search for competitor funding data\", \"scrape the competitor landing pages\", \"geocode addresses\"). Empty array if the task needs none.",
   ].join("\n")
 
   try {
@@ -57,6 +60,9 @@ export async function enrichTaskBrief(task: Pick<Task, "title" | "description" |
         acceptanceCriteria: parsed.acceptanceCriteria.filter(Boolean).map(String),
         implementationPlan: parsed.implementationPlan.filter(Boolean).map(String),
         risks: parsed.risks.filter(Boolean).map(String),
+        toolNeeds: Array.isArray(parsed.toolNeeds)
+          ? parsed.toolNeeds.filter(Boolean).map(String).slice(0, 5)
+          : [],
         recommendedAssignee: parsed.recommendedAssignee ?? task.assignee,
       }
     }
