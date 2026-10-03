@@ -73,7 +73,10 @@ async function buoyFetch<T>(
         ...(init?.headers ?? {}),
       },
     })
-    if (!res.ok) return null
+    if (!res.ok) {
+      console.error(`[buoy] ${path} -> ${res.status}`, await res.text().catch(() => "").then((t) => t.slice(0, 300)))
+      return null
+    }
     return (await res.json()) as T
   } catch {
     return null
@@ -93,13 +96,16 @@ export async function discoverServices(
 }
 
 /** Create an immutable platform-scoped quote. Total must equal the sum of steps. */
-export async function createQuote(steps: QuoteStep[]): Promise<BriefQuote | null> {
+export async function createQuote(
+  steps: QuoteStep[],
+  userId = "briefs"
+): Promise<BriefQuote | null> {
   const cfg = buoyConfig()
   if (!cfg) return null
   const totalUsd = steps.reduce((sum, s) => sum + s.amountUsd, 0)
   const out = await buoyFetch<{ quote: BriefQuote }>(
     `/v1/platform/${cfg.platformId}/quotes`,
-    { method: "POST", body: JSON.stringify({ totalUsd, steps }) }
+    { method: "POST", body: JSON.stringify({ userId, totalUsd, steps }) }
   )
   return out?.quote ?? null
 }
@@ -109,7 +115,8 @@ export async function createQuote(steps: QuoteStep[]): Promise<BriefQuote | null
 export async function createJob(
   quote: BriefQuote,
   rail: "shipusd" | "usdc",
-  taskId: string
+  taskId: string,
+  userId = "briefs"
 ): Promise<BuoyJob | null> {
   const cfg = buoyConfig()
   if (!cfg) return null
@@ -119,6 +126,7 @@ export async function createJob(
     {
       method: "POST",
       body: JSON.stringify({
+        userId,
         quoteId: quote.quoteId,
         approvedTotal: quote.totalUsd,
         rail,

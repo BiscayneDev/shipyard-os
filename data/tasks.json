@@ -321,5 +321,105 @@
     ],
     "createdAt": "2026-03-06T21:06:41.933Z",
     "updatedAt": "2026-03-06T21:06:41.933Z"
+  },
+  {
+    "id": "task-1791035726140",
+    "title": "Price-check 5 competitor AI routers",
+    "description": "Research current per-token pricing across OpenRouter, Martion, and peers; need live web search and web scraping of their pricing pages.",
+    "column": "planning",
+    "priority": "high",
+    "assignee": "scout",
+    "tags": [
+      "research"
+    ],
+    "createdAt": "2026-10-03T13:55:26.140Z",
+    "updatedAt": "2026-10-03T13:55:26.140Z",
+    "enrichedTitle": "Price-check 5 competitor AI routers",
+    "enrichedDescription": "Objective: Research current per-token pricing across OpenRouter, Martion, and peers; need live web search and web scraping of their pricing pages.\nPriority: high\nCurrent assignee: scout",
+    "acceptanceCriteria": [
+      "User can complete the flow without breaking existing sign-up behavior",
+      "Implementation is covered by a test or manual verification path",
+      "Task description reflects the final approach clearly enough for handoff"
+    ],
+    "implementationPlan": [
+      "Audit the current sign-up flow and identify insertion points",
+      "Implement the smallest safe change behind existing task and approval flow",
+      "Verify the behavior in the UI and update the task record with the final result"
+    ],
+    "risks": [
+      "Scope creep if the brief is left too open",
+      "Authentication or onboarding regressions"
+    ],
+    "toolNeeds": []
+  },
+  {
+    "id": "task-1791036130766",
+    "title": "Price-check 5 competitor AI routers",
+    "description": "Research current per-token pricing across OpenRouter and peers; need live web search and web scraping of their pricing pages.",
+    "column": "planning",
+    "priority": "high",
+    "assignee": "scout",
+    "tags": [
+      "research"
+    ],
+    "createdAt": "2026-10-03T14:02:10.766Z",
+    "updatedAt": "2026-10-03T14:47:11.600Z",
+    "enrichedTitle": "Price-check 5 competitor AI routers",
+    "enrichedDescription": "Objective: Research current per-token pricing across OpenRouter and peers; need live web search and web scraping of their pricing pages.\nPriority: high\nCurrent assignee: scout",
+    "acceptanceCriteria": [
+      "User can complete the flow without breaking existing sign-up behavior",
+      "Implementation is covered by a test or manual verification path",
+      "Task description reflects the final approach clearly enough for handoff"
+    ],
+    "implementationPlan": [
+      "Audit the current sign-up flow and identify insertion points",
+      "Implement the smallest safe change behind existing task and approval flow",
+      "Verify the behavior in the UI and update the task record with the final result"
+    ],
+    "risks": [
+      "Scope creep if the brief is left too open",
+      "Authentication or onboarding regressions"
+    ],
+    "toolNeeds": [
+      "web search for current information on this topic",
+      "scrape web pages and extract structured content",
+      "live market or token price data"
+    ],
+    "quote": {
+      "quoteId": "q_62960570-b7d8-4633-8a1b-7c7dcbe31cd3",
+      "totalUsd": 18000,
+      "steps": [
+        {
+          "name": "Exa Search",
+          "serviceId": "svc_exa_search",
+          "amountUsd": 5000,
+          "serviceName": "Exa Search",
+          "outcome": "neural web search with clean page extracts",
+          "category": "web-search",
+          "rating": 4.6
+        },
+        {
+          "name": "Firecrawl Scrape",
+          "serviceId": "svc_firecrawl_scrape",
+          "amountUsd": 10000,
+          "serviceName": "Firecrawl Scrape",
+          "outcome": "turn any URL into clean markdown, JS rendered",
+          "category": "scraping",
+          "rating": 4.5
+        },
+        {
+          "name": "CoinGecko Prices",
+          "serviceId": "svc_coingecko",
+          "amountUsd": 3000,
+          "serviceName": "CoinGecko Prices",
+          "outcome": "token prices, market caps, and volume on demand",
+          "category": "finance",
+          "rating": 4.4
+        }
+      ],
+      "expiresAt": "2026-10-03T14:52:11.582Z"
+    },
+    "jobId": "j_7eccc2aa-2c12-471f-8120-34c568796155",
+    "jobStatus": "pending"
   }
 ]

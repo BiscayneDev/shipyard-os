@@ -14,6 +14,22 @@ export interface TaskEnrichment {
 function fallbackEnrichment(task: Pick<Task, "title" | "description" | "priority" | "assignee" | "tags">): TaskEnrichment {
   const title = task.title.trim()
   const summary = task.description?.trim() || title
+  // Heuristic tool needs: match paid-tool intent even without an LLM so the
+  // Buoy quote card always has something to quote.
+  const text = `${title} ${summary}`.toLowerCase()
+  const toolNeeds: string[] = []
+  if (/\b(research|competitor|news|latest|find|funding|search)\b/.test(text)) {
+    toolNeeds.push("web search for current information on this topic")
+  }
+  if (/\b(scrape|pricing pages|crawl|extract from|website)\b/.test(text)) {
+    toolNeeds.push("scrape web pages and extract structured content")
+  }
+  if (/\b(price|market|crypto|token|btc|eth|stock|vwap)\b/.test(text)) {
+    toolNeeds.push("live market or token price data")
+  }
+  if (/\b(map|route|geocod|location|nearby|address)\b/.test(text)) {
+    toolNeeds.push("geocode addresses or map a route")
+  }
   return {
     enrichedTitle: title,
     enrichedDescription: [
@@ -32,7 +48,7 @@ function fallbackEnrichment(task: Pick<Task, "title" | "description" | "priority
       "Verify the behavior in the UI and update the task record with the final result",
     ],
     risks: ["Scope creep if the brief is left too open", "Authentication or onboarding regressions"],
-    toolNeeds: [],
+    toolNeeds,
     recommendedAssignee: task.assignee,
   }
 }

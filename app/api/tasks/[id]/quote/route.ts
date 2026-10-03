@@ -59,6 +59,7 @@ export async function POST(
       return NextResponse.json({ error: "Task not found" }, { status: 404 })
     }
     const task = tasks[index]
+    const toolNeeds = task.toolNeeds ?? []
 
     if (body.action === "approve") {
       if (!task.quote) {
@@ -71,13 +72,27 @@ export async function POST(
         }
       }
       const rail = body.rail ?? "shipusd"
+      let quote = task.quote
+      // Quotes are immutable with a 5-min TTL — if expired, re-derive the
+      // plan from toolNeeds (same needs, fresh quote) before job creation.
+      if (Date.now() > Date.parse(quote.expiresAt)) {
+        const refreshed = toolNeeds.length > 0 ? await quoteBriefTools(toolNeeds) : null
+        if (refreshed) {
+          quote = {
+            quoteId: refreshed.quote.quoteId,
+            totalUsd: refreshed.quote.totalUsd,
+            steps: refreshed.detail,
+            expiresAt: refreshed.quote.expiresAt,
+          }
+        }
+      }
       const job = await createJob(
         {
-          quoteId: task.quote.quoteId,
-          totalUsd: task.quote.totalUsd,
-          steps: task.quote.steps,
+          quoteId: quote.quoteId,
+          totalUsd: quote.totalUsd,
+          steps: quote.steps,
           createdAt: task.updatedAt,
-          expiresAt: task.quote.expiresAt,
+          expiresAt: quote.expiresAt,
         },
         rail,
         task.id
@@ -87,7 +102,7 @@ export async function POST(
       }
       const updated = tasks.map((t) =>
         t.id === id
-          ? { ...t, jobId: job.jobId, jobStatus: job.status, updatedAt: new Date().toISOString() }
+          ? { ...t, quote, jobId: job.jobId, jobStatus: job.status, updatedAt: new Date().toISOString() }
           : t
       )
       await writeTasks(updated)
@@ -95,7 +110,6 @@ export async function POST(
     }
 
     // action: "refresh" (default)
-    const toolNeeds = task.toolNeeds ?? []
     if (toolNeeds.length === 0) {
       return NextResponse.json({ task, quote: null })
     }
